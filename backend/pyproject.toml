@@ -22,7 +22,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S"]
-ignore = ["S101"]  # Allow assert in pytest suites
+ignore = ["S101", "S105", "S106", "UP046"]  # Allow test assertions/passwords and Pydantic Generic[T]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -38,4 +38,9 @@ minversion = "8.0"
 addopts = "-ra -q --strict-markers"
 testpaths = ["backend/tests"]
 pythonpath = ["."]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+markers = [
+    "asyncio: mark test as an asyncio coroutine.",
+]
 
