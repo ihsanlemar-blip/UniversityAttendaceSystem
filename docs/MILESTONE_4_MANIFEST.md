@@ -21,7 +21,7 @@
 - `backend/app/core/middleware.py`: `RequestIdMiddleware` generating sequential UUIDv7 correlation IDs, and standard exception handlers.
 
 ### 1.2 Common Schemas & Shared Types (`backend/app/common/`)
-- `backend/app/common/types.py`: RFC 9562 pure-Python `uuid7()` generator and timezone-aware `utc_now()`.
+- `backend/app/common/types.py`: Python 3.14 standard library `uuid.uuid7()` (RFC 9562 compliant) and timezone-aware `utc_now()`.
 - `backend/app/common/schemas.py`: Standard error (`ErrorBody`, `StandardErrorResponse`) and success envelopes (`StandardResponse[T]`, `ApiMetadataResponse`).
 - `backend/app/common/pagination.py`: Reusable `PaginationParams` and `PaginatedResponse[T]`.
 - `backend/app/common/__init__.py`: Common exports.
@@ -41,14 +41,14 @@
 - `backend/app/main.py`: Production application factory with lifespan hooks, CORS, and middleware.
 
 ### 1.5 Backend Automated Test Suite (`backend/tests/`)
-- `backend/tests/test_config.py`: Settings defaults, environment overrides, URL normalization, CORS validation.
+- `backend/tests/test_config.py`: Settings defaults, environment overrides, URL normalization, CORS validation, future secret optionality, production password safety.
 - `backend/tests/test_middleware.py`: Correlation ID generation, header propagation, malicious character rejection.
 - `backend/tests/test_errors.py`: Standard error envelopes, domain exceptions, 500 traceback suppression.
 - `backend/tests/test_health.py`: Liveness probe and healthy/degraded readiness probe tests.
 - `backend/tests/test_database.py`: Model metadata, column defaults, session rollback on failure.
 - `backend/tests/test_redis.py`: Async Redis pool lifecycle and connectivity checks.
 - `backend/tests/test_celery.py`: Celery broker configuration and `system.ping` task execution.
-- `backend/tests/test_types.py`: UUIDv7 RFC 9562 compliance, time ordering, and UTC timezone awareness.
+- `backend/tests/test_types.py`: UUIDv7 RFC 9562 compliance, distinctness (100 IDs), time ordering, and UTC timezone awareness.
 - `backend/tests/test_api_v1.py`: Root API v1 metadata response verification.
 
 ### 1.6 Web & Mobile Skeletons
@@ -58,9 +58,13 @@
 - `apps/mobile/test/api_client_test.dart`: Unit tests for Flutter `ApiClient`.
 
 ### 1.7 Infrastructure & CI Configuration
-- `infra/docker/Dockerfile.backend`: Added `PYTHONPATH=/app`.
-- `infra/docker/Dockerfile.web`: Standardized `package*.json` copy for reproducible builds.
-- `.github/workflows/ci.yml`: Extended documentation verification loop to document 30 and added mypy step.
+- `infra/docker/Dockerfile.backend`: Updated base image to `python:3.14-slim`, added `PYTHONPATH=/app`.
+- `infra/docker/Dockerfile.web`: Standardized `package*.json` copy and standalone runner for Next.js 16.
+- `docker-compose.yml`: Multi-service stack running `postgres`, `redis`, `backend`, `worker`, and `web` with automated healthchecks.
+- `.dockerignore`: Optimized build context ignoring large artifacts (`node_modules`, `.next`, `.venv`, `.git`).
+- `backend/requirements.txt`: Pinned exact runtime dependencies for reproducible installations.
+- `backend/requirements-dev.txt`: Pinned exact test/lint development tools (`pytest`, `ruff`, `mypy`).
+- `.github/workflows/ci.yml`: Aligned Python version to 3.14, added `requirements-dev.txt` installation, and extended documentation checks.
 
 ### 1.8 Governance & Documentation
 - `docs/29_MILESTONE_4_CORE_PLATFORM_FOUNDATION.md`: Complete Milestone 4 architecture and verification record.
@@ -73,7 +77,7 @@
 
 | Test Suite | Runner | Tests Executed | Passed | Failed |
 |---|---|---|---|---|
-| Backend Pytest | `pytest -c backend/pyproject.toml` | 30 | 30 | 0 |
+| Backend Pytest | `pytest -c backend/pyproject.toml` | 35 | 35 | 0 |
 | Backend Ruff | `ruff check backend` | 37 files | 37 | 0 |
 | Backend Ruff Format | `ruff format --check backend` | 37 files | 37 | 0 |
 | Backend Mypy | `mypy backend` | 37 files | 37 | 0 |

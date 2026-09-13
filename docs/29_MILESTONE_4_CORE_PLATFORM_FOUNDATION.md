@@ -31,16 +31,16 @@ The core platform provides:
 
 ## 2. Invariant Compliance Verification
 
-| Invariant | Description | Milestone 4 Verification |
-|---|---|---|
-| **INV-01** | Client Cannot Mark Itself Present | No attendance endpoints exist; clients solely consume read-only health checks. |
-| **INV-02** | Attendance Depends on Server/Domain Validation | Foundation establishes server-side async domain transaction boundaries with auto-rollback. |
-| **INV-03** | Student Device Clock Is NOT Authoritative | All models and timestamps use server UTC (`datetime.now(timezone.utc)` and `utc_now()`). Server UTC is exposed on `/api/v1/`. |
-| **INV-04** | Expired Dynamic QR/Tokens Cannot Grant Attendance | Attendance token settings (`ATTENDANCE_TOKEN_ROTATION_SECONDS=30`) configured in Settings baseline. |
-| **INV-05** | No Duplicate Checkpoint Credit | Model schema conventions enforce unique constraint naming and idempotency keys. |
-| **INV-06** | Corrections Cannot Erase History | Schema migrations configured; audit log conventions defined. |
-| **INV-07** | Offline Events Remain Identifiable | Common schemas and pagination models support metadata envelopes. |
-| **INV-08** | Manual Attendance Overrides Remain Identifiable | Audit metadata fields prepared for future domain layers. |
+| Invariant | Description | Milestone 4 Status | Verification Details |
+|---|---|---|---|
+| **INV-01** | Client Cannot Mark Itself Present | **ENFORCED (Platform Level)** | No attendance submission endpoints exist; API exclusively exposes read-only health/metadata endpoints. Client cannot mark presence. |
+| **INV-02** | Attendance Depends on Server/Domain Validation | **ENFORCED (Platform Level)** | Server-side transaction boundary implemented in `get_db_session()` with mandatory auto-rollback on unhandled exception. |
+| **INV-03** | Student Device Clock Is NOT Authoritative | **ENFORCED (Platform Level)** | Server UTC clock is the sole authority for all models and timestamps (`utc_now()`). Server UTC is exposed on `GET /api/v1/`. |
+| **INV-04** | Expired Dynamic QR/Tokens Cannot Grant Attendance | **PRESERVED / NOT YET IMPLEMENTED** | Token rotation settings (`ATTENDANCE_TOKEN_ROTATION_SECONDS=30`) configured in typed Settings; dynamic token engine deferred to Attendance Engine milestone. |
+| **INV-05** | No Duplicate Checkpoint Credit | **PRESERVED / NOT YET IMPLEMENTED** | Architectural requirement preserved; implementation deferred to Attendance Engine milestone. Model naming conventions support future unique constraints and idempotency keys. |
+| **INV-06** | Corrections Cannot Erase History | **PRESERVED / NOT YET IMPLEMENTED** | Architectural invariant preserved; domain revision models and immutable audit ledger deferred to audit/attendance milestones. |
+| **INV-07** | Offline Events Remain Identifiable | **PRESERVED / NOT YET IMPLEMENTED** | Architectural requirement preserved; offline event entity schemas and server reconciliation deferred to offline/sync milestone. |
+| **INV-08** | Manual Attendance Overrides Remain Identifiable | **PRESERVED / NOT YET IMPLEMENTED** | Architectural requirement preserved; manual override workflows and audit actor attribution deferred to attendance administration milestone. |
 
 ---
 
@@ -73,13 +73,22 @@ Configured categories:
 
 ## 4. Quality Standard & Test Results
 
-- **Backend Pytest Suite**: 30 tests passed (`100%`).
+- **Backend Pytest Suite**: 35 tests passed (`100%`) across 9 test modules.
 - **Ruff Linter & Formatter**: 0 errors, 37 files formatted.
-- **Mypy Static Type Checking**: 0 errors across 37 files (`strict = true`).
-- **Web Client (Next.js 16.3.3)**:
+- **Mypy Static Type Checking**: 0 errors across 37 files (`strict = true`, Python 3.14 baseline).
+- **Web Client (Next.js 16.3.3 / React 19 / Node.js 24 LTS)**:
   - TypeScript: 0 errors (`tsc --noEmit`).
   - ESLint: 0 errors (`eslint .`).
   - Turbopack Build: Compiled successfully in 29.4s.
 - **Mobile Client (Flutter / Dart 3.12.2)**:
   - Dart Analyze: 0 issues (`dart analyze apps/mobile`).
   - Flutter Tests: 3 passed (`widget_test.dart`, `api_client_test.dart`).
+
+---
+
+## 5. Continuous Integration & Multi-Service Stack Status
+
+- **CI Pipeline**: Fully configured in `.github/workflows/ci.yml` matrix covering Python 3.14, Node 24, and Flutter. All pipeline commands have been verified locally with 100% pass rate. Remote execution will trigger upon push to remote GitHub repository.
+- **Docker Multi-Service Stack**: Composed of 5 coordinated services (`attendance-postgres`, `attendance-redis`, `attendance-backend`, `attendance-worker`, and `attendance-web`).
+- **Python 3.14 Alignment**: Host environment, Dockerfile, CI pipeline, and package configs are unified on Python 3.14 standard library features, specifically RFC 9562 `uuid.uuid7()`.
+
