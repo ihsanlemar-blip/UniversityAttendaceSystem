@@ -1,0 +1,138 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # 1. Repository Governance & Secret Scanning
+  # ============================================================================
+  repo-security:
+    name: Repository Security & Checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run Gitleaks Secret Scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Validate Documentation Integrity
+        run: |
+          for i in $(seq -w 0 28); do
+            file=$(find docs -name "${i}_*.md" | head -n 1)
+            if [ -z "$file" ]; then
+              echo "Error: Missing documentation file with prefix ${i}_ in docs/"
+              exit 1
+            fi
+            echo "Found: $file"
+          done
+          test -f docs/MILESTONE_3_MANIFEST.md || { echo "Missing MILESTONE_3_MANIFEST.md"; exit 1; }
+
+  # ============================================================================
+  # 2. FastAPI Backend Checks
+  # ============================================================================
+  backend-ci:
+    name: Backend Lint & Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install ruff mypy pytest httpx
+
+      - name: Run Ruff Linter & Formatter Check
+        run: |
+          ruff format --check backend/
+          ruff check backend/
+
+      - name: Run Pytest Test Suite
+        run: |
+          python -m pytest backend/tests
+
+  # ============================================================================
+  # 3. Next.js Web Checks
+  # ============================================================================
+  web-ci:
+    name: Web Lint & Typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+          cache-dependency-path: apps/web/package.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript Typecheck
+        run: npm run type-check
+
+      - name: Run Linter
+        run: npm run lint
+
+  # ============================================================================
+  # 4. Flutter Mobile Checks
+  # ============================================================================
+  mobile-ci:
+    name: Mobile Analyze & Tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify Dart Formatting
+        run: dart format --output=none --set-exit-if-changed lib/ test/
+
+      - name: Run Static Analysis
+        run: flutter analyze
+
+      - name: Run Flutter Tests
+        run: flutter test

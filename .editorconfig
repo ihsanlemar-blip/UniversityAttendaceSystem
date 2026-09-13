@@ -1,0 +1,35 @@
+# EditorConfig helps developers define and maintain consistent coding styles
+# across different editors and IDEs.
+# https://editorconfig.org
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+indent_style = space
+indent_size = 4
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# Web files (JavaScript, TypeScript, JSON, YAML, HTML, CSS)
+[*.{js,jsx,ts,tsx,json,yml,yaml,html,css,scss,md}]
+indent_size = 2
+
+# Python files
+[*.py]
+indent_size = 4
+max_line_length = 100
+
+# Dart files
+[*.dart]
+indent_size = 2
+max_line_length = 80
+
+# Windows script files
+[*.{bat,cmd,ps1}]
+end_of_line = crlf
+
+# Makefile
+[Makefile]
+indent_style = tab

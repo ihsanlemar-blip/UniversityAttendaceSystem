@@ -1,0 +1,149 @@
+version: "3.8"
+
+networks:
+  attendance-net:
+    driver: bridge
+    name: attendance-net
+
+volumes:
+  postgres_data:
+    name: attendance_postgres_data
+  redis_data:
+    name: attendance_redis_data
+
+services:
+  # ============================================================================
+  # 1. PostgreSQL 16 Relational Database
+  # ============================================================================
+  postgres:
+    image: postgres:16-alpine
+    container_name: attendance-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DATABASE_NAME:-attendance_db}
+      POSTGRES_USER: ${DATABASE_USER:-attendance_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-dev_insecure_password}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - attendance-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-attendance_user} -d ${DATABASE_NAME:-attendance_db}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ============================================================================
+  # 2. Redis 7 In-Memory Cache & Celery Broker
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: attendance-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - attendance-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # ============================================================================
+  # 3. FastAPI Modular Monolith Backend
+  # ============================================================================
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: attendance-backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-attendance_db}
+      DATABASE_USER: ${DATABASE_USER:-attendance_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-dev_insecure_password}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+      AUTH_SIGNING_KEY: ${AUTH_SIGNING_KEY:-dev_insecure_jwt_signing_key_do_not_use_in_production}
+      ATTENDANCE_TOKEN_HMAC_SECRET: ${ATTENDANCE_TOKEN_HMAC_SECRET:-dev_insecure_qr_hmac_secret_do_not_use_in_prod}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - attendance-net
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/health/live')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+  # ============================================================================
+  # 4. Celery Asynchronous Task Worker
+  # ============================================================================
+  worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend
+    container_name: attendance-worker
+    command: python -m celery -A backend.app.core.celery_app worker --loglevel=info
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      DATABASE_NAME: ${DATABASE_NAME:-attendance_db}
+      DATABASE_USER: ${DATABASE_USER:-attendance_user}
+      DATABASE_PASSWORD: ${DATABASE_PASSWORD:-dev_insecure_password}
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - attendance-net
+    depends_on:
+      backend:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # ============================================================================
+  # 5. Next.js Responsive Web Portal & PWA
+  # ============================================================================
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web
+    container_name: attendance-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: ${APP_ENV:-development}
+      NEXT_PUBLIC_API_BASE_URL: http://backend:8000/api/v1
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./apps/web:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - attendance-net
+    depends_on:
+      backend:
+        condition: service_healthy

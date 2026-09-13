@@ -1,0 +1,44 @@
+# Auto detect text files and perform LF normalization on checkin
+* text=auto
+
+# Explicit text files normalized to LF
+*.py text eol=lf
+*.dart text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.json text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.css text eol=lf
+*.html text eol=lf
+*.ini text eol=lf
+*.toml text eol=lf
+*.env* text eol=lf
+Dockerfile* text eol=lf
+.editorconfig text eol=lf
+.gitignore text eol=lf
+.gitattributes text eol=lf
+
+# Shell scripts must always have LF line endings
+*.sh text eol=lf
+
+# Windows scripts must retain CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.tar.gz binary
+*.exe binary
+*.dll binary
+*.so binary
