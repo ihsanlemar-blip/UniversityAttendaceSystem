@@ -38,9 +38,9 @@ async def test_seed_system_rbac_idempotent(db_session: AsyncSession) -> None:
         assert expected_code in roles
         assert roles[expected_code].is_system is is_sys
 
-    # Verify 8 approved system roles and 15 identity/RBAC permissions
+    # Verify 8 approved system roles and 21 core platform/academic permissions
     assert len(SYSTEM_ROLES) == 8
-    assert len(SYSTEM_PERMISSIONS) == 15
+    assert len(SYSTEM_PERMISSIONS) == 21
     assert not any("attendance" in p[0] for p in SYSTEM_PERMISSIONS)
 
     # Re-running seed should not error or duplicate
