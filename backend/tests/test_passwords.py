@@ -80,3 +80,33 @@ def test_password_preserves_full_unicode() -> None:
     # Mutated unicode fails
     is_valid_bad, _ = verify_password("د_پوهنتون_پټ_نوم_1234#!_wrong", pw_hash)
     assert is_valid_bad is False
+
+
+def test_password_policy_whitespace_only_rejected() -> None:
+    """Verify whitespace-only passwords are rejected."""
+    with pytest.raises(ValidationException, match="cannot be empty"):
+        validate_password_policy("        ")
+
+
+def test_password_policy_primarily_length_based() -> None:
+    """Verify passwords satisfying length requirements pass without arbitrary
+    character composition.
+    """
+    # Plain lowercase 12-char passphrase passes NIST SP 800-63B guidelines
+    validate_password_policy("correcthorsebatterystaple")
+
+
+def test_password_composition_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify composition rules are enforced when AUTH_PASSWORD_REQUIRE_COMPOSITION is enabled."""
+    from backend.app.core.config import get_settings
+
+    settings = get_settings()
+    monkeypatch.setattr(settings, "AUTH_PASSWORD_REQUIRE_COMPOSITION", True)
+
+    with pytest.raises(
+        ValidationException, match="contain uppercase, lowercase, digit, and symbol"
+    ):
+        validate_password_policy("alllowercasepass")
+
+    # Valid with composition
+    validate_password_policy("ValidPass123!")

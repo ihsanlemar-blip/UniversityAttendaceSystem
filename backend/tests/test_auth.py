@@ -103,8 +103,8 @@ async def test_login_disabled_user(
             "university_id": str(test_university.id),
         },
     )
-    assert res.status_code == 403
-    assert res.json()["error"]["code"] == "ACCOUNT_DISABLED"
+    assert res.status_code == 401
+    assert res.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
 
 @pytest.mark.asyncio
@@ -113,7 +113,9 @@ async def test_brute_force_account_lockout(
     db_session: AsyncSession,
     test_university: University,
 ) -> None:
-    """Verify repeated failed attempts trigger automatic account lockout."""
+    """Verify repeated failed attempts trigger automatic account lockout while returning
+    generic error.
+    """
     username = f"lockout_{uuid.uuid4().hex[:6]}"
     user = User(
         university_id=test_university.id,
@@ -136,8 +138,14 @@ async def test_brute_force_account_lockout(
             },
         )
         assert res.status_code == 401
+        assert res.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
-    # 6th attempt must be rejected with ACCOUNT_LOCKED
+    # Verify in DB that account is now locked
+    await db_session.refresh(user)
+    assert user.locked_until is not None
+    assert user.failed_login_attempts >= 5
+
+    # 6th attempt with valid password must still be rejected with generic error (anti-enumeration)
     res_locked = client.post(
         "/api/v1/auth/login",
         json={
@@ -146,8 +154,8 @@ async def test_brute_force_account_lockout(
             "university_id": str(test_university.id),
         },
     )
-    assert res_locked.status_code == 403
-    assert res_locked.json()["error"]["code"] == "ACCOUNT_LOCKED"
+    assert res_locked.status_code == 401
+    assert res_locked.json()["error"]["code"] == "INVALID_CREDENTIALS"
 
 
 def test_refresh_token_rotation(

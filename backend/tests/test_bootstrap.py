@@ -76,13 +76,72 @@ async def test_bootstrap_super_admin_idempotency(db_session: AsyncSession) -> No
     )
 
 
-def test_parse_args_defaults() -> None:
-    """Verify CLI parser sets proper defaults and flags."""
+def test_parse_args_explicit_options() -> None:
+    """Verify CLI parser requires explicit institutional options and rejects password flag."""
     import sys
     from unittest.mock import patch
 
-    with patch.object(sys, "argv", ["bootstrap_admin"]):
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "bootstrap_admin",
+            "--username",
+            "sysadmin",
+            "--university-code",
+            "HU",
+            "--university-name",
+            "Herat University",
+            "--password-stdin",
+        ],
+    ):
         args = parse_args()
-        assert args.username == "admin"
+        assert args.username == "sysadmin"
         assert args.university_code == "HU"
         assert args.university_name == "Herat University"
+        assert args.password_stdin is True
+
+
+def test_parse_args_rejects_command_line_password() -> None:
+    """Verify passing password directly as command line argument is rejected for security."""
+    import sys
+    from unittest.mock import patch
+
+    with patch.object(
+        sys,
+        "argv",
+        [
+            "bootstrap_admin",
+            "--username",
+            "sysadmin",
+            "--university-code",
+            "HU",
+            "--university-name",
+            "Herat University",
+            "--password",
+            "ExposedPass123!",
+        ],
+    ):
+        with pytest.raises(SystemExit):
+            parse_args()
+
+
+def test_get_bootstrap_password_from_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify password is read safely from environment variable."""
+    from backend.app.cli.bootstrap_admin import get_bootstrap_password
+
+    monkeypatch.setenv("BOOTSTRAP_ADMIN_PASSWORD", "EnvSecretPass123!")
+    pw = get_bootstrap_password(use_stdin=False, username="sysadmin")
+    assert pw == "EnvSecretPass123!"
+
+
+def test_get_bootstrap_password_from_stdin(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify password is read safely from stdin with --password-stdin flag."""
+    import io
+    import sys
+
+    from backend.app.cli.bootstrap_admin import get_bootstrap_password
+
+    monkeypatch.setattr(sys, "stdin", io.StringIO("StdinSecretPass456!\n"))
+    pw = get_bootstrap_password(use_stdin=True, username="sysadmin")
+    assert pw == "StdinSecretPass456!"
