@@ -44,10 +44,10 @@ To support real testability and adhere to modular milestones, the actual linear 
 │  005_academic_units_and_calendar (Milestone 6 - hierarchy & calendar)   │
 │      │                                                                 │
 │      ▼                                                                 │
-│  006_courses_people_and_enrollments (Milestone 7 - curriculum/rosters) │
+│  006_curriculum_and_rosters (Milestone 7 - curriculum/rosters)         │
 │      │                                                                 │
 │      ▼                                                                 │
-│  007_timetable_and_class_occurrences (Milestone 8 - rooms/schedule)     │
+│  007_facilities_and_timetable (Milestone 8 - rooms/schedule)           │
 │      │                                                                 │
 │      ▼                                                                 │
 │  008_attendance_core (Milestone 9 - policies/sessions/checkpoints)      │
@@ -57,7 +57,7 @@ To support real testability and adhere to modular milestones, the actual linear 
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 005 are fully applied and operational as of Milestone 6.*
+*Note: Migrations 001 through 006 are fully applied and operational as of Milestone 7.*
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 
