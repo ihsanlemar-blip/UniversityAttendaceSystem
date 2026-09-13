@@ -1,27 +1,37 @@
-"""Alembic async migration environment skeleton.
+"""Alembic async migration environment configuration.
 
-Sets up database connectivity using SQLAlchemy async engine.
-Real schema autogeneration and models will be wired during Milestone 4.
+Loads application settings and wires metadata from SQLAlchemy Base models.
 """
 
 import asyncio
 from logging.config import fileConfig
+
+from alembic import context
+from backend.app.core.config import get_settings
+from backend.app.models import Base
 from sqlalchemy import pool
 from sqlalchemy.engine import Connection
 from sqlalchemy.ext.asyncio import async_engine_from_config
-from alembic import context
 
+# Alembic Config object
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = None
+# Set model metadata for autogeneration
+target_metadata = Base.metadata
+
+
+def get_database_url() -> str:
+    """Return configured database URL from application settings."""
+    settings = get_settings()
+    return settings.async_database_url
 
 
 def run_migrations_offline() -> None:
-    """Run migrations in 'offline' mode."""
-    url = config.get_main_option("sqlalchemy.url")
+    """Run migrations in 'offline' mode without an active DB connection."""
+    url = get_database_url()
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -34,16 +44,24 @@ def run_migrations_offline() -> None:
 
 
 def do_run_migrations(connection: Connection) -> None:
-    context.configure(connection=connection, target_metadata=target_metadata)
+    """Execute migrations within an active connection transaction."""
+    context.configure(
+        connection=connection,
+        target_metadata=target_metadata,
+        compare_type=True,
+    )
 
     with context.begin_transaction():
         context.run_migrations()
 
 
 async def run_async_migrations() -> None:
-    """Run migrations in 'online' mode with async engine."""
+    """Run migrations in 'online' mode using async SQLAlchemy engine."""
+    configuration = config.get_section(config.config_ini_section, {})
+    configuration["sqlalchemy.url"] = get_database_url()
+
     connectable = async_engine_from_config(
-        config.get_section(config.config_ini_section, {}),
+        configuration,
         prefix="sqlalchemy.",
         poolclass=pool.NullPool,
     )
@@ -55,7 +73,7 @@ async def run_async_migrations() -> None:
 
 
 def run_migrations_online() -> None:
-    """Run migrations in 'online' mode."""
+    """Entry point for online migrations."""
     asyncio.run(run_async_migrations())
 
 
