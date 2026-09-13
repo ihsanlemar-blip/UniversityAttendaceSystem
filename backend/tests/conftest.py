@@ -132,3 +132,45 @@ async def test_admin_user(test_university: University) -> User:
             await session.refresh(user)
 
         return user
+
+
+@pytest_asyncio.fixture(scope="session")
+async def second_admin_user(second_university: University) -> User:
+    """Fixture providing an active Super Admin user in second university."""
+    username = "test_super_admin_ku"
+    session_factory = get_sessionmaker()
+    async with session_factory() as session:
+        stmt = select(User).where(
+            User.university_id == second_university.id, User.username == username
+        )
+        result = await session.execute(stmt)
+        user = result.scalar_one_or_none()
+
+        if not user:
+            user = User(
+                university_id=second_university.id,
+                username=username,
+                email="admin@ku-test.edu",
+                password_hash=hash_password("SuperSecureAdmin123!"),
+                status=UserStatus.ACTIVE.value,
+                must_change_password=False,
+            )
+            session.add(user)
+            await session.flush()
+
+            role_stmt = select(Role).where(Role.code == SystemRole.SUPER_ADMIN.value)
+            role_res = await session.execute(role_stmt)
+            super_admin_role = role_res.scalar_one()
+
+            assignment = RoleAssignment(
+                user_id=user.id,
+                role_id=super_admin_role.id,
+                university_id=second_university.id,
+                scope_type=ScopeType.UNIVERSITY.value,
+                scope_id=second_university.id,
+            )
+            session.add(assignment)
+            await session.commit()
+            await session.refresh(user)
+
+        return user
