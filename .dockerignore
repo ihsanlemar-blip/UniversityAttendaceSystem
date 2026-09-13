@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Virtual Environments & Python Caches
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache
+.mypy_cache
+.ruff_cache
+
+# Node & Next.js
+node_modules
+apps/web/node_modules
+apps/web/.next
+apps/web/out
+
+# Flutter & Dart
+apps/mobile/.dart_tool
+apps/mobile/build
+apps/mobile/.flutter-plugins
+apps/mobile/.flutter-plugins-dependencies
+
+# Documentation Archives
+*.zip
+archive
