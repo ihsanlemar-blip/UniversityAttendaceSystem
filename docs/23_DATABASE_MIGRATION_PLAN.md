@@ -41,10 +41,19 @@ To support real testability and adhere to modular milestones, the actual linear 
 │  004_auth_sessions_and_login_attempts (Milestone 5 - sessions/audit)   │
 │      │                                                                 │
 │      ▼                                                                 │
-│  005_academic_units_and_calendar (Milestone 6 - faculties/departments) │
+│  005_academic_units_and_calendar (Milestone 6 - hierarchy & calendar)   │
 │      │                                                                 │
 │      ▼                                                                 │
-│  [Subsequent Milestones - courses, offerings, attendance, etc.]        │
+│  006_courses_people_and_enrollments (Milestone 7 - curriculum/rosters) │
+│      │                                                                 │
+│      ▼                                                                 │
+│  007_timetable_and_class_occurrences (Milestone 8 - rooms/schedule)     │
+│      │                                                                 │
+│      ▼                                                                 │
+│  008_attendance_core (Milestone 9 - policies/sessions/checkpoints)      │
+│      │                                                                 │
+│      ▼                                                                 │
+│  [Subsequent Milestones - dynamic QR, BLE, offline sync, etc.]         │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 

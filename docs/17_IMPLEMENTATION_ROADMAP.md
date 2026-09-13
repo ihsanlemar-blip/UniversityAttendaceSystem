@@ -74,39 +74,55 @@ Anti-Cheating & Devices -> Offline/Sync Resilience -> Governance & Reporting -> 
 
 ---
 
-### Phase 3 — Academic Structure and Master Data
-- **Goals**: Model university organizational hierarchy, academic calendar, sections, students, and lecturers.
-- **Prerequisites**: Phase 2.
+---
+
+### Phase 3 / Milestone 6 — Academic Hierarchy & Calendar Management (Completed)
+- **Goals**: Model university organizational hierarchy and academic calendar periods.
+- **Prerequisites**: Phase 2 / Milestone 5.
 - **Deliverables**:
-  - Tables: `universities`, `academic_units` (flexible parent-child hierarchy per ADR-017), `academic_years`, `semesters`, `sections`, `students`, `lecturers`.
-  - CRUD services and REST endpoints under `/api/v1/academic/`.
-  - Web UI views in Next.js for managing university structure and rosters.
+  - Tables: `universities`, `academic_units` (flexible parent-child hierarchy per ADR-017), `academic_years`, `semesters`.
+  - Self-referential tree navigation, cycle detection, and subtree RBAC scoping (`ScopeType.ACADEMIC_UNIT`).
+  - Endpoints under `/api/v1/academic-units`, `/api/v1/academic-years`, `/api/v1/semesters`.
+- **Status**: Completed in Milestone 6.
+
+---
+
+### Phase 4 / Milestone 7 — Master Curriculum, Rosters & Course Offerings
+- **Goals**: Model institutional course catalog, student cohorts (sections), people profiles (students, lecturers), course offerings, and class rosters (enrollments).
+- **Prerequisites**: Phase 3 / Milestone 6.
+- **Deliverables**:
+  - Tables: `courses`, `sections`, `students`, `lecturers`, `course_offerings`, `lecturer_assignments`, `enrollments`.
+  - CRUD services and REST endpoints under `/api/v1/courses`, `/api/v1/sections`, `/api/v1/students`, `/api/v1/lecturers`, `/api/v1/course-offerings`, `/api/v1/enrollments`.
+  - Scoped RBAC validation for curriculum management, student roster provisioning, and enrollment tracking.
 - **Acceptance Criteria**:
-  - Academic unit hierarchy supports arbitrary depth (Faculty -> Department -> Program).
+  - Course codes unique within university scope.
   - Student numbers and lecturer employee codes unique within university scope.
-- **Dependencies**: Phase 2.
-- **Major Risks**: Deeply recursive queries on academic units without proper index optimization.
+  - Course offerings strictly link courses to valid semesters and optional sections.
+  - Duplicate student enrollment in the same course offering rejected.
+- **Dependencies**: Phase 3 / Milestone 6.
+- **Major Risks**: Data integrity across student-user linkages and enrollment capacity bounds.
 
 ---
 
-### Phase 4 — Timetable and Class Occurrences
-- **Goals**: Separate recurring schedule rules from concrete class occurrences per ADR-016 to enable room changes, rescheduling, cancellations, and substitute lecturers.
-- **Prerequisites**: Phase 3.
+### Phase 5 / Milestone 8 — Facilities, Timetable & Class Occurrences
+- **Goals**: Model campus physical facilities, recurring timetable rules, and concrete class occurrences per ADR-016 to enable room changes, rescheduling, cancellations, and substitute lecturers.
+- **Prerequisites**: Phase 4 / Milestone 7.
 - **Deliverables**:
-  - Tables: `courses`, `course_offerings`, `lecturer_assignments`, `enrollments`, `rooms`, `timetables`, `class_occurrences`.
-  - Schedule generator service converting timetable recurrence rules into concrete `class_occurrences`.
-  - Rescheduling and substitute lecturer substitution APIs.
+  - Tables: `rooms`, `timetables`, `class_occurrences`.
+  - Recurrence expansion engine converting weekly timetable rules into concrete dated `class_occurrences`.
+  - Schedule collision engine detecting room or lecturer double-booking conflicts.
+  - Operational modification APIs: rescheduling, room changes, cancellations, and substitute lecturer assignments.
 - **Acceptance Criteria**:
-  - Class occurrences correctly instantiate with scheduled start/end times in UTC.
-  - Schedule conflicts (room or lecturer double-booking) detected and flagged.
-- **Dependencies**: Phase 3.
-- **Major Risks**: Timezone errors across calendar boundaries; recurring rule edge cases.
+  - Class occurrences instantiate with scheduled start/end timestamps in UTC.
+  - Schedule conflicts detected and flagged deterministically.
+- **Dependencies**: Phase 4 / Milestone 7.
+- **Major Risks**: Timezone errors across calendar boundaries; recurring rule expansion edge cases.
 
 ---
 
-### Phase 5 — Attendance Core
+### Phase 6 / Milestone 9 — Attendance Core Engine & Policies
 - **Goals**: Implement the foundational three-checkpoint attendance engine per ADR-009, ADR-010, and PRD specifications.
-- **Prerequisites**: Phase 4.
+- **Prerequisites**: Phase 5 / Milestone 8.
 - **Deliverables**:
   - Tables: `attendance_policies`, `attendance_sessions`, `checkpoints`, `attendance_evidence`, `checkpoint_results`, `final_attendance_records`.
   - State machine: `SCHEDULED` -> `ACTIVE` -> `CLOSED` -> `FINALIZED`.
@@ -116,14 +132,14 @@ Anti-Cheating & Devices -> Offline/Sync Resilience -> Governance & Reporting -> 
   - No single boolean column for attendance; evidence and checkpoint results preserved immutably.
   - Final record state strictly computed by server (`PRESENT`, `LATE`, `ABSENT`, `EXCUSED`).
   - Duplicate check-ins for the same checkpoint return idempotent success without duplicate credit.
-- **Dependencies**: Phase 4.
+- **Dependencies**: Phase 5 / Milestone 8.
 - **Major Risks**: Race conditions during high-volume simultaneous checkpoint submissions.
 
 ---
 
-### Phase 6 — Dynamic QR / Token
+### Phase 7 / Milestone 10 — Dynamic QR / Token
 - **Goals**: Implement rotating cryptographic tokens for dynamic QR display to eliminate static image forwarding and proxy attendance.
-- **Prerequisites**: Phase 5.
+- **Prerequisites**: Phase 6 / Milestone 9.
 - **Deliverables**:
   - HMAC-SHA256 dynamic token generator with 20–30 second rotation window.
   - Server-side token validation service checking session key, expiration, and window tolerance (±1 step).
@@ -131,7 +147,7 @@ Anti-Cheating & Devices -> Offline/Sync Resilience -> Governance & Reporting -> 
 - **Acceptance Criteria**:
   - Expired tokens rejected with HTTP 400 `TOKEN_EXPIRED`.
   - Token replay attack rejected once used by the same student for that checkpoint.
-- **Dependencies**: Phase 5.
+- **Dependencies**: Phase 6 / Milestone 9.
 - **Major Risks**: Network latency causing valid tokens to expire before reaching local server.
 
 ---
