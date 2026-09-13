@@ -48,6 +48,15 @@ class SystemRole(StrEnum):
     AUDITOR = "AUDITOR"
 
 
+class AcademicUnitType(StrEnum):
+    """Supported academic organizational unit types per ADR-017."""
+
+    FACULTY = "FACULTY"
+    DEPARTMENT = "DEPARTMENT"
+    PROGRAM = "PROGRAM"
+    OTHER = "OTHER"
+
+
 class ScopeType(StrEnum):
     """Authorization scope hierarchy level."""
 
@@ -85,3 +94,9 @@ class PermissionCode(StrEnum):
     SESSIONS_READ = "sessions.read"
     SESSIONS_REVOKE = "sessions.revoke"
     AUDIT_READ = "audit.read"
+    ACADEMIC_UNITS_READ = "academic_units.read"
+    ACADEMIC_UNITS_MANAGE = "academic_units.manage"
+    ACADEMIC_YEARS_READ = "academic_years.read"
+    ACADEMIC_YEARS_MANAGE = "academic_years.manage"
+    SEMESTERS_READ = "semesters.read"
+    SEMESTERS_MANAGE = "semesters.manage"
