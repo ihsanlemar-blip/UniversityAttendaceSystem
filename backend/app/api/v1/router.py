@@ -2,7 +2,9 @@
 
 from fastapi import APIRouter
 
+from backend.app.academic.router import router as academic_router
 from backend.app.auth.router import router as auth_router
+from backend.app.calendar.router import academic_years_router, semesters_router
 from backend.app.common.schemas import ApiMetadataResponse
 from backend.app.common.types import utc_now
 from backend.app.core.config import get_settings
@@ -33,3 +35,8 @@ async def get_api_v1_metadata() -> ApiMetadataResponse:
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(users_router)
 api_v1_router.include_router(rbac_router)
+
+# Mount Milestone 6 Academic Hierarchy & Calendar Sub-Routers
+api_v1_router.include_router(academic_router)
+api_v1_router.include_router(academic_years_router)
+api_v1_router.include_router(semesters_router)

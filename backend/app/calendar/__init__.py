@@ -1,0 +1,1 @@
+"""Academic calendar domain package."""
