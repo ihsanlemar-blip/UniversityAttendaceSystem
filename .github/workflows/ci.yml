@@ -30,7 +30,7 @@ jobs:
 
       - name: Validate Documentation Integrity
         run: |
-          for i in $(seq -w 0 28); do
+          for i in $(seq -w 0 30); do
             file=$(find docs -name "${i}_*.md" | head -n 1)
             if [ -z "$file" ]; then
               echo "Error: Missing documentation file with prefix ${i}_ in docs/"
@@ -39,6 +39,7 @@ jobs:
             echo "Found: $file"
           done
           test -f docs/MILESTONE_3_MANIFEST.md || { echo "Missing MILESTONE_3_MANIFEST.md"; exit 1; }
+          test -f docs/MILESTONE_4_MANIFEST.md || { echo "Missing MILESTONE_4_MANIFEST.md"; exit 1; }
 
   # ============================================================================
   # 2. FastAPI Backend Checks
@@ -60,12 +61,16 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r backend/requirements.txt
-          pip install ruff mypy pytest httpx
+          pip install ruff mypy pytest httpx pytest-asyncio
 
       - name: Run Ruff Linter & Formatter Check
         run: |
           ruff format --check backend/
           ruff check backend/
+
+      - name: Run Mypy Typecheck
+        run: |
+          mypy backend
 
       - name: Run Pytest Test Suite
         run: |

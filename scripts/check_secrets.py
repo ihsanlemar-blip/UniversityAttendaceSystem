@@ -13,7 +13,16 @@ SECRET_PATTERNS = [
     re.compile(r"AKIA[0-9A-Z]{16}"),
 ]
 
-IGNORE_DIRS = {".git", "archive", "node_modules", ".venv"}
+IGNORE_DIRS = {
+    ".git",
+    "archive",
+    "node_modules",
+    ".venv",
+    ".next",
+    ".dart_tool",
+    "build",
+    "__pycache__",
+}
 
 
 def scan_repository() -> int:
