@@ -368,3 +368,102 @@ def test_student_enrollment_and_drop_audit(
         headers=headers,
     )
     assert len(roster_act.json()["data"]["items"]) == 0
+
+    # 7. Re-enrollment reactivates the same canonical row instead of creating duplicate
+    re_enr_res = client.post(
+        f"/api/v1/course-offerings/{offering_id}/enrollments",
+        headers=headers,
+        json={"student_id": student_id},
+    )
+    assert re_enr_res.status_code == 201
+    re_enr_data = re_enr_res.json()["data"]
+    assert re_enr_data["id"] == enr_id
+    assert re_enr_data["status"] == "ACTIVE"
+    assert re_enr_data["dropped_at"] is None
+
+    # Verify total enrollment rows in roster is still exactly 1
+    roster3_res = client.get(
+        f"/api/v1/course-offerings/{offering_id}/enrollments",
+        headers=headers,
+    )
+    assert roster3_res.status_code == 200
+    roster3 = roster3_res.json()["data"]["items"]
+    assert len(roster3) == 1
+    assert roster3[0]["id"] == enr_id
+    assert roster3[0]["status"] == "ACTIVE"
+
+
+def test_batch_enrollment_and_reactivation(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+) -> None:
+    """Verify batch enrollment, partial drop, and batch re-enrollment reactivation."""
+    headers = get_admin_headers(client, test_admin_user, test_university)
+    course_id, semester_id, section_id, _ = setup_academic_prerequisites(client, headers)
+
+    # Offering
+    off_res = client.post(
+        "/api/v1/course-offerings",
+        headers=headers,
+        json={
+            "course_id": course_id,
+            "semester_id": semester_id,
+            "section_id": section_id,
+        },
+    )
+    offering_id = off_res.json()["data"]["id"]
+
+    # 3 Students
+    student_ids = []
+    for i in range(3):
+        u_id, _, _ = create_test_user(client, headers, prefix=f"bat_{i}")
+        s_res = client.post(
+            "/api/v1/students",
+            headers=headers,
+            json={
+                "user_id": u_id,
+                "student_number": f"BAT_{uuid.uuid4().hex[:6].upper()}",
+            },
+        )
+        assert s_res.status_code == 201
+        student_ids.append(s_res.json()["data"]["id"])
+
+    # 1. Batch enroll all 3
+    batch_res1 = client.post(
+        f"/api/v1/course-offerings/{offering_id}/enrollments/batch",
+        headers=headers,
+        json={"student_ids": student_ids},
+    )
+    assert batch_res1.status_code == 201
+    enrolled_items = batch_res1.json()["data"]
+    assert len(enrolled_items) == 3
+    initial_ids = {e["student_id"]: e["id"] for e in enrolled_items}
+
+    # 2. Drop student 1
+    drop_res = client.delete(
+        f"/api/v1/course-offerings/{offering_id}/enrollments/{student_ids[1]}",
+        headers=headers,
+    )
+    assert drop_res.status_code == 200
+    assert drop_res.json()["data"]["status"] == "DROPPED"
+
+    # 3. Batch re-enroll student 1 and student 2
+    batch_res2 = client.post(
+        f"/api/v1/course-offerings/{offering_id}/enrollments/batch",
+        headers=headers,
+        json={"student_ids": [student_ids[1], student_ids[2]]},
+    )
+    assert batch_res2.status_code == 201
+
+    # 4. Check roster: all 3 students are ACTIVE, and student 1 kept the exact same canonical ID
+    roster_res = client.get(
+        f"/api/v1/course-offerings/{offering_id}/enrollments",
+        headers=headers,
+    )
+    assert roster_res.status_code == 200
+    items = roster_res.json()["data"]["items"]
+    assert len(items) == 3
+    for it in items:
+        assert it["status"] == "ACTIVE"
+        assert it["id"] == initial_ids[it["student_id"]]

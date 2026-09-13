@@ -24,12 +24,12 @@ The curriculum, rosters, and offerings platform provides:
    - Allows section code reuse across different semesters while preventing collisions within the same academic semester session.
 3. **Student Profiles (`Student`)**:
    - `students`: Academic learner profile (`id`, `user_id`, `university_id`, `student_number`, `academic_unit_id`, `section_id`, `admission_date`, `status`, timestamps).
-   - 1:1 user account linkage: `UNIQUE (user_id)` with cascading foreign key.
+   - 1:1 user account linkage: `UNIQUE (user_id)` with `ON DELETE RESTRICT` foreign key, preventing destructive cascade deletion of user accounts referenced by offerings, timetables, and future attendance history.
    - Institutional matriculation uniqueness: `UNIQUE (university_id, student_number)`.
    - Personal profile access endpoint `/api/v1/students/me`.
 4. **Lecturer Profiles (`Lecturer`)**:
    - `lecturers`: Academic instructor profile (`id`, `user_id`, `university_id`, `employee_code`, `academic_unit_id`, `title`, `status`, timestamps).
-   - 1:1 user account linkage: `UNIQUE (user_id)` with cascading foreign key.
+   - 1:1 user account linkage: `UNIQUE (user_id)` with `ON DELETE RESTRICT` foreign key, preventing destructive cascade deletion of user accounts referenced by offerings, timetables, and future attendance history.
    - Institutional employee code uniqueness: `UNIQUE (university_id, employee_code)`.
    - Personal profile access endpoint `/api/v1/lecturers/me`.
 5. **Course Offerings (`CourseOffering`)**:
@@ -44,8 +44,9 @@ The curriculum, rosters, and offerings platform provides:
    - Personal offerings query `/api/v1/lecturers/me/offerings`.
 7. **Student Enrollments & Rosters (`Enrollment`)**:
    - `enrollments`: Student enrollment in course offerings (`id`, `university_id`, `course_offering_id`, `student_id`, `status`, `enrolled_at`, `dropped_at`, timestamps).
-   - Unique active enrollment guarantee: `uq_enrollments_active_offering_student` on `(course_offering_id, student_id) WHERE status = 'ACTIVE'`.
+   - Canonical single-row enrollment guarantee: Composite unique constraint `uq_enrollments_offering_student` on `(course_offering_id, student_id)`.
    - Audit and history preservation (Invariant 6): Dropping an enrollment sets `status = 'DROPPED'` and records `dropped_at = utc_now()`, preserving historical presence and audit history without erasing data.
+   - Idempotent reactivation: Re-enrollment updates the existing canonical row to `status = 'ACTIVE'`, clears `dropped_at = NULL`, and updates `enrolled_at`, preventing row duplication and keeping roster/ClassOccurrence logic strictly unambiguous.
    - Personal enrollments query `/api/v1/students/me/enrollments`.
 8. **RBAC Seeding & Subtree-Aware Access Scoping**:
    - Added 12 canonical permissions: `courses.view`, `courses.manage`, `sections.view`, `sections.manage`, `students.view`, `students.manage`, `lecturers.view`, `lecturers.manage`, `course_offerings.view`, `course_offerings.manage`, `enrollments.view`, `enrollments.manage`.
@@ -76,7 +77,7 @@ The curriculum, rosters, and offerings platform provides:
 ## 3. Verification Summary
 
 ```text
-Backend Test Suite:        113 passed (100%)
+Backend Test Suite:        121 passed (100%)
 Ruff Linter:               All checks passed (0 errors)
 Ruff Formatter:            114 files inspected, all formatted
 MyPy Strict Typechecker:   Success: no issues found in 81 source files

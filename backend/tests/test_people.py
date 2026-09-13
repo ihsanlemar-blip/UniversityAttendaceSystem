@@ -2,8 +2,13 @@
 
 import uuid
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.ext.asyncio import AsyncSession
 
+from backend.app.models.lecturer import Lecturer
+from backend.app.models.student import Student
 from backend.app.models.university import University
 from backend.app.models.user import User
 from backend.tests.test_users import get_admin_headers
@@ -280,3 +285,60 @@ def test_people_cross_tenant_isolation(
     assert res_lec2.status_code == 201
     assert res_lec2.json()["data"]["employee_code"] == shared_emp_code
     assert res_lec2.json()["data"]["university_id"] == str(second_university.id)
+
+
+@pytest.mark.asyncio
+async def test_user_deletion_restricted_when_linked_to_student_or_lecturer(
+    db_session: AsyncSession,
+    test_university: University,
+) -> None:
+    """Verify Student.user_id and Lecturer.user_id enforce ON DELETE RESTRICT semantics,
+    preventing catastrophic user cascade deletion.
+    """
+    # 1. Create a user and linked student
+    user_stu = User(
+        university_id=test_university.id,
+        username=f"del_stu_{uuid.uuid4().hex[:6]}",
+        password_hash="test_hash",
+        email=f"del_stu_{uuid.uuid4().hex[:6]}@test.edu",
+    )
+    db_session.add(user_stu)
+    await db_session.flush()
+
+    student = Student(
+        university_id=test_university.id,
+        user_id=user_stu.id,
+        student_number=f"DEL_STU_{uuid.uuid4().hex[:6].upper()}",
+    )
+    db_session.add(student)
+    await db_session.commit()
+
+    # Attempting to delete user_stu must fail with IntegrityError due to RESTRICT
+    await db_session.delete(user_stu)
+    with pytest.raises(IntegrityError):
+        await db_session.commit()
+    await db_session.rollback()
+
+    # 2. Create a user and linked lecturer
+    user_lec = User(
+        university_id=test_university.id,
+        username=f"del_lec_{uuid.uuid4().hex[:6]}",
+        password_hash="test_hash",
+        email=f"del_lec_{uuid.uuid4().hex[:6]}@test.edu",
+    )
+    db_session.add(user_lec)
+    await db_session.flush()
+
+    lecturer = Lecturer(
+        university_id=test_university.id,
+        user_id=user_lec.id,
+        employee_code=f"DEL_LEC_{uuid.uuid4().hex[:6].upper()}",
+    )
+    db_session.add(lecturer)
+    await db_session.commit()
+
+    # Attempting to delete user_lec must fail with IntegrityError due to RESTRICT
+    await db_session.delete(user_lec)
+    with pytest.raises(IntegrityError):
+        await db_session.commit()
+    await db_session.rollback()

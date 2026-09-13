@@ -26,7 +26,7 @@ class Student(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
 
     user_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
-        ForeignKey("users.id", ondelete="CASCADE"),
+        ForeignKey("users.id", ondelete="RESTRICT"),
         unique=True,
         nullable=False,
         index=True,

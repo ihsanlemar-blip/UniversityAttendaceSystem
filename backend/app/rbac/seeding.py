@@ -131,7 +131,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
     # 3. Seed Role-Permission Associations
     existing_rp_stmt = select(RolePermission)
     rp_res = await db.execute(existing_rp_stmt)
-    existing_rp_pairs = {(rp.role_id, rp.permission_id) for rp in rp_res.scalars().all()}
+    existing_rps = list(rp_res.scalars().all())
+    existing_rp_pairs = {(rp.role_id, rp.permission_id) for rp in existing_rps}
 
     # Mapping logic:
     # Super Admin gets all permissions
@@ -298,7 +299,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=lecturer_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
-    # Student gets academic catalog, offerings, sections, and enrollments read permissions
+    # Student gets academic catalog, offerings, and sections read permissions
     student_role = role_map.get(SystemRole.STUDENT.value)
     if student_role:
         student_perms = [
@@ -308,8 +309,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "courses.read",
             "sections.read",
             "course_offerings.read",
-            "enrollments.read",
         ]
+        target_perm_ids = {perm_map[p].id for p in student_perms if p in perm_map}
         for p_code in student_perms:
             target_perm = perm_map.get(p_code)
             if target_perm:
@@ -317,6 +318,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                 if pair not in existing_rp_pairs:
                     db.add(RolePermission(role_id=student_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
+        for rp in existing_rps:
+            if rp.role_id == student_role.id and rp.permission_id not in target_perm_ids:
+                await db.delete(rp)
+                existing_rp_pairs.discard((rp.role_id, rp.permission_id))
 
     # Auditor gets read-only permissions across all domains
     auditor_role = role_map.get(SystemRole.AUDITOR.value)

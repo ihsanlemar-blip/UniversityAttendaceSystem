@@ -146,7 +146,7 @@ def upgrade() -> None:
             ["user_id"],
             ["users.id"],
             name="fk_students_user_id_users",
-            ondelete="CASCADE",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["university_id"],
@@ -210,7 +210,7 @@ def upgrade() -> None:
             ["user_id"],
             ["users.id"],
             name="fk_lecturers_user_id_users",
-            ondelete="CASCADE",
+            ondelete="RESTRICT",
         ),
         sa.ForeignKeyConstraint(
             ["university_id"],
