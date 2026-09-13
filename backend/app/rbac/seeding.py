@@ -147,6 +147,27 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=uni_admin_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
+    # Attendance Officer gets operational identity and session monitoring permissions
+    attendance_officer_role = role_map.get(SystemRole.ATTENDANCE_OFFICER.value)
+    if attendance_officer_role:
+        officer_perms = [
+            "users.read",
+            "sessions.read",
+            "audit.read",
+        ]
+        for off_p_code in officer_perms:
+            target_perm = perm_map.get(off_p_code)
+            if target_perm:
+                pair = (attendance_officer_role.id, target_perm.id)
+                if pair not in existing_rp_pairs:
+                    db.add(
+                        RolePermission(
+                            role_id=attendance_officer_role.id,
+                            permission_id=target_perm.id,
+                        )
+                    )
+                    existing_rp_pairs.add(pair)
+
     # Auditor gets read-only permissions
     auditor_role = role_map.get(SystemRole.AUDITOR.value)
     if auditor_role:

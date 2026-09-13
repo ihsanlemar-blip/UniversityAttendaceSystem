@@ -101,8 +101,20 @@ class AuthService:
                 status_code=401,
             )
 
-        # Check account status
+        # Check account status (generic error to prevent account enumeration)
         if user.status == UserStatus.DISABLED.value:
+            attempt = LoginAttempt(
+                university_id=target_uni.id,
+                user_id=user.id,
+                normalized_username=normalized_username,
+                request_id=request_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=False,
+                failure_reason_internal="ACCOUNT_DISABLED",
+            )
+            db.add(attempt)
+            await db.commit()
             log_security_event(
                 "LOGIN_FAILURE",
                 user_id=user.id,
@@ -110,24 +122,39 @@ class AuthService:
                 details={"reason": "ACCOUNT_DISABLED"},
             )
             raise DomainException(
-                code="ACCOUNT_DISABLED",
-                message="Account is disabled. Contact your administrator.",
-                status_code=403,
+                code="INVALID_CREDENTIALS",
+                message="Invalid credentials.",
+                status_code=401,
             )
 
         now = utc_now()
-        # Check lockout expiry
+        # Check lockout expiry (generic error to prevent account enumeration)
         if user.locked_until and user.locked_until > now:
+            attempt = LoginAttempt(
+                university_id=target_uni.id,
+                user_id=user.id,
+                normalized_username=normalized_username,
+                request_id=request_id,
+                ip_address=ip_address,
+                user_agent=user_agent,
+                success=False,
+                failure_reason_internal="ACCOUNT_LOCKED",
+            )
+            db.add(attempt)
+            await db.commit()
             log_security_event(
                 "LOGIN_FAILURE",
                 user_id=user.id,
                 university_id=target_uni.id,
-                details={"reason": "ACCOUNT_LOCKED", "locked_until": user.locked_until.isoformat()},
+                details={
+                    "reason": "ACCOUNT_LOCKED",
+                    "locked_until": user.locked_until.isoformat(),
+                },
             )
             raise DomainException(
-                code="ACCOUNT_LOCKED",
-                message="Account is temporarily locked due to excessive failed attempts.",
-                status_code=403,
+                code="INVALID_CREDENTIALS",
+                message="Invalid credentials.",
+                status_code=401,
             )
 
         # Verify password

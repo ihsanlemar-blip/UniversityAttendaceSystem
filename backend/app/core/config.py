@@ -84,6 +84,7 @@ class Settings(BaseSettings):
     AUTH_PASSWORD_HASH_ALGO: str = Field(default="argon2id")
     AUTH_PASSWORD_MIN_LENGTH: int = Field(default=8)
     AUTH_PASSWORD_MAX_LENGTH: int = Field(default=128)
+    AUTH_PASSWORD_REQUIRE_COMPOSITION: bool = Field(default=False)
     AUTH_MAX_LOGIN_ATTEMPTS: int = Field(default=5)
     AUTH_LOCKOUT_DURATION_MINUTES: int = Field(default=15)
     AUTH_ISSUER: str = Field(default="university-attendance-api")

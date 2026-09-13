@@ -21,7 +21,7 @@ def validate_password_policy(password: str) -> None:
     """
     settings = get_settings()
 
-    if not password:
+    if not password or password.strip() == "":
         raise ValidationException("Password cannot be empty.", details={"field": "password"})
 
     if len(password) < settings.AUTH_PASSWORD_MIN_LENGTH:
@@ -35,6 +35,17 @@ def validate_password_policy(password: str) -> None:
             f"Password cannot exceed {settings.AUTH_PASSWORD_MAX_LENGTH} characters.",
             details={"max_length": settings.AUTH_PASSWORD_MAX_LENGTH},
         )
+
+    if settings.AUTH_PASSWORD_REQUIRE_COMPOSITION:
+        has_upper = any(c.isupper() for c in password)
+        has_lower = any(c.islower() for c in password)
+        has_digit = any(c.isdigit() for c in password)
+        has_symbol = any(not c.isalnum() for c in password)
+        if not (has_upper and has_lower and has_digit and has_symbol):
+            raise ValidationException(
+                "Password must contain uppercase, lowercase, digit, and symbol.",
+                details={"field": "password"},
+            )
 
 
 def hash_password(password: str) -> str:

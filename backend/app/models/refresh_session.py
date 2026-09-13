@@ -63,11 +63,16 @@ class RefreshSession(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
     @property
-    def is_active(self) -> bool:
-        """Return True if session is not revoked and not expired."""
+    def is_expired(self) -> bool:
+        """Return True if session has expired."""
         from backend.app.common.types import utc_now
 
-        return self.revoked_at is None and self.expires_at > utc_now()
+        return self.expires_at <= utc_now()
+
+    @property
+    def is_active(self) -> bool:
+        """Return True if session is not revoked and not expired."""
+        return self.revoked_at is None and not self.is_expired
 
     def __repr__(self) -> str:
         return f"<RefreshSession id={self.id} user_id={self.user_id} active={self.is_active}>"

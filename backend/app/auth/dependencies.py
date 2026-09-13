@@ -50,12 +50,19 @@ async def get_current_user(
     user_id = uuid.UUID(payload["sub"])
     session_id = uuid.UUID(payload["sid"])
 
-    # 1. Validate session state (server-side revocation check)
+    # 1. Validate session state (server-side authoritative session check)
     session = await db.get(RefreshSession, session_id)
-    if not session or session.revoked_at is not None:
+    if not session or session.revoked_at is not None or session.is_expired:
         raise DomainException(
             code="SESSION_REVOKED",
-            message="Authentication session has been revoked. Please log in again.",
+            message="Authentication session has been revoked or expired. Please log in again.",
+            status_code=401,
+        )
+
+    if session.user_id != user_id:
+        raise DomainException(
+            code="TOKEN_INVALID",
+            message="Token session does not match user.",
             status_code=401,
         )
 

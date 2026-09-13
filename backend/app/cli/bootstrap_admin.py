@@ -106,49 +106,73 @@ async def bootstrap_super_admin(
 
 
 def parse_args() -> argparse.Namespace:
-    """Parse command line arguments."""
+    """Parse command line arguments with strict production safety."""
     parser = argparse.ArgumentParser(
         description="Bootstrap Digital Student Attendance System Super Admin.",
     )
     parser.add_argument(
         "--username",
-        default="admin",
-        help="Super Admin username (default: admin)",
-    )
-    parser.add_argument(
-        "--password",
-        default=None,
-        help="Super Admin password (if omitted, will be prompted securely)",
+        required=True,
+        help="Super Admin username (required)",
     )
     parser.add_argument(
         "--university-code",
-        default="HU",
-        help="Institutional university code (default: HU)",
+        required=True,
+        help="Institutional university code (required, e.g. HU)",
     )
     parser.add_argument(
         "--university-name",
-        default="Herat University",
-        help="Institutional university name (default: Herat University)",
+        required=True,
+        help="Institutional university name (required, e.g. 'Herat University')",
     )
     parser.add_argument(
         "--email",
-        default="admin@hu.edu.af",
+        default=None,
         help="Super Admin email address",
     )
+    parser.add_argument(
+        "--password-stdin",
+        action="store_true",
+        help="Read Super Admin password from standard input (secure for scripting)",
+    )
     return parser.parse_args()
+
+
+def get_bootstrap_password(use_stdin: bool, username: str) -> str:
+    """Acquire password securely from stdin, environment variable, or hidden prompt."""
+    import os
+
+    if use_stdin:
+        pw = sys.stdin.readline().strip()
+        if not pw:
+            print("[ERROR] No password provided on standard input.", file=sys.stderr)
+            sys.exit(1)
+        return pw
+
+    env_pw = os.environ.get("BOOTSTRAP_ADMIN_PASSWORD")
+    if env_pw:
+        return env_pw.strip()
+
+    if sys.stdin.isatty():
+        pw = getpass.getpass(f"Enter password for user '{username}': ")
+        confirm = getpass.getpass("Confirm password: ")
+        if pw != confirm:
+            print("[ERROR] Passwords do not match.", file=sys.stderr)
+            sys.exit(1)
+        return pw
+
+    print(
+        "[ERROR] Non-interactive environment detected. Provide password via "
+        "--password-stdin or BOOTSTRAP_ADMIN_PASSWORD environment variable.",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 
 
 def main() -> None:
     """CLI entrypoint."""
     args = parse_args()
-
-    password = args.password
-    if not password:
-        password = getpass.getpass(f"Enter password for user '{args.username}': ")
-        confirm = getpass.getpass("Confirm password: ")
-        if password != confirm:
-            print("[ERROR] Passwords do not match.", file=sys.stderr)
-            sys.exit(1)
+    password = get_bootstrap_password(args.password_stdin, args.username)
 
     try:
         asyncio.run(
