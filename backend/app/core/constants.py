@@ -100,3 +100,59 @@ class PermissionCode(StrEnum):
     ACADEMIC_YEARS_MANAGE = "academic_years.manage"
     SEMESTERS_READ = "semesters.read"
     SEMESTERS_MANAGE = "semesters.manage"
+    COURSES_READ = "courses.read"
+    COURSES_MANAGE = "courses.manage"
+    SECTIONS_READ = "sections.read"
+    SECTIONS_MANAGE = "sections.manage"
+    STUDENTS_READ = "students.read"
+    STUDENTS_MANAGE = "students.manage"
+    LECTURERS_READ = "lecturers.read"
+    LECTURERS_MANAGE = "lecturers.manage"
+    COURSE_OFFERINGS_READ = "course_offerings.read"
+    COURSE_OFFERINGS_MANAGE = "course_offerings.manage"
+    ENROLLMENTS_READ = "enrollments.read"
+    ENROLLMENTS_MANAGE = "enrollments.manage"
+
+
+class StudentStatus(StrEnum):
+    """Student enrollment and academic lifecycle status."""
+
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    GRADUATED = "GRADUATED"
+    WITHDRAWN = "WITHDRAWN"
+
+
+class LecturerStatus(StrEnum):
+    """Lecturer employment and operational status."""
+
+    ACTIVE = "ACTIVE"
+    ON_LEAVE = "ON_LEAVE"
+    RESIGNED = "RESIGNED"
+    RETIRED = "RETIRED"
+
+
+class OfferingStatus(StrEnum):
+    """Course offering delivery lifecycle status."""
+
+    PLANNED = "PLANNED"
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+
+
+class EnrollmentStatus(StrEnum):
+    """Student offering enrollment lifecycle status."""
+
+    ACTIVE = "ACTIVE"
+    DROPPED = "DROPPED"
+    COMPLETED = "COMPLETED"
+    WITHDRAWN = "WITHDRAWN"
+
+
+class LecturerAssignmentType(StrEnum):
+    """Role/type of lecturer assignment for an offering."""
+
+    PRIMARY = "PRIMARY"
+    CO_TEACHER = "CO_TEACHER"
+    ASSISTANT = "ASSISTANT"

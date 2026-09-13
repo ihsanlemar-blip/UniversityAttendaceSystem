@@ -3,13 +3,20 @@
 from backend.app.models.academic_unit import AcademicUnit
 from backend.app.models.academic_year import AcademicYear
 from backend.app.models.base import Base, TimestampMixin, UUIDv7PrimaryKeyMixin
+from backend.app.models.course import Course
+from backend.app.models.course_offering import CourseOffering
+from backend.app.models.enrollment import Enrollment
+from backend.app.models.lecturer import Lecturer
+from backend.app.models.lecturer_assignment import LecturerAssignment
 from backend.app.models.login_attempt import LoginAttempt
 from backend.app.models.permission import Permission
 from backend.app.models.refresh_session import RefreshSession
 from backend.app.models.role import Role
 from backend.app.models.role_assignment import RoleAssignment
 from backend.app.models.role_permission import RolePermission
+from backend.app.models.section import Section
 from backend.app.models.semester import Semester
+from backend.app.models.student import Student
 from backend.app.models.university import University
 from backend.app.models.user import User
 
@@ -17,13 +24,20 @@ __all__ = [
     "AcademicUnit",
     "AcademicYear",
     "Base",
+    "Course",
+    "CourseOffering",
+    "Enrollment",
+    "Lecturer",
+    "LecturerAssignment",
     "LoginAttempt",
     "Permission",
     "RefreshSession",
     "Role",
     "RoleAssignment",
     "RolePermission",
+    "Section",
     "Semester",
+    "Student",
     "TimestampMixin",
     "UUIDv7PrimaryKeyMixin",
     "University",
