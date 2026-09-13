@@ -1,6 +1,6 @@
 """University institutional model definition."""
 
-from sqlalchemy import String
+from sqlalchemy import Index, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.core.constants import DEFAULT_LOCALE, DEFAULT_TIMEZONE, RecordStatus
@@ -15,9 +15,10 @@ class University(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
     """
 
     __tablename__ = "universities"
+    __table_args__ = (Index("ix_universities_code", "code", unique=True),)
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     timezone: Mapped[str] = mapped_column(String(50), default=DEFAULT_TIMEZONE, nullable=False)
     default_language: Mapped[str] = mapped_column(
         String(10), default=DEFAULT_LOCALE, nullable=False

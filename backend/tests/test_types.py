@@ -27,6 +27,12 @@ def test_uuid7_time_ordering() -> None:
     assert uuids == sorted_uuids
 
 
+def test_uuid7_distinctness() -> None:
+    """Verify that multiple generated UUIDv7 identifiers are unique."""
+    uuids = {uuid7() for _ in range(100)}
+    assert len(uuids) == 100
+
+
 def test_utc_now_timezone_aware() -> None:
     """Verify utc_now() returns timezone-aware UTC datetime."""
     now = utc_now()

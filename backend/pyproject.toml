@@ -3,22 +3,22 @@ name = "university-attendance-backend"
 version = "0.1.0"
 description = "FastAPI Modular Monolith for Digital Student Attendance System"
 authors = [{ name = "University Engineering Team" }]
-requires-python = ">=3.12"
+requires-python = ">=3.14"
 dependencies = [
-    "fastapi>=0.110.0",
-    "uvicorn[standard]>=0.28.0",
-    "pydantic>=2.6.0",
-    "pydantic-settings>=2.2.0",
-    "sqlalchemy>=2.0.28",
-    "asyncpg>=0.29.0",
-    "alembic>=1.13.1",
-    "redis>=5.0.3",
-    "celery>=5.3.6",
+    "fastapi==0.141.1",
+    "uvicorn[standard]==0.52.4",
+    "pydantic==2.13.5",
+    "pydantic-settings==2.15.0",
+    "sqlalchemy==2.0.52",
+    "asyncpg==0.31.0",
+    "alembic==1.20.0",
+    "redis==8.1.0",
+    "celery==5.6.3",
 ]
 
 [tool.ruff]
 line-length = 100
-target-version = "py312"
+target-version = "py314"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "B", "UP", "S"]
@@ -29,7 +29,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.mypy]
-python_version = "3.12"
+python_version = "3.14"
 strict = true
 ignore_missing_imports = true
 
