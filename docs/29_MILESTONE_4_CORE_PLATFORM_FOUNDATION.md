@@ -33,8 +33,8 @@ The core platform provides:
 
 | Invariant | Description | Milestone 4 Status | Verification Details |
 |---|---|---|---|
-| **INV-01** | Client Cannot Mark Itself Present | **ENFORCED (Platform Level)** | No attendance submission endpoints exist; API exclusively exposes read-only health/metadata endpoints. Client cannot mark presence. |
-| **INV-02** | Attendance Depends on Server/Domain Validation | **ENFORCED (Platform Level)** | Server-side transaction boundary implemented in `get_db_session()` with mandatory auto-rollback on unhandled exception. |
+| **INV-01** | Client Cannot Mark Itself Present | **PRESERVED / NOT YET IMPLEMENTED** | No attendance submission domain exists yet. The architecture prohibits client-authoritative final attendance. |
+| **INV-02** | Attendance Depends on Server/Domain Validation | **PRESERVED / NOT YET IMPLEMENTED** | The platform provides server-side transaction and validation infrastructure; actual attendance-domain enforcement will be implemented during the Attendance Engine milestone. |
 | **INV-03** | Student Device Clock Is NOT Authoritative | **ENFORCED (Platform Level)** | Server UTC clock is the sole authority for all models and timestamps (`utc_now()`). Server UTC is exposed on `GET /api/v1/`. |
 | **INV-04** | Expired Dynamic QR/Tokens Cannot Grant Attendance | **PRESERVED / NOT YET IMPLEMENTED** | Token rotation settings (`ATTENDANCE_TOKEN_ROTATION_SECONDS=30`) configured in typed Settings; dynamic token engine deferred to Attendance Engine milestone. |
 | **INV-05** | No Duplicate Checkpoint Credit | **PRESERVED / NOT YET IMPLEMENTED** | Architectural requirement preserved; implementation deferred to Attendance Engine milestone. Model naming conventions support future unique constraints and idempotency keys. |
