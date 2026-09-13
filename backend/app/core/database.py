@@ -3,6 +3,7 @@
 from collections.abc import AsyncGenerator
 
 from backend.app.core.config import get_settings
+from backend.app.core.constants import Environment
 from backend.app.core.logging import get_logger
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import (
@@ -11,6 +12,7 @@ from sqlalchemy.ext.asyncio import (
     async_sessionmaker,
     create_async_engine,
 )
+from sqlalchemy.pool import NullPool
 
 logger = get_logger(__name__)
 
@@ -24,13 +26,20 @@ def get_engine() -> AsyncEngine:
     global _engine
     if _engine is None:
         settings = get_settings()
-        _engine = create_async_engine(
-            settings.async_database_url,
-            pool_size=settings.DATABASE_POOL_SIZE,
-            max_overflow=settings.DATABASE_MAX_OVERFLOW,
-            pool_pre_ping=True,
-            echo=settings.DEBUG,
-        )
+        if settings.APP_ENV == Environment.TESTING:
+            _engine = create_async_engine(
+                settings.async_database_url,
+                poolclass=NullPool,
+                echo=settings.DEBUG,
+            )
+        else:
+            _engine = create_async_engine(
+                settings.async_database_url,
+                pool_size=settings.DATABASE_POOL_SIZE,
+                max_overflow=settings.DATABASE_MAX_OVERFLOW,
+                pool_pre_ping=True,
+                echo=settings.DEBUG,
+            )
     return _engine
 
 
@@ -46,6 +55,19 @@ def get_sessionmaker() -> async_sessionmaker[AsyncSession]:
             autoflush=False,
         )
     return _sessionmaker
+
+
+# Alias for backward and CLI script compatibility
+async_session_factory = get_sessionmaker
+
+
+async def dispose_engine() -> None:
+    """Dispose active engine and reset global singletons."""
+    global _engine, _sessionmaker
+    if _engine is not None:
+        await _engine.dispose()
+        _engine = None
+        _sessionmaker = None
 
 
 async def get_db_session() -> AsyncGenerator[AsyncSession]:

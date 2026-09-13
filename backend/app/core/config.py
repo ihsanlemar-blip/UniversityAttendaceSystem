@@ -72,16 +72,22 @@ class Settings(BaseSettings):
     CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
 
     # =========================================================================
-    # 4. AUTH Placeholders (Deferred to Milestone 5)
+    # 4. AUTH Settings (Milestone 5)
     # =========================================================================
-    AUTH_SIGNING_KEY: str | None = Field(
-        default=None,
-        description="JWT signing key. Required when authentication is implemented in Milestone 5.",
+    AUTH_SIGNING_KEY: str = Field(
+        default="dev-auth-signing-key-minimum-32-chars-for-testing-purposes-only",
+        description="JWT HMAC signing key. Must be cryptographically random and >=32 chars.",
     )
+    AUTH_ALGORITHM: str = Field(default="HS256")
     AUTH_ACCESS_TOKEN_MINUTES: int = Field(default=15)
     AUTH_REFRESH_TOKEN_DAYS: int = Field(default=7)
     AUTH_PASSWORD_HASH_ALGO: str = Field(default="argon2id")
+    AUTH_PASSWORD_MIN_LENGTH: int = Field(default=8)
+    AUTH_PASSWORD_MAX_LENGTH: int = Field(default=128)
     AUTH_MAX_LOGIN_ATTEMPTS: int = Field(default=5)
+    AUTH_LOCKOUT_DURATION_MINUTES: int = Field(default=15)
+    AUTH_ISSUER: str = Field(default="university-attendance-api")
+    AUTH_AUDIENCE: str = Field(default="university-attendance-client")
 
     # =========================================================================
     # 5. ATTENDANCE Defaults (ADR-010)
@@ -109,7 +115,9 @@ class Settings(BaseSettings):
     CLOUD_SYNC_URL: str = Field(default="https://cloud.university.edu/api/v1/sync")
     CLOUD_SYNC_API_KEY: str | None = Field(
         default=None,
-        description="API key for cloud sync. Required when CLOUD_SYNC_ENABLED is True.",
+        description=(
+            "API key for central cloud synchronization. Required when CLOUD_SYNC_ENABLED=True."
+        ),
     )
     CLOUD_SYNC_BATCH_SIZE: int = Field(default=100)
 
@@ -118,15 +126,14 @@ class Settings(BaseSettings):
     BACKUP_RETENTION_DAYS: int = Field(default=30)
 
     @model_validator(mode="after")
-    def validate_conditional_secrets(self) -> Settings:
-        """Enforce fail-closed security for active features; allow absent secrets when disabled."""
+    def validate_cross_field_dependencies(self) -> Settings:
+        """Enforce conditional secret requirements and production security."""
         if self.CLOUD_SYNC_ENABLED and not self.CLOUD_SYNC_API_KEY:
-            raise ValueError(
-                "CLOUD_SYNC_API_KEY must be configured when CLOUD_SYNC_ENABLED is True."
-            )
+            raise ValueError("CLOUD_SYNC_API_KEY is required when CLOUD_SYNC_ENABLED is True.")
 
         if self.APP_ENV == Environment.PRODUCTION:
             insecure_passwords = {
+                "change_me_in_production",
                 "dev_insecure_password",
                 "password",
                 "secret",
@@ -138,8 +145,20 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "Insecure DATABASE_PASSWORD default is forbidden in production environment."
                 )
-            if self.AUTH_SIGNING_KEY and len(self.AUTH_SIGNING_KEY) < 32:
-                raise ValueError("AUTH_SIGNING_KEY must be at least 32 characters in production.")
+            insecure_keys = {
+                "dev-auth-signing-key-minimum-32-chars-for-testing-purposes-only",
+                "change_me_in_production",
+                "secret",
+                "jwt_secret",
+            }
+            if (
+                not self.AUTH_SIGNING_KEY
+                or self.AUTH_SIGNING_KEY in insecure_keys
+                or len(self.AUTH_SIGNING_KEY) < 32
+            ):
+                raise ValueError(
+                    "A secure AUTH_SIGNING_KEY of at least 32 characters is required in production."
+                )
 
         return self
 

@@ -26,3 +26,21 @@ class PaginatedResponse(BaseModel, Generic[T]):
     page: int
     page_size: int
     total_pages: int
+
+    @classmethod
+    def create(
+        cls,
+        items: list[T],
+        total: int,
+        page: int,
+        page_size: int,
+    ) -> PaginatedResponse[T]:
+        """Construct a paginated response calculating total pages."""
+        total_pages = (total + page_size - 1) // page_size if page_size > 0 else 1
+        return cls(
+            items=items,
+            total_count=total,
+            page=page,
+            page_size=page_size,
+            total_pages=total_pages,
+        )

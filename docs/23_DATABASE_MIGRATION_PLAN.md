@@ -19,35 +19,40 @@ Per **ADR-005 (PostgreSQL Primary Database)** and `docs/09_DATABASE_SCHEMA.md`, 
 
 ---
 
-## 2. Planned Migration Sequence
+## 2. Planned Migration Sequence & Implementation Reconciliation
 
-The database schema is structured into 29 sequential migration milestones (`001` through `029`):
+### 2.1 Actual Implemented Migration Sequence (Linear Alembic Revisions)
+
+To support real testability and adhere to modular milestones, the actual linear Alembic revision sequence establishes security, identity, and access control directly following the institutional foundation:
 
 ```text
-┌─────────────────────────────────────────────────────────────┐
-│                    Migration Sequence Map                   │
-│                                                             │
-│  [001-003] University & Academic Calendar                   │
-│      │                                                      │
-│      ▼                                                      │
-│  [004-007] Identity, RBAC, Profiles & Sections             │
-│      │                                                      │
-│      ▼                                                      │
-│  [008-011] Courses, Offerings, Assignments, Enrollments     │
-│      │                                                      │
-│      ▼                                                      │
-│  [012-014] Facilities, Timetable Rules, Class Occurrences   │
-│      │                                                      │
-│      ▼                                                      │
-│  [015-017] Attendance Policies, Sessions, Checkpoints       │
-│      │                                                      │
-│      ▼                                                      │
-│  [018-022] Devices, Evidence, Checkpoint Results, Finals    │
-│      │                                                      │
-│      ▼                                                      │
-│  [023-029] Governance, Audit, Offline, Sync Outbox          │
-└─────────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────────────────┐
+│                   Actual Implemented Revision Chain                    │
+│                                                                        │
+│  001_foundation_university (Milestone 4 - Completed)                   │
+│      │                                                                 │
+│      ▼                                                                 │
+│  002_identity_users (Milestone 5 - users table)                        │
+│      │                                                                 │
+│      ▼                                                                 │
+│  003_rbac (Milestone 5 - roles, permissions, role_assignments)         │
+│      │                                                                 │
+│      ▼                                                                 │
+│  004_auth_sessions_and_login_attempts (Milestone 5 - sessions/audit)   │
+│      │                                                                 │
+│      ▼                                                                 │
+│  005_academic_units_and_calendar (Milestone 6 - faculties/departments) │
+│      │                                                                 │
+│      ▼                                                                 │
+│  [Subsequent Milestones - courses, offerings, attendance, etc.]        │
+└────────────────────────────────────────────────────────────────────────┘
 ```
+
+### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
+
+The original conceptual taxonomy grouped academic units before identity. In practice, establishing user identity and role-based access control first allows administrative creation and role scoping of academic units and structures in Milestone 6 without placeholder authentication bypasses.
+
+The original 29-milestone conceptual dependency sequence was:
 
 ---
 
