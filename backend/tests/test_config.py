@@ -6,8 +6,9 @@ from backend.app.core.config import Settings
 from backend.app.core.constants import Environment
 
 
-def test_default_settings() -> None:
+def test_default_settings(monkeypatch: pytest.MonkeyPatch) -> None:
     """Verify default settings values match architecture baseline."""
+    monkeypatch.delenv("APP_ENV", raising=False)
     settings = Settings()
 
     assert settings.APP_NAME == "University Attendance System"
@@ -63,7 +64,7 @@ def test_cors_origins_wildcard_validation() -> None:
 def test_future_secrets_optional_when_features_disabled() -> None:
     """Verify future secrets may remain absent when corresponding features are disabled."""
     settings = Settings()
-    assert settings.AUTH_SIGNING_KEY is None
+    assert settings.AUTH_SIGNING_KEY is not None
     assert settings.ATTENDANCE_TOKEN_HMAC_SECRET is None
     assert settings.CLOUD_SYNC_API_KEY is None
     assert settings.CLOUD_SYNC_ENABLED is False
@@ -85,4 +86,18 @@ def test_cloud_sync_secret_accepted_when_provided() -> None:
 def test_production_rejects_insecure_db_password() -> None:
     """Verify production environment rejects default insecure passwords."""
     with pytest.raises(ValueError, match="Insecure DATABASE_PASSWORD"):
-        Settings(APP_ENV=Environment.PRODUCTION, DATABASE_PASSWORD="dev_insecure_password")
+        Settings(
+            APP_ENV=Environment.PRODUCTION,
+            DATABASE_PASSWORD="dev_insecure_password",
+            AUTH_SIGNING_KEY="a-secure-production-key-that-has-at-least-32-characters",
+        )
+
+
+def test_production_rejects_insecure_auth_signing_key() -> None:
+    """Verify production environment rejects default or short AUTH_SIGNING_KEY."""
+    with pytest.raises(ValueError, match="secure AUTH_SIGNING_KEY"):
+        Settings(
+            APP_ENV=Environment.PRODUCTION,
+            DATABASE_PASSWORD="strong-production-password-123",
+            AUTH_SIGNING_KEY="short-key",
+        )
