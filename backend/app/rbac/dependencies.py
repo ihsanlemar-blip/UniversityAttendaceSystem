@@ -13,11 +13,16 @@ from backend.app.models.user import User
 from backend.app.rbac.service import RbacService
 
 
-def require_permission(permission_code: str) -> Callable[..., Awaitable[User]]:
+def require_permission(
+    permission_code: str,
+    allow_scoped: bool = False,
+) -> Callable[..., Awaitable[User]]:
     """Dependency factory enforcing that current user holds specific scoped permission.
 
     Enforces deny-by-default: If the user lacks an active assignment granting the permission
     within the active university scope, returns HTTP 403 PERMISSION_DENIED.
+    If allow_scoped is True, role assignments at ACADEMIC_UNIT scope are also admitted
+    (for subsequent fine-grained endpoint subtree validation).
     """
 
     async def _permission_checker(
@@ -29,6 +34,7 @@ def require_permission(permission_code: str) -> Callable[..., Awaitable[User]]:
             user_id=user.id,
             permission_code=permission_code,
             university_id=user.university_id,
+            allow_scoped=allow_scoped,
         )
 
         if not has_perm:

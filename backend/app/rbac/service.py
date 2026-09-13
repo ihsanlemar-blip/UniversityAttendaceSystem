@@ -1,6 +1,7 @@
 """RBAC service for managing roles, permissions, and evaluating user authorization."""
 
 import uuid
+from collections import defaultdict
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -55,11 +56,13 @@ class RbacService:
         user_id: uuid.UUID,
         permission_code: str,
         university_id: uuid.UUID,
+        allow_scoped: bool = False,
     ) -> bool:
         """Evaluate if user possesses effective permission in university scope.
 
         Enforces default-deny: returns True only if an active role assignment
-        in the target university grants the requested permission at UNIVERSITY scope.
+        in the target university grants the requested permission.
+        If allow_scoped is True, role assignments at ACADEMIC_UNIT scope also qualify.
         """
         stmt = (
             select(Permission.id)
@@ -69,12 +72,14 @@ class RbacService:
             .where(
                 RoleAssignment.user_id == user_id,
                 RoleAssignment.university_id == university_id,
-                RoleAssignment.scope_type == ScopeType.UNIVERSITY.value,
                 RoleAssignment.revoked_at.is_(None),
                 Permission.code == permission_code,
             )
-            .limit(1)
         )
+        if not allow_scoped:
+            stmt = stmt.where(RoleAssignment.scope_type == ScopeType.UNIVERSITY.value)
+
+        stmt = stmt.limit(1)
         res = await db.execute(stmt)
         return res.scalar_one_or_none() is not None
 
@@ -135,6 +140,70 @@ class RbacService:
             curr_id = unit.parent_id
 
         return False
+
+    @staticmethod
+    async def get_accessible_academic_unit_ids(
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        permission_code: str,
+        university_id: uuid.UUID,
+    ) -> set[uuid.UUID] | None:
+        """Return set of academic unit IDs accessible to user for given permission.
+
+        Returns:
+            None: If user has university-wide permission (unbounded access).
+            set[uuid.UUID]: Set of allowed unit IDs including subtree descendants.
+            Empty set: If user has no permission.
+        """
+        if await RbacService.has_permission(
+            db=db,
+            user_id=user_id,
+            permission_code=permission_code,
+            university_id=university_id,
+        ):
+            return None
+
+        stmt = (
+            select(RoleAssignment.scope_id)
+            .join(Role, Role.id == RoleAssignment.role_id)
+            .join(RolePermission, RolePermission.role_id == Role.id)
+            .join(Permission, Permission.id == RolePermission.permission_id)
+            .where(
+                RoleAssignment.user_id == user_id,
+                RoleAssignment.university_id == university_id,
+                RoleAssignment.scope_type == ScopeType.ACADEMIC_UNIT.value,
+                RoleAssignment.revoked_at.is_(None),
+                Permission.code == permission_code,
+            )
+        )
+        res = await db.execute(stmt)
+        base_unit_ids = set(res.scalars().all())
+        if not base_unit_ids:
+            return set()
+
+        # Fetch all units in the university to expand descendants
+        units_stmt = select(AcademicUnit.id, AcademicUnit.parent_id).where(
+            AcademicUnit.university_id == university_id
+        )
+        all_units = (await db.execute(units_stmt)).all()
+
+        # Build adjacency list: parent_id -> list of child_ids
+        children_map: dict[uuid.UUID, list[uuid.UUID]] = defaultdict(list)
+        for u_id, p_id in all_units:
+            if p_id is not None:
+                children_map[p_id].append(u_id)
+
+        # BFS/DFS expand all descendants
+        expanded: set[uuid.UUID] = set(base_unit_ids)
+        queue = list(base_unit_ids)
+        while queue:
+            parent = queue.pop(0)
+            for child in children_map.get(parent, []):
+                if child not in expanded:
+                    expanded.add(child)
+                    queue.append(child)
+
+        return expanded
 
     @staticmethod
     async def assign_role(

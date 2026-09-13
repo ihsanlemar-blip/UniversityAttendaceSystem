@@ -31,6 +31,21 @@ SYSTEM_PERMISSIONS = [
     ("academic_years.manage", "Create, update, and activate academic years"),
     ("semesters.read", "View semester calendar sessions"),
     ("semesters.manage", "Create, update, and activate semester calendar sessions"),
+    ("courses.read", "View master course catalog definitions"),
+    ("courses.manage", "Create, update, and manage course catalog"),
+    ("sections.read", "View student sections and cohorts"),
+    ("sections.manage", "Create, update, and manage student sections"),
+    ("students.read", "View student academic profiles and rosters"),
+    ("students.manage", "Create, update, and manage student profiles"),
+    ("lecturers.read", "View lecturer profiles and teaching assignments"),
+    ("lecturers.manage", "Create, update, and manage lecturer profiles"),
+    ("course_offerings.read", "View course offerings and instructor assignments"),
+    (
+        "course_offerings.manage",
+        "Create, schedule, and manage course offerings and instructor assignments",
+    ),
+    ("enrollments.read", "View course offering enrollments and student class rosters"),
+    ("enrollments.manage", "Enroll students, drop, and manage course offering rosters"),
 ]
 
 # Base role definitions
@@ -150,6 +165,18 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "academic_years.manage",
             "semesters.read",
             "semesters.manage",
+            "courses.read",
+            "courses.manage",
+            "sections.read",
+            "sections.manage",
+            "students.read",
+            "students.manage",
+            "lecturers.read",
+            "lecturers.manage",
+            "course_offerings.read",
+            "course_offerings.manage",
+            "enrollments.read",
+            "enrollments.manage",
         ]
         for admin_p_code in uni_admin_perms:
             target_perm = perm_map.get(admin_p_code)
@@ -159,7 +186,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=uni_admin_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
-    # Faculty Admin gets academic structure read permissions
+    # Faculty Admin gets academic structure, curriculum, people, offerings, and enrollments
     faculty_admin_role = role_map.get(SystemRole.FACULTY_ADMIN.value)
     if faculty_admin_role:
         fac_perms = [
@@ -167,6 +194,18 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "courses.manage",
+            "sections.read",
+            "sections.manage",
+            "students.read",
+            "students.manage",
+            "lecturers.read",
+            "lecturers.manage",
+            "course_offerings.read",
+            "course_offerings.manage",
+            "enrollments.read",
+            "enrollments.manage",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -178,7 +217,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     )
                     existing_rp_pairs.add(pair)
 
-    # Department Admin gets academic structure read permissions
+    # Department Admin gets academic structure, curriculum, people, offerings, and enrollments
     dept_admin_role = role_map.get(SystemRole.DEPARTMENT_ADMIN.value)
     if dept_admin_role:
         dept_perms = [
@@ -186,6 +225,18 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "courses.manage",
+            "sections.read",
+            "sections.manage",
+            "students.read",
+            "students.manage",
+            "lecturers.read",
+            "lecturers.manage",
+            "course_offerings.read",
+            "course_offerings.manage",
+            "enrollments.read",
+            "enrollments.manage",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -205,6 +256,12 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "sections.read",
+            "students.read",
+            "lecturers.read",
+            "course_offerings.read",
+            "enrollments.read",
         ]
         for off_p_code in officer_perms:
             target_perm = perm_map.get(off_p_code)
@@ -219,13 +276,19 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     )
                     existing_rp_pairs.add(pair)
 
-    # Lecturer gets academic catalog read permissions
+    # Lecturer gets academic catalog, sections, roster and offering read permissions
     lecturer_role = role_map.get(SystemRole.LECTURER.value)
     if lecturer_role:
         lecturer_perms = [
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "sections.read",
+            "students.read",
+            "lecturers.read",
+            "course_offerings.read",
+            "enrollments.read",
         ]
         for p_code in lecturer_perms:
             target_perm = perm_map.get(p_code)
@@ -235,13 +298,17 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=lecturer_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
-    # Student gets academic catalog read permissions
+    # Student gets academic catalog, offerings, sections, and enrollments read permissions
     student_role = role_map.get(SystemRole.STUDENT.value)
     if student_role:
         student_perms = [
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "sections.read",
+            "course_offerings.read",
+            "enrollments.read",
         ]
         for p_code in student_perms:
             target_perm = perm_map.get(p_code)
@@ -251,7 +318,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=student_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
-    # Auditor gets read-only permissions
+    # Auditor gets read-only permissions across all domains
     auditor_role = role_map.get(SystemRole.AUDITOR.value)
     if auditor_role:
         auditor_perms = [
@@ -264,6 +331,12 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "academic_units.read",
             "academic_years.read",
             "semesters.read",
+            "courses.read",
+            "sections.read",
+            "students.read",
+            "lecturers.read",
+            "course_offerings.read",
+            "enrollments.read",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)
