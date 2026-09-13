@@ -69,7 +69,7 @@ The primary CI pipeline (`.github/workflows/ci.yml`) triggers on every Pull Requ
 - **Runner**: `ubuntu-latest`
 - **Steps**:
   1. Checkout repository.
-  2. Setup Node.js 20 with npm caching.
+  2. Setup Node.js 24 LTS with npm caching.
   3. Install dependencies: `npm --prefix apps/web ci`.
   4. Code Linting:
      ```bash

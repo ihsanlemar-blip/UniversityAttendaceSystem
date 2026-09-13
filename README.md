@@ -22,7 +22,7 @@ Per the approved Architecture Decision Records ([docs/15_ARCHITECTURE_DECISIONS.
 - **Backend**: FastAPI (Python 3.12+) structured as a modular monolith.
 - **Database**: PostgreSQL 16 with UUIDv7 primary keys and UTC timestamps.
 - **Cache & Message Broker**: Redis 7 with Celery background workers.
-- **Web Portal / PWA**: Next.js (App Router, TypeScript strict mode, Tailwind CSS) with full Right-to-Left (RTL) localization support.
+- **Web Portal / PWA**: Next.js 16.3.3 (App Router, TypeScript strict mode, Tailwind CSS) with full Right-to-Left (RTL) localization support.
 - **Mobile Client**: Flutter (Dart null-safety, Riverpod state management, encrypted Drift / SQLite local storage).
 - **Primary Operational Authority**: University campus local server. Cloud is strictly used for asynchronous disaster recovery replication. The system functions fully offline within campus local area networks.
 - **Anti-Cheating Engine**:
@@ -75,7 +75,7 @@ UniversityAttendaceSystem/
 Ensure your host workstation has the following tools installed:
 - **Git** (version 2.40+)
 - **Python** (version 3.12+)
-- **Node.js** (version 20+ LTS) and **npm**
+- **Node.js** (version 24 LTS) and **npm**
 - **Flutter SDK** (channel `stable`, 3.20+)
 - **Docker Desktop** / **Docker Engine** and **Docker Compose v2** (optional on bare metal; required for containerized stack)
 

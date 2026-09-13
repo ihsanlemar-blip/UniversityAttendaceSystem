@@ -52,7 +52,7 @@ The development container cluster defined in `docker-compose.yml` provides a sel
 | `redis` | `redis:7-alpine` | `6379` | `6379` | In-memory cache, dynamic token session store, and Celery message broker. |
 | `backend` | Python 3.12 (Dockerfile) | `8000` | `8000` | FastAPI modular monolith backend application. Hot reloads code via volume mount. |
 | `worker` | Python 3.12 (Dockerfile) | N/A | N/A | Celery background task worker for asynchronous jobs (emails, imports, sync). |
-| `web` | Node.js 20 (Dockerfile) | `3000` | `3000` | Next.js responsive web application and PWA development server. |
+| `web` | Node.js 24 LTS (Dockerfile) | `3000` | `3000` | Next.js 16 responsive web application and PWA development server. |
 
 *Note: Mobile Flutter client runs outside Docker on the developer workstation or test device/emulator, communicating with `backend` at `http://localhost:8000/api/v1` (or `http://10.0.2.2:8000/api/v1` for Android emulator).*
 
