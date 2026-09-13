@@ -4,7 +4,7 @@
 import os
 import sys
 
-EXPECTED_PREFIXES = [f"{i:02d}" for i in range(31)]
+EXPECTED_PREFIXES = [f"{i:02d}" for i in range(33)]
 
 
 def validate_docs() -> int:
@@ -37,13 +37,18 @@ def validate_docs() -> int:
         print("[!] Error: docs/MILESTONE_4_MANIFEST.md is missing or empty.")
         return 1
 
+    manifest_m5 = os.path.join(docs_dir, "MILESTONE_5_MANIFEST.md")
+    if not os.path.isfile(manifest_m5) or os.path.getsize(manifest_m5) == 0:
+        print("[!] Error: docs/MILESTONE_5_MANIFEST.md is missing or empty.")
+        return 1
+
     if missing:
         print(f"[!] Missing or empty documentation files for prefixes: {missing}")
         return 1
 
     print(
-        f"[+] Documentation validation PASSED: All 31 specifications (00-30), "
-        f"MILESTONE_3_MANIFEST.md, and MILESTONE_4_MANIFEST.md present ({len(files)} total files)."
+        f"[+] Documentation validation PASSED: All 33 specifications (00-32), "
+        f"MILESTONE_3_MANIFEST.md, MILESTONE_4_MANIFEST.md, and MILESTONE_5_MANIFEST.md present ({len(files)} total files)."
     )
     return 0
 
