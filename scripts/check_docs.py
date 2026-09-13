@@ -4,7 +4,7 @@
 import os
 import sys
 
-EXPECTED_PREFIXES = [f"{i:02d}" for i in range(33)]
+EXPECTED_PREFIXES = [f"{i:02d}" for i in range(35)]
 
 
 def validate_docs() -> int:
@@ -27,28 +27,19 @@ def validate_docs() -> int:
                 print(f"[!] Warning: {file_path} is empty.")
                 missing.append(prefix)
 
-    manifest_m3 = os.path.join(docs_dir, "MILESTONE_3_MANIFEST.md")
-    if not os.path.isfile(manifest_m3) or os.path.getsize(manifest_m3) == 0:
-        print("[!] Error: docs/MILESTONE_3_MANIFEST.md is missing or empty.")
-        return 1
-
-    manifest_m4 = os.path.join(docs_dir, "MILESTONE_4_MANIFEST.md")
-    if not os.path.isfile(manifest_m4) or os.path.getsize(manifest_m4) == 0:
-        print("[!] Error: docs/MILESTONE_4_MANIFEST.md is missing or empty.")
-        return 1
-
-    manifest_m5 = os.path.join(docs_dir, "MILESTONE_5_MANIFEST.md")
-    if not os.path.isfile(manifest_m5) or os.path.getsize(manifest_m5) == 0:
-        print("[!] Error: docs/MILESTONE_5_MANIFEST.md is missing or empty.")
-        return 1
+    for m_num in (3, 4, 5, 6):
+        manifest = os.path.join(docs_dir, f"MILESTONE_{m_num}_MANIFEST.md")
+        if not os.path.isfile(manifest) or os.path.getsize(manifest) == 0:
+            print(f"[!] Error: docs/MILESTONE_{m_num}_MANIFEST.md is missing or empty.")
+            return 1
 
     if missing:
         print(f"[!] Missing or empty documentation files for prefixes: {missing}")
         return 1
 
     print(
-        f"[+] Documentation validation PASSED: All 33 specifications (00-32), "
-        f"MILESTONE_3_MANIFEST.md, MILESTONE_4_MANIFEST.md, and MILESTONE_5_MANIFEST.md present ({len(files)} total files)."
+        f"[+] Documentation validation PASSED: All 35 specifications (00-34), "
+        f"and manifests (M3, M4, M5, M6) present ({len(files)} total files)."
     )
     return 0
 

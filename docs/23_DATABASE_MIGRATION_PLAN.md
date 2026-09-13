@@ -48,6 +48,8 @@ To support real testability and adhere to modular milestones, the actual linear 
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
+*Note: Migrations 001 through 005 are fully applied and operational as of Milestone 6.*
+
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 
 The original conceptual taxonomy grouped academic units before identity. In practice, establishing user identity and role-based access control first allows administrative creation and role scoping of academic units and structures in Milestone 6 without placeholder authentication bypasses.
