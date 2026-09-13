@@ -58,3 +58,31 @@ def test_cors_origins_wildcard_validation() -> None:
     """Verify combining wildcard with specific origins raises ValueError."""
     with pytest.raises(ValueError, match="Wildcard"):
         Settings(CORS_ALLOWED_ORIGINS="*, http://localhost:3000")
+
+
+def test_future_secrets_optional_when_features_disabled() -> None:
+    """Verify future secrets may remain absent when corresponding features are disabled."""
+    settings = Settings()
+    assert settings.AUTH_SIGNING_KEY is None
+    assert settings.ATTENDANCE_TOKEN_HMAC_SECRET is None
+    assert settings.CLOUD_SYNC_API_KEY is None
+    assert settings.CLOUD_SYNC_ENABLED is False
+
+
+def test_cloud_sync_secret_required_when_enabled() -> None:
+    """Verify CLOUD_SYNC_API_KEY is required when CLOUD_SYNC_ENABLED is True."""
+    with pytest.raises(ValueError, match="CLOUD_SYNC_API_KEY"):
+        Settings(CLOUD_SYNC_ENABLED=True, CLOUD_SYNC_API_KEY=None)
+
+
+def test_cloud_sync_secret_accepted_when_provided() -> None:
+    """Verify CLOUD_SYNC_ENABLED succeeds when valid API key is supplied."""
+    settings = Settings(CLOUD_SYNC_ENABLED=True, CLOUD_SYNC_API_KEY="sync-secret-key-12345")
+    assert settings.CLOUD_SYNC_ENABLED is True
+    assert settings.CLOUD_SYNC_API_KEY == "sync-secret-key-12345"
+
+
+def test_production_rejects_insecure_db_password() -> None:
+    """Verify production environment rejects default insecure passwords."""
+    with pytest.raises(ValueError, match="Insecure DATABASE_PASSWORD"):
+        Settings(APP_ENV=Environment.PRODUCTION, DATABASE_PASSWORD="dev_insecure_password")

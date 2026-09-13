@@ -7,7 +7,7 @@ with strict validation, fail-fast defaults, and clear category separation.
 from functools import lru_cache
 
 from backend.app.core.constants import DEFAULT_LOCALE, DEFAULT_TIMEZONE, Environment
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -74,7 +74,10 @@ class Settings(BaseSettings):
     # =========================================================================
     # 4. AUTH Placeholders (Deferred to Milestone 5)
     # =========================================================================
-    AUTH_SIGNING_KEY: str = Field(default="dev_insecure_jwt_signing_key_do_not_use_in_production")
+    AUTH_SIGNING_KEY: str | None = Field(
+        default=None,
+        description="JWT signing key. Required when authentication is implemented in Milestone 5.",
+    )
     AUTH_ACCESS_TOKEN_MINUTES: int = Field(default=15)
     AUTH_REFRESH_TOKEN_DAYS: int = Field(default=7)
     AUTH_PASSWORD_HASH_ALGO: str = Field(default="argon2id")
@@ -88,8 +91,9 @@ class Settings(BaseSettings):
     ATTENDANCE_DEFAULT_CHECKPOINT_SECONDS: int = Field(default=300)
     ATTENDANCE_LATE_THRESHOLD_MINUTES: int = Field(default=10)
     ATTENDANCE_MINIMUM_PERCENTAGE: float = Field(default=75.0)
-    ATTENDANCE_TOKEN_HMAC_SECRET: str = Field(
-        default="dev_insecure_qr_hmac_secret_do_not_use_in_prod"
+    ATTENDANCE_TOKEN_HMAC_SECRET: str | None = Field(
+        default=None,
+        description="HMAC secret for dynamic QR rotation. Required in Attendance Engine.",
     )
 
     # =========================================================================
@@ -103,12 +107,41 @@ class Settings(BaseSettings):
     # =========================================================================
     CLOUD_SYNC_ENABLED: bool = Field(default=False)
     CLOUD_SYNC_URL: str = Field(default="https://cloud.university.edu/api/v1/sync")
-    CLOUD_SYNC_API_KEY: str = Field(default="placeholder_cloud_sync_api_key")
+    CLOUD_SYNC_API_KEY: str | None = Field(
+        default=None,
+        description="API key for cloud sync. Required when CLOUD_SYNC_ENABLED is True.",
+    )
     CLOUD_SYNC_BATCH_SIZE: int = Field(default=100)
 
     BACKUP_ENABLED: bool = Field(default=True)
     BACKUP_PATH: str = Field(default="/var/backups/attendance")
     BACKUP_RETENTION_DAYS: int = Field(default=30)
+
+    @model_validator(mode="after")
+    def validate_conditional_secrets(self) -> Settings:
+        """Enforce fail-closed security for active features; allow absent secrets when disabled."""
+        if self.CLOUD_SYNC_ENABLED and not self.CLOUD_SYNC_API_KEY:
+            raise ValueError(
+                "CLOUD_SYNC_API_KEY must be configured when CLOUD_SYNC_ENABLED is True."
+            )
+
+        if self.APP_ENV == Environment.PRODUCTION:
+            insecure_passwords = {
+                "dev_insecure_password",
+                "password",
+                "secret",
+                "changeme",
+                "admin",
+                "123456",
+            }
+            if self.DATABASE_PASSWORD.lower() in insecure_passwords:
+                raise ValueError(
+                    "Insecure DATABASE_PASSWORD default is forbidden in production environment."
+                )
+            if self.AUTH_SIGNING_KEY and len(self.AUTH_SIGNING_KEY) < 32:
+                raise ValueError("AUTH_SIGNING_KEY must be at least 32 characters in production.")
+
+        return self
 
     # =========================================================================
     # 8. LOGGING Settings
