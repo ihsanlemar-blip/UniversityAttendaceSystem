@@ -2,6 +2,12 @@
 
 from backend.app.models.academic_unit import AcademicUnit
 from backend.app.models.academic_year import AcademicYear
+from backend.app.models.attendance_checkpoint import AttendanceCheckpoint
+from backend.app.models.attendance_evidence import AttendanceEvidence
+from backend.app.models.attendance_policy import AttendancePolicy
+from backend.app.models.attendance_record import AttendanceRecord
+from backend.app.models.attendance_revision import AttendanceRevision
+from backend.app.models.attendance_session import AttendanceSession
 from backend.app.models.base import Base, TimestampMixin, UUIDv7PrimaryKeyMixin
 from backend.app.models.building import Building
 from backend.app.models.class_occurrence import ClassOccurrence
@@ -27,6 +33,12 @@ from backend.app.models.user import User
 __all__ = [
     "AcademicUnit",
     "AcademicYear",
+    "AttendanceCheckpoint",
+    "AttendanceEvidence",
+    "AttendancePolicy",
+    "AttendanceRecord",
+    "AttendanceRevision",
+    "AttendanceSession",
     "Base",
     "Building",
     "ClassOccurrence",

@@ -128,6 +128,15 @@ class PermissionCode(StrEnum):
     CLASS_OCCURRENCES_READ = "class_occurrences.read"
     CLASS_OCCURRENCES_CANCEL = "class_occurrences.cancel"
     CLASS_OCCURRENCES_RESCHEDULE = "class_occurrences.reschedule"
+    ATTENDANCE_POLICIES_READ = "attendance_policies.read"
+    ATTENDANCE_POLICIES_MANAGE = "attendance_policies.manage"
+    ATTENDANCE_SESSIONS_READ = "attendance_sessions.read"
+    ATTENDANCE_SESSIONS_MANAGE = "attendance_sessions.manage"
+    ATTENDANCE_CHECKPOINTS_MANAGE = "attendance_checkpoints.manage"
+    ATTENDANCE_RECORDS_READ = "attendance_records.read"
+    ATTENDANCE_RECORDS_OVERRIDE = "attendance_records.override"
+    ATTENDANCE_AUDIT_READ = "attendance_audit.read"
+    ATTENDANCE_SELF_READ = "attendance.self_read"
 
 
 class StudentStatus(StrEnum):
@@ -213,3 +222,79 @@ class ClassOccurrenceStatus(StrEnum):
     COMPLETED = "COMPLETED"
     CANCELLED = "CANCELLED"
     RESCHEDULED = "RESCHEDULED"
+
+
+class PolicyScopeType(StrEnum):
+    """Attendance policy scope level in resolution hierarchy."""
+
+    UNIVERSITY = "UNIVERSITY"
+    FACULTY = "FACULTY"
+    PROGRAM = "PROGRAM"
+    COURSE = "COURSE"
+
+
+class AttendanceSessionStatus(StrEnum):
+    """Attendance session operational lifecycle status."""
+
+    SCHEDULED = "SCHEDULED"
+    ACTIVE = "ACTIVE"
+    PAUSED = "PAUSED"
+    CLOSED = "CLOSED"
+    ARCHIVED = "ARCHIVED"
+
+
+class AttendanceCheckpointType(StrEnum):
+    """Approved attendance checkpoint types per specifications."""
+
+    START = "START"
+    MIDDLE = "MIDDLE"
+    END = "END"
+
+
+class AttendanceCheckpointStatus(StrEnum):
+    """Checkpoint execution state machine status."""
+
+    SCHEDULED = "SCHEDULED"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
+    CANCELLED = "CANCELLED"
+
+
+class AttendanceStatus(StrEnum):
+    """Official attendance record status taxonomy."""
+
+    PENDING = "PENDING"
+    PRESENT = "PRESENT"
+    LATE = "LATE"
+    ABSENT = "ABSENT"
+    EXCUSED = "EXCUSED"
+    LEAVE = "LEAVE"
+
+
+class EvidenceSourceMode(StrEnum):
+    """Evidence capture modality source."""
+
+    MANUAL = "MANUAL"
+    SYSTEM_AUTOMATED = "SYSTEM_AUTOMATED"
+    PHYSICAL_CARD_FALLBACK = "PHYSICAL_CARD_FALLBACK"
+    ONLINE_DYNAMIC_QR = "ONLINE_DYNAMIC_QR"
+    BLUETOOTH_BLE = "BLUETOOTH_BLE"
+    OFFLINE_SYNC = "OFFLINE_SYNC"
+
+
+class AttendanceAuditEventType(StrEnum):
+    """Attendance revision ledger audit event classification."""
+
+    SESSION_INITIALIZED = "SESSION_INITIALIZED"
+    SESSION_OPENED = "SESSION_OPENED"
+    SESSION_PAUSED = "SESSION_PAUSED"
+    SESSION_RESUMED = "SESSION_RESUMED"
+    SESSION_CLOSED = "SESSION_CLOSED"
+    CHECKPOINT_OPENED = "CHECKPOINT_OPENED"
+    CHECKPOINT_CLOSED = "CHECKPOINT_CLOSED"
+    CHECKPOINT_CREDITED = "CHECKPOINT_CREDITED"
+    MANUAL_CHECKPOINT_CREDIT = "MANUAL_CHECKPOINT_CREDIT"
+    MANUAL_RECORD_OVERRIDE = "MANUAL_RECORD_OVERRIDE"
+    EXCUSED_APPLIED = "EXCUSED_APPLIED"
+    LEAVE_APPLIED = "LEAVE_APPLIED"
+    EVALUATION_FINALIZED = "EVALUATION_FINALIZED"
