@@ -65,6 +65,21 @@ SYSTEM_PERMISSIONS = [
     ("class_occurrences.read", "View concrete scheduled class occurrences"),
     ("class_occurrences.cancel", "Cancel concrete scheduled class occurrences"),
     ("class_occurrences.reschedule", "Reschedule concrete scheduled class occurrences"),
+    ("attendance_policies.read", "View attendance policies and hierarchy rules"),
+    ("attendance_policies.manage", "Create, update, and manage attendance policies"),
+    ("attendance_sessions.read", "View attendance sessions and real-time status"),
+    (
+        "attendance_sessions.manage",
+        "Initialize, open, pause, resume, and close attendance sessions",
+    ),
+    ("attendance_checkpoints.manage", "Open and close attendance checkpoints"),
+    ("attendance_records.read", "View attendance records and class rosters"),
+    (
+        "attendance_records.override",
+        "Manually override attendance records, excuse, and grant leave",
+    ),
+    ("attendance_audit.read", "View immutable attendance audit revision history"),
+    ("attendance.self_read", "View personal attendance history and verification status"),
 ]
 
 # Base role definitions
@@ -213,6 +228,14 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "class_occurrences.read",
             "class_occurrences.cancel",
             "class_occurrences.reschedule",
+            "attendance_policies.read",
+            "attendance_policies.manage",
+            "attendance_sessions.read",
+            "attendance_sessions.manage",
+            "attendance_checkpoints.manage",
+            "attendance_records.read",
+            "attendance_records.override",
+            "attendance_audit.read",
         ]
         for admin_p_code in uni_admin_perms:
             target_perm = perm_map.get(admin_p_code)
@@ -252,6 +275,14 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "class_occurrences.read",
             "class_occurrences.cancel",
             "class_occurrences.reschedule",
+            "attendance_policies.read",
+            "attendance_policies.manage",
+            "attendance_sessions.read",
+            "attendance_sessions.manage",
+            "attendance_checkpoints.manage",
+            "attendance_records.read",
+            "attendance_records.override",
+            "attendance_audit.read",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -293,6 +324,14 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "class_occurrences.read",
             "class_occurrences.cancel",
             "class_occurrences.reschedule",
+            "attendance_policies.read",
+            "attendance_policies.manage",
+            "attendance_sessions.read",
+            "attendance_sessions.manage",
+            "attendance_checkpoints.manage",
+            "attendance_records.read",
+            "attendance_records.override",
+            "attendance_audit.read",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -322,6 +361,11 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "rooms.read",
             "timetables.read",
             "class_occurrences.read",
+            "attendance_policies.read",
+            "attendance_sessions.read",
+            "attendance_records.read",
+            "attendance_records.override",
+            "attendance_audit.read",
         ]
         for off_p_code in officer_perms:
             target_perm = perm_map.get(off_p_code)
@@ -353,6 +397,13 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "rooms.read",
             "timetables.read",
             "class_occurrences.read",
+            "attendance_policies.read",
+            "attendance_sessions.read",
+            "attendance_sessions.manage",
+            "attendance_checkpoints.manage",
+            "attendance_records.read",
+            "attendance_records.override",
+            "attendance_audit.read",
         ]
         for p_code in lecturer_perms:
             target_perm = perm_map.get(p_code)
@@ -362,7 +413,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
                     db.add(RolePermission(role_id=lecturer_role.id, permission_id=target_perm.id))
                     existing_rp_pairs.add(pair)
 
-    # Student gets academic catalog, offerings, and sections read permissions
+    # Student gets academic catalog, offerings, sections, and personal attendance read permissions
     student_role = role_map.get(SystemRole.STUDENT.value)
     if student_role:
         student_perms = [
@@ -376,6 +427,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "rooms.read",
             "timetables.read",
             "class_occurrences.read",
+            "attendance.self_read",
         ]
         target_perm_ids = {perm_map[p].id for p in student_perms if p in perm_map}
         for p_code in student_perms:
@@ -413,6 +465,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "rooms.read",
             "timetables.read",
             "class_occurrences.read",
+            "attendance_policies.read",
+            "attendance_sessions.read",
+            "attendance_records.read",
+            "attendance_audit.read",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)
