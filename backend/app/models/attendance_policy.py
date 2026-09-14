@@ -34,6 +34,14 @@ DEFAULT_STATUS_MAPPING: dict[str, str] = {
     "000": "ABSENT",
 }
 
+DEFAULT_STATUS_CREDIT: dict[str, float] = {
+    "PRESENT": 1.0,
+    "LATE": 0.5,
+    "ABSENT": 0.0,
+    "EXCUSED": 0.0,
+    "LEAVE": 0.0,
+}
+
 
 class AttendancePolicy(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
     """Configurable attendance policy supporting hierarchical precedence resolution:

@@ -31,6 +31,7 @@ from backend.app.models.attendance_checkpoint import AttendanceCheckpoint
 from backend.app.models.attendance_evidence import AttendanceEvidence
 from backend.app.models.attendance_policy import (
     DEFAULT_CHECKPOINT_WEIGHTS,
+    DEFAULT_STATUS_CREDIT,
     DEFAULT_STATUS_MAPPING,
     AttendancePolicy,
 )
@@ -241,6 +242,7 @@ class AttendanceService:
             "token_rotation_seconds": 30,
             "checkpoint_weights": dict(DEFAULT_CHECKPOINT_WEIGHTS),
             "status_mapping": dict(DEFAULT_STATUS_MAPPING),
+            "status_credit": dict(DEFAULT_STATUS_CREDIT),
         }
         return None, fallback_snapshot
 
@@ -259,6 +261,7 @@ class AttendanceService:
             "token_rotation_seconds": policy.token_rotation_seconds,
             "checkpoint_weights": dict(policy.checkpoint_weights),
             "status_mapping": dict(policy.status_mapping),
+            "status_credit": dict(DEFAULT_STATUS_CREDIT),
         }
 
     # =========================================================================
@@ -1052,15 +1055,23 @@ class AttendanceService:
         prev_status = record.status
         prev_credit = float(record.attendance_credit)
 
+        session = await db.get(AttendanceSession, record.attendance_session_id)
+        policy_snapshot = session.policy_snapshot if session and session.policy_snapshot else {}
+        status_credit_map: dict[str, Any] = policy_snapshot.get("status_credit", DEFAULT_STATUS_CREDIT)
+
         # Default credit calculation if not overridden
         calculated_credit = new_credit
         if calculated_credit is None:
-            if target_status == AttendanceStatus.PRESENT:
+            if target_status.value in status_credit_map:
+                calculated_credit = float(status_credit_map[target_status.value])
+            elif target_status == AttendanceStatus.PRESENT:
                 calculated_credit = 1.0
             elif target_status == AttendanceStatus.LATE:
                 calculated_credit = 0.5
-            elif target_status in (AttendanceStatus.EXCUSED, AttendanceStatus.LEAVE):
-                calculated_credit = 1.0  # Institutional default for excused/leave
+            elif target_status == AttendanceStatus.EXCUSED:
+                calculated_credit = float(policy_snapshot.get("excused_credit", 0.0))
+            elif target_status == AttendanceStatus.LEAVE:
+                calculated_credit = float(policy_snapshot.get("leave_credit", 0.0))
             else:
                 calculated_credit = 0.0
 

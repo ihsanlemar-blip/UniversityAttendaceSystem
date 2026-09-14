@@ -70,29 +70,54 @@ def test_inv_06_and_inv_08_manual_overrides_versioning_and_audit(
     assert ovr2_res.status_code == 200
     ovr2_data = ovr2_res.json()["data"]
     assert ovr2_data["status"] == "EXCUSED"
+    # Per docs/04_ATTENDANCE_RULES.md, approved absence does not automatically grant 100% credit
+    assert ovr2_data["attendance_credit"] == 0.0
     assert ovr2_data["version_no"] == 3
     assert ovr2_data["manual_reason"] == reason_2
 
-    # 4. Verify Immutable Audit Ledger (INV-06 & INV-08)
+    # 4. Third Override: EXCUSED with explicit attendance_credit = 1.0
+    reason_3 = "Dean approved full credit for institutional conference absence"
+    ovr3_res = client.post(
+        f"/api/v1/attendance/records/{record_id}/override",
+        headers=headers,
+        json={"status": "EXCUSED", "reason": reason_3, "attendance_credit": 1.0},
+    )
+    assert ovr3_res.status_code == 200
+    ovr3_data = ovr3_res.json()["data"]
+    assert ovr3_data["status"] == "EXCUSED"
+    assert ovr3_data["attendance_credit"] == 1.0
+    assert ovr3_data["version_no"] == 4
+
+    # 5. Verify Immutable Audit Ledger (INV-06 & INV-08)
     audit_res = client.get(f"/api/v1/attendance/audit?record_id={record_id}", headers=headers)
     assert audit_res.status_code == 200
     revisions = audit_res.json()["data"]
 
-    # At least the 2 manual overrides must be in the ledger
+    # At least the 3 manual overrides must be in the ledger
     override_revs = [r for r in revisions if r["event_type"] == "MANUAL_RECORD_OVERRIDE"]
-    assert len(override_revs) == 2
+    assert len(override_revs) == 3
 
-    # Latest revision: PRESENT -> EXCUSED
-    assert override_revs[0]["previous_status"] == "PRESENT"
+    # Latest revision: EXCUSED (0.0) -> EXCUSED (1.0)
+    assert override_revs[0]["previous_status"] == "EXCUSED"
     assert override_revs[0]["new_status"] == "EXCUSED"
-    assert override_revs[0]["reason"] == reason_2
+    assert override_revs[0]["previous_credit"] == 0.0
+    assert override_revs[0]["new_credit"] == 1.0
+    assert override_revs[0]["reason"] == reason_3
     assert override_revs[0]["actor_user_id"] == str(test_admin_user.id)
 
-    # First revision: ABSENT -> PRESENT
-    assert override_revs[1]["previous_status"] == "ABSENT"
-    assert override_revs[1]["new_status"] == "PRESENT"
-    assert override_revs[1]["reason"] == reason_1
+    # Second revision: PRESENT -> EXCUSED (0.0)
+    assert override_revs[1]["previous_status"] == "PRESENT"
+    assert override_revs[1]["new_status"] == "EXCUSED"
+    assert override_revs[1]["previous_credit"] == 1.0
+    assert override_revs[1]["new_credit"] == 0.0
+    assert override_revs[1]["reason"] == reason_2
     assert override_revs[1]["actor_user_id"] == str(test_admin_user.id)
+
+    # First revision: ABSENT -> PRESENT
+    assert override_revs[2]["previous_status"] == "ABSENT"
+    assert override_revs[2]["new_status"] == "PRESENT"
+    assert override_revs[2]["reason"] == reason_1
+    assert override_revs[2]["actor_user_id"] == str(test_admin_user.id)
 
 
 def test_inv_08_override_requires_non_empty_justification(

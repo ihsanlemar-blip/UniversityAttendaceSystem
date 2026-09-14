@@ -17,7 +17,7 @@ Milestone 9 implements the central attendance engine and policy evaluation subsy
 - Formal attendance session lifecycle state machine (`SCHEDULED` -> `ACTIVE` -> `PAUSED` -> `CLOSED` -> `ARCHIVED`).
 - Active roster snapshot freeze: When a session activates, currently enrolled students are frozen into immutable roster records (`AttendanceRecord`) in `PENDING` status.
 - Approved three-checkpoint presence architecture: Exactly three discrete checkpoints (`START`, `MIDDLE`, `END`), sequence 1, 2, 3. Alternative popup or half-session models are strictly prohibited.
-- Combinatorial evaluation engine: Evaluates all 8 presence patterns (from (0,0,0) to (1,1,1)) against resolved policy thresholds, awarding standardized status (`PRESENT`, `LATE`, `ABSENT`, `EXCUSED`, `LEAVE`) and credit points (1.0, 0.5, 0.0).
+- Combinatorial evaluation engine: Evaluates all 8 presence patterns (from (0,0,0) to (1,1,1)) against resolved policy thresholds, awarding standardized status (`PRESENT`, `LATE`, `ABSENT`, `EXCUSED`, `LEAVE`) and policy-governed credit points.
 - Append-only revision ledger (`AttendanceRevision`): Corrections post-session never mutate original records in-place. Version numbers increment monotonically, and every override demands a recorded justification and actor ID.
 - In strict adherence to system boundaries, zero dynamic QR generation (Milestone 10), Bluetooth BLE verification (Milestone 11), device fingerprinting/trust (Milestone 10), physical card fallback (Milestone 10), or offline synchronization (Milestone 12) was introduced.
 
@@ -98,8 +98,8 @@ When an attendance session closes (or incrementally upon checkpoint submission),
 | (0, 0, 0) — None | 0 | No Verification | `ABSENT` | 0.0 |
 
 - **Special Statuses Preserved**:
-  - `EXCUSED`: 1.0 credit, designated administratively with documented reason.
-  - `LEAVE`: 1.0 credit, designated institutional or medical leave.
+  - `EXCUSED`: Administratively excused absence with documented reason. Credit is policy-configurable per `docs/04_ATTENDANCE_RULES.md` (defaults to 0.0 unless credit is explicitly granted by policy or override).
+  - `LEAVE`: Approved institutional or medical leave. Credit is policy-configurable per `docs/04_ATTENDANCE_RULES.md` (defaults to 0.0 unless credit is explicitly granted by policy or override).
   - `PENDING`: Checkpoints active; final status awaiting session close.
 
 ### 2.6 Immutable Revision Ledger & Manual Overrides (`AttendanceRevision`)
