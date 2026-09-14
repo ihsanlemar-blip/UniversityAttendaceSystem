@@ -3,6 +3,8 @@
 from fastapi import APIRouter
 
 from backend.app.academic.router import router as academic_router
+from backend.app.attendance.router import router as attendance_router
+from backend.app.attendance.router import students_router as student_attendance_router
 from backend.app.auth.router import router as auth_router
 from backend.app.calendar.router import academic_years_router, semesters_router
 from backend.app.common.schemas import ApiMetadataResponse
@@ -54,3 +56,7 @@ api_v1_router.include_router(offerings_router)
 # Mount Milestone 8 Facilities, Timetables & Occurrences Sub-Routers
 api_v1_router.include_router(facilities_router)
 api_v1_router.include_router(scheduling_router)
+
+# Mount Milestone 9 Attendance Core Engine Sub-Routers
+api_v1_router.include_router(attendance_router)
+api_v1_router.include_router(student_attendance_router)
