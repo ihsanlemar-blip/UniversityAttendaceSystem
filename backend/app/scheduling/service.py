@@ -1101,6 +1101,29 @@ class SchedulingService:
                     details={"conflict_type": "LECTURER_SCHEDULE_CONFLICT"},
                 )
 
+        # Section cohort conflict check
+        if original.course_offering and original.course_offering.section_id:
+            sec_conf_stmt = (
+                select(ClassOccurrence)
+                .join(CourseOffering, ClassOccurrence.course_offering_id == CourseOffering.id)
+                .where(
+                    ClassOccurrence.university_id == university_id,
+                    CourseOffering.section_id == original.course_offering.section_id,
+                    ClassOccurrence.local_date == payload.new_date,
+                    ClassOccurrence.status == ClassOccurrenceStatus.SCHEDULED.value,
+                    ClassOccurrence.id != original.id,
+                    ClassOccurrence.scheduled_start_utc < new_utc_end,
+                    ClassOccurrence.scheduled_end_utc > new_utc_start,
+                )
+            )
+            sc_res = await db.execute(sec_conf_stmt)
+            if sc_res.scalar_one_or_none():
+                raise ConflictException(
+                    "Section cohort has another scheduled class at this rescheduled time.",
+                    code="SECTION_SCHEDULE_CONFLICT",
+                    details={"conflict_type": "SECTION_SCHEDULE_CONFLICT"},
+                )
+
         # 1. Create new rescheduled occurrence
         new_occ = ClassOccurrence(
             university_id=university_id,

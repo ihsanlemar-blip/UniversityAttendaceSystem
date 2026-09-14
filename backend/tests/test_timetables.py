@@ -229,6 +229,56 @@ def test_room_conflict_detection_and_adjacent_slots(
     )
     assert adj_res.status_code == 201
 
+    # 4. Same room, same weekday, same time window,
+    # but non-overlapping effective date ranges -> ALLOWED
+    c3_res = client.post(
+        "/api/v1/courses",
+        headers=headers,
+        json={"code": f"C3_{suffix}", "name": "Databases", "credit_hours": 3},
+    )
+    assert c3_res.status_code == 201
+    c3_id = c3_res.json()["data"]["id"]
+    off3_res = client.post(
+        "/api/v1/course-offerings",
+        headers=headers,
+        json={"course_id": c3_id, "semester_id": semester_id, "section_id": sec2_id},
+    )
+    assert off3_res.status_code == 201
+    off3_id = off3_res.json()["data"]["id"]
+
+    # Book room for Wednesday 08:00-09:30 for Sep 01 to Sep 30
+    tt3_res = client.post(
+        "/api/v1/timetables",
+        headers=headers,
+        json={
+            "course_offering_id": off3_id,
+            "room_id": room_id,
+            "weekday": 3,
+            "start_time": "08:00:00",
+            "end_time": "09:30:00",
+            "effective_from": "2026-09-01",
+            "effective_to": "2026-09-30",
+        },
+    )
+    assert tt3_res.status_code == 201
+
+    # Book SAME room for Wednesday 08:00-09:30 for Oct 01 to Oct 31
+    # Non-overlapping effective dates -> ALLOWED (201)
+    tt4_res = client.post(
+        "/api/v1/timetables",
+        headers=headers,
+        json={
+            "course_offering_id": off2_id,
+            "room_id": room_id,
+            "weekday": 3,
+            "start_time": "08:00:00",
+            "end_time": "09:30:00",
+            "effective_from": "2026-10-01",
+            "effective_to": "2026-10-31",
+        },
+    )
+    assert tt4_res.status_code == 201
+
 
 def test_lecturer_and_section_conflict_detection(
     client: TestClient,

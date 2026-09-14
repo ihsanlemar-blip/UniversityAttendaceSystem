@@ -264,3 +264,147 @@ async def test_faculty_admin_scoped_timetable_authorization(
     )
     assert tt_b_res.status_code == 403
     assert tt_b_res.json()["error"]["code"] == "PERMISSION_DENIED"
+
+
+@pytest.mark.asyncio
+async def test_department_admin_scoped_timetable_authorization(
+    client: TestClient,
+    db_session: AsyncSession,
+    test_university: University,
+    test_admin_user: User,
+) -> None:
+    """Verify Department Admin can manage timetables in assigned department,
+
+    but is denied for sibling departments.
+    """
+    admin_headers = get_admin_headers(client, test_admin_user, test_university)
+    suffix = uuid.uuid4().hex[:6]
+
+    # Create Parent Faculty
+    f_res = client.post(
+        "/api/v1/academic-units",
+        headers=admin_headers,
+        json={"name": "Science Faculty", "code": f"SCI_{suffix}", "unit_type": "FACULTY"},
+    )
+    assert f_res.status_code == 201
+    f_id = f_res.json()["data"]["id"]
+
+    # Create Dept A (Computer Science) and Dept B (Mathematics)
+    da_res = client.post(
+        "/api/v1/academic-units",
+        headers=admin_headers,
+        json={
+            "name": "CS Dept",
+            "code": f"CS_{suffix}",
+            "unit_type": "DEPARTMENT",
+            "parent_id": f_id,
+        },
+    )
+    assert da_res.status_code == 201
+    da_id = da_res.json()["data"]["id"]
+
+    db_res = client.post(
+        "/api/v1/academic-units",
+        headers=admin_headers,
+        json={
+            "name": "Math Dept",
+            "code": f"MATH_{suffix}",
+            "unit_type": "DEPARTMENT",
+            "parent_id": f_id,
+        },
+    )
+    assert db_res.status_code == 201
+    db_id = db_res.json()["data"]["id"]
+
+    # Create Department Admin user assigned to Dept A
+    da_user = User(
+        university_id=test_university.id,
+        username=f"da_admin_{suffix}",
+        password_hash=hash_password("DeptAdminPass123!"),
+        email=f"da_{suffix}@university.edu",
+        status=UserStatus.ACTIVE.value,
+    )
+    db_session.add(da_user)
+    await db_session.flush()
+
+    role_res = await db_session.execute(
+        Role.__table__.select().where(Role.code == SystemRole.DEPARTMENT_ADMIN.value)
+    )
+    role_row = role_res.first()
+    assert role_row is not None
+
+    db_session.add(
+        RoleAssignment(
+            user_id=da_user.id,
+            role_id=role_row.id,
+            university_id=test_university.id,
+            scope_type=ScopeType.ACADEMIC_UNIT.value,
+            scope_id=uuid.UUID(da_id),
+        )
+    )
+    await db_session.commit()
+
+    # Create courses in Dept A and Dept B
+    ca_res = client.post(
+        "/api/v1/courses",
+        headers=admin_headers,
+        json={"code": f"CS1_{suffix}", "name": "Intro CS", "academic_unit_id": da_id},
+    )
+    ca_id = ca_res.json()["data"]["id"]
+
+    cb_res = client.post(
+        "/api/v1/courses",
+        headers=admin_headers,
+        json={"code": f"MTH_{suffix}", "name": "Linear Algebra", "academic_unit_id": db_id},
+    )
+    cb_id = cb_res.json()["data"]["id"]
+
+    _, semester_id, _, _ = setup_academic_prerequisites(client, admin_headers)
+
+    # Offering in Dept A
+    off_a = client.post(
+        "/api/v1/course-offerings",
+        headers=admin_headers,
+        json={"course_id": ca_id, "semester_id": semester_id, "academic_unit_id": da_id},
+    )
+    off_a_id = off_a.json()["data"]["id"]
+
+    # Offering in Dept B
+    off_b = client.post(
+        "/api/v1/course-offerings",
+        headers=admin_headers,
+        json={"course_id": cb_id, "semester_id": semester_id, "academic_unit_id": db_id},
+    )
+    off_b_id = off_b.json()["data"]["id"]
+
+    # Log in as Department Admin of Dept A
+    da_headers = get_user_headers(
+        client, da_user.username, "DeptAdminPass123!", str(test_university.id)
+    )
+
+    # 1. Manage timetable in Dept A -> ALLOWED (201)
+    tt_a_res = client.post(
+        "/api/v1/timetables",
+        headers=da_headers,
+        json={
+            "course_offering_id": off_a_id,
+            "weekday": 1,
+            "start_time": "08:00:00",
+            "end_time": "09:30:00",
+        },
+    )
+    assert tt_a_res.status_code == 201
+
+    # 2. Manage timetable in Dept B (sibling department) -> DENIED (403)
+    tt_b_res = client.post(
+        "/api/v1/timetables",
+        headers=da_headers,
+        json={
+            "course_offering_id": off_b_id,
+            "weekday": 1,
+            "start_time": "08:00:00",
+            "end_time": "09:30:00",
+        },
+    )
+    assert tt_b_res.status_code == 403
+    assert tt_b_res.json()["error"]["code"] == "PERMISSION_DENIED"
