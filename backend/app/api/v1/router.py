@@ -9,9 +9,11 @@ from backend.app.common.schemas import ApiMetadataResponse
 from backend.app.common.types import utc_now
 from backend.app.core.config import get_settings
 from backend.app.curriculum.router import router as curriculum_router
+from backend.app.facilities.router import router as facilities_router
 from backend.app.offerings.router import router as offerings_router
 from backend.app.people.router import router as people_router
 from backend.app.rbac.router import router as rbac_router
+from backend.app.scheduling.router import router as scheduling_router
 from backend.app.users.router import router as users_router
 
 api_v1_router = APIRouter(prefix="/api/v1", tags=["API v1"])
@@ -48,3 +50,7 @@ api_v1_router.include_router(semesters_router)
 api_v1_router.include_router(curriculum_router)
 api_v1_router.include_router(people_router)
 api_v1_router.include_router(offerings_router)
+
+# Mount Milestone 8 Facilities, Timetables & Occurrences Sub-Routers
+api_v1_router.include_router(facilities_router)
+api_v1_router.include_router(scheduling_router)
