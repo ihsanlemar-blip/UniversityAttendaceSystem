@@ -27,16 +27,16 @@
 | `backend/app/facilities/router.py` | API Router | `46a2b7b2236a441655b8a488e692b0c4cb64a1a8a10d35e177999d25e64d42f7` | REST endpoints for `/api/v1/buildings` and `/api/v1/rooms` |
 | `backend/app/scheduling/__init__.py` | Package Init | `86a64e61f76147fa8854d61ebafaaa012c62220968fc82c34a4f7ebb068144ca` | Scheduling module initialization |
 | `backend/app/scheduling/schemas.py` | Pydantic Schemas | `08cd17ca3a8119360a8f8f055ff0814bb03692c77aef6538be2f437d2d64d7d5` | Timetable and ClassOccurrence request/response schemas |
-| `backend/app/scheduling/service.py` | Domain Service | `e9b956edd0c6559e2984e5cb50c36b109940506ea88550d047636689a97f5668` | Scheduling service: conflict engine, occurrence generator, cancel, reschedule, self-views |
+| `backend/app/scheduling/service.py` | Domain Service | `b7954ba4906ab3b8cb18328f0bbc1a83214ac3e6d8ffa76300b4916c77d25d4b` | Scheduling service: conflict engine, occurrence generator, cancel, reschedule, self-views |
 | `backend/app/scheduling/router.py` | API Router | `d27e1990c18a37f98481658ab7b67d252317f230052204e1595b4176571c9339` | REST endpoints for `/api/v1/timetables` and `/api/v1/class-occurrences` |
 | `backend/app/api/v1/router.py` | API Router Mount | `4276764c5fbe808ff0508521dbd0fd17a0ba9ca5b4f3592ad71524d5725589e5` | Mounted facilities and scheduling routers onto `/api/v1` |
 | `backend/tests/test_facilities.py` | Test Suite | `054644c3599c416158a07fe1e2c0b2eb46574c98d4d0b8b54386347ad3523576` | Unit & integration tests for buildings, rooms, and tenant isolation |
-| `backend/tests/test_timetables.py` | Test Suite | `255eee2e64b80940aaf9fa944b270e9d86db862f119687380941eb82cffa584b` | Unit & integration tests for timetables, conflict engine, boundaries |
-| `backend/tests/test_occurrences.py` | Test Suite | `64c8302e6447740323e2f9067983efc259390fa84698efa09603db9ad387ae33` | Unit & integration tests for occurrence generation, cancel, reschedule |
-| `backend/tests/test_scheduling_rbac.py` | Test Suite | `1d37d0a8d365fd4454a52f5cb4fc7e3a6dfd5ea7524d92b07ff2612fc9cf06dd` | Unit & integration tests for scoped RBAC and personal schedule self-views |
+| `backend/tests/test_timetables.py` | Test Suite | `a5e5912db3b715a9fff4d40572a09aaca7a144158974f133355a87856b4524f9` | Unit & integration tests for timetables, conflict engine, boundaries |
+| `backend/tests/test_occurrences.py` | Test Suite | `64d90ef6874e5a1fd3f7b0c8ded06f33f05c2f72c13c2b08864c67c26b2b85cc` | Unit & integration tests for occurrence generation, cancel, reschedule |
+| `backend/tests/test_scheduling_rbac.py` | Test Suite | `e6b9b770e45ead60e89fb4ebedc16bf4c2db9ebc9449707074af297f628a13a7` | Unit & integration tests for scoped RBAC and personal schedule self-views |
 | `backend/tests/test_rbac.py` | Test Suite Update | `9cc713e3e8a928b95437e1267b74c19496e71299d753d8e93e32652f34ed3d21` | Updated RBAC test for total permission count |
-| `docs/37_MILESTONE_8_FACILITIES_TIMETABLE_OCCURRENCES.md` | Specification Document | `c73d1289be052075525df10e76aa55c0e5252589a1e589e7b7434be7422a96df` | Milestone 8 architecture, implementation, and invariant proof |
-| `docs/38_NEXT_IMPLEMENTATION_TASK.md` | Handoff Specification | `902500435118e302266d9a8d4f70444e7903f7e5c4b671675614ea1f571cc3c4` | Milestone 9 entry point task document |
+| `docs/37_MILESTONE_8_FACILITIES_TIMETABLE_OCCURRENCES.md` | Specification Document | `76f51696d644899ce6f93b2a8943806eb33dd00be4bdb155f5c958f8ed5592d9` | Milestone 8 architecture, implementation, and invariant proof |
+| `docs/38_NEXT_IMPLEMENTATION_TASK.md` | Handoff Specification | `84355bf021dfb0a49862e06589ef3d9c08593b067cb2f4ddef4f9b6c58805cec` | Milestone 9 entry point task document |
 | `docs/23_DATABASE_MIGRATION_PLAN.md` | Migration Plan | `ca95cefc0b730910456a9c627664df4595e3cf7cdbd40d7546fef8f70457582b` | Updated with migration 007 details and status |
 | `scripts/check_docs.py` | Verification Script | `ae0c4cddb5cf32eef2100f5d4bbbddba40fc0722c32a9120a35242f44000aa05` | Updated documentation validation script for docs 37, 38, M8 manifest |
 
@@ -51,6 +51,6 @@ All invariants established in `AGENTS.md` and specification documents `00`–`15
 3. **Student Device Clock Is NOT Authoritative (INV-03)**: Enforced. University official timezone (`ZoneInfo(university.timezone)`) converted into authoritative server UTC timestamps (`scheduled_start_utc`, `scheduled_end_utc`).
 4. **Expired Dynamic QR/Tokens Cannot Grant Attendance (INV-04)**: Preserved. Deferred to Milestone 10+.
 5. **No Duplicate Checkpoint Credit (INV-05)**: Preserved. Deferred to Milestone 9+.
-6. **Corrections Cannot Erase History (INV-06)**: Enforced. Class occurrence cancellation preserves database rows and requires recorded justification; rescheduling preserves audit history with bi-directional links.
+6. **Corrections Cannot Erase History (INV-06)**: PRESERVED / NOT YET IMPLEMENTED. Attendance correction history does not exist yet (strictly Milestone 9+). Separately, an enforced scheduling-history guarantee ensures ClassOccurrence cancellation preserves database rows with justification and rescheduling maintains bi-directional audit links.
 7. **Offline Events Remain Identifiable (INV-07)**: Preserved. Deferred to Milestone 12+.
 8. **Manual Attendance Overrides Remain Identifiable (INV-08)**: Preserved. Deferred to Milestone 9+.

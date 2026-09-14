@@ -96,6 +96,6 @@ Alembic migration `backend/migrations/versions/007_timetable_and_class_occurrenc
 | **INV-03** | Student Device Clock Is NOT Authoritative | **ENFORCED** | Local institutional timezone converted to server UTC timestamps (`scheduled_start_utc`, `scheduled_end_utc`). |
 | **INV-04** | Expired Dynamic QR/Tokens Cannot Grant Attendance | **PRESERVED** | Deferred to Milestone 10+. |
 | **INV-05** | No Duplicate Checkpoint Credit | **PRESERVED** | Deferred to Milestone 9+. |
-| **INV-06** | Corrections Cannot Erase History | **ENFORCED** | Occurrence cancellation preserves rows with `cancellation_reason`; rescheduling bi-directionally links old and new occurrences. |
+| **INV-06** | Corrections Cannot Erase History | **PRESERVED / NOT YET IMPLEMENTED** | Attendance correction history does not exist yet (strictly Milestone 9+). *(Separately, an enforced scheduling-history guarantee ensures ClassOccurrence cancellation preserves rows with `cancellation_reason` and rescheduling bi-directionally links occurrences).* |
 | **INV-07** | Offline Events Remain Identifiable | **PRESERVED** | Deferred to Milestone 12+. |
 | **INV-08** | Manual Attendance Overrides Remain Identifiable | **PRESERVED** | Deferred to Milestone 9+. |
