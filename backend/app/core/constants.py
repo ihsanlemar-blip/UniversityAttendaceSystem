@@ -112,6 +112,22 @@ class PermissionCode(StrEnum):
     COURSE_OFFERINGS_MANAGE = "course_offerings.manage"
     ENROLLMENTS_READ = "enrollments.read"
     ENROLLMENTS_MANAGE = "enrollments.manage"
+    BUILDINGS_READ = "buildings.read"
+    BUILDINGS_CREATE = "buildings.create"
+    BUILDINGS_UPDATE = "buildings.update"
+    BUILDINGS_DEACTIVATE = "buildings.deactivate"
+    ROOMS_READ = "rooms.read"
+    ROOMS_CREATE = "rooms.create"
+    ROOMS_UPDATE = "rooms.update"
+    ROOMS_DEACTIVATE = "rooms.deactivate"
+    TIMETABLES_READ = "timetables.read"
+    TIMETABLES_CREATE = "timetables.create"
+    TIMETABLES_UPDATE = "timetables.update"
+    TIMETABLES_DEACTIVATE = "timetables.deactivate"
+    TIMETABLES_GENERATE = "timetables.generate_occurrences"
+    CLASS_OCCURRENCES_READ = "class_occurrences.read"
+    CLASS_OCCURRENCES_CANCEL = "class_occurrences.cancel"
+    CLASS_OCCURRENCES_RESCHEDULE = "class_occurrences.reschedule"
 
 
 class StudentStatus(StrEnum):
@@ -156,3 +172,44 @@ class LecturerAssignmentType(StrEnum):
     PRIMARY = "PRIMARY"
     CO_TEACHER = "CO_TEACHER"
     ASSISTANT = "ASSISTANT"
+
+
+class BuildingStatus(StrEnum):
+    """Campus building operational lifecycle status."""
+
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+
+
+class RoomStatus(StrEnum):
+    """Room and facility space operational lifecycle status."""
+
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+    MAINTENANCE = "MAINTENANCE"
+
+
+class RoomType(StrEnum):
+    """Physical classroom and facility space classification."""
+
+    CLASSROOM = "CLASSROOM"
+    LABORATORY = "LABORATORY"
+    LECTURE_HALL = "LECTURE_HALL"
+    AUDITORIUM = "AUDITORIUM"
+    OTHER = "OTHER"
+
+
+class TimetableStatus(StrEnum):
+    """Recurring weekly timetable schedule rule status."""
+
+    ACTIVE = "ACTIVE"
+    INACTIVE = "INACTIVE"
+
+
+class ClassOccurrenceStatus(StrEnum):
+    """Concrete calendar meeting occurrence operational status."""
+
+    SCHEDULED = "SCHEDULED"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
+    RESCHEDULED = "RESCHEDULED"

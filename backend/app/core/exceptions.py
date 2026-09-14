@@ -85,9 +85,10 @@ class ConflictException(DomainException):
         self,
         message: str,
         details: dict[str, Any] | None = None,
+        code: str = "CONFLICT",
     ) -> None:
         super().__init__(
-            code="CONFLICT",
+            code=code,
             message=message,
             status_code=status.HTTP_409_CONFLICT,
             details=details,
