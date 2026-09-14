@@ -57,7 +57,7 @@ To support real testability and adhere to modular milestones, the actual linear 
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 007 are fully applied, verified reversible, and operational as of Milestone 8 (007_timetable_and_occurrences).*
+*Note: Migrations 001 through 008 are fully applied, verified reversible, and operational as of Milestone 9 (008_attendance_core).*
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 
