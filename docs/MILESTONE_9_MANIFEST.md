@@ -24,7 +24,7 @@
 | `backend/app/rbac/seeding.py` | RBAC Seeder | `29d413651dd89f2940883b80cd06ccafc15fc4fef8eeae2abf36f2e403af8a0a` | Seeded 9 M9 permissions into canonical system roles |
 | `backend/app/attendance/__init__.py` | Package Init | `9a6fc668ff0a4920a7928dbb36c2064c91e9f5fd63df68b4497c697319d760ed` | Attendance module initialization |
 | `backend/app/attendance/schemas.py` | Pydantic Schemas | `33b32a4414561a8e510767d8aa2429c4f148b5fa0970b0fd2f0483c6700840c3` | Pydantic v2 request/response validation schemas for M9 |
-| `backend/app/attendance/service.py` | Domain Service | `3824bcf5c644ace6f2a5069ab9e193ad1b7c4b31423f6a7044c10c77a1210ad6` | Core business logic: policy hierarchy, sessions, checkpoints, evaluation, overrides |
+| `backend/app/attendance/service.py` | Domain Service | `f3f669a8e38ee12a0bc349c2703e5fe12a21a15b51e0c41e35251f05ba6a90a5` | Core business logic: policy hierarchy, sessions, checkpoints, evaluation, overrides |
 | `backend/app/attendance/router.py` | API Router | `bcf48c1fc5b9659ed3c576a4f8b00ba3b5f66aa86532924733565888f129563e` | REST endpoints for `/api/v1/attendance` and student history self-service |
 | `backend/app/api/v1/router.py` | API Router Mount | `426fcf9ae57311e519971e43ddde880ab468fdcfa64602516a446cda48de8496` | Mounted attendance router onto `/api/v1` |
 | `backend/tests/test_attendance_policy.py` | Test Suite | `86150c2c1e76c71c786afa63a20a2de1c01bd5a18076fca14eed633e6a66fd12` | Policy hierarchy resolution and threshold validation tests |

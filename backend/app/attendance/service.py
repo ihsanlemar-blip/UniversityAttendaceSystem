@@ -1057,7 +1057,9 @@ class AttendanceService:
 
         session = await db.get(AttendanceSession, record.attendance_session_id)
         policy_snapshot = session.policy_snapshot if session and session.policy_snapshot else {}
-        status_credit_map: dict[str, Any] = policy_snapshot.get("status_credit", DEFAULT_STATUS_CREDIT)
+        status_credit_map: dict[str, Any] = policy_snapshot.get(
+            "status_credit", DEFAULT_STATUS_CREDIT
+        )
 
         # Default credit calculation if not overridden
         calculated_credit = new_credit
