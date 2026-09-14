@@ -46,6 +46,25 @@ SYSTEM_PERMISSIONS = [
     ),
     ("enrollments.read", "View course offering enrollments and student class rosters"),
     ("enrollments.manage", "Enroll students, drop, and manage course offering rosters"),
+    ("buildings.read", "View campus buildings and facility containers"),
+    ("buildings.create", "Create new campus buildings"),
+    ("buildings.update", "Update campus building details"),
+    ("buildings.deactivate", "Deactivate campus buildings"),
+    ("rooms.read", "View rooms, classrooms, and lecture hall facilities"),
+    ("rooms.create", "Create new room and facility spaces"),
+    ("rooms.update", "Update room and facility details"),
+    ("rooms.deactivate", "Deactivate rooms and facility spaces"),
+    ("timetables.read", "View recurring timetable schedule rules"),
+    ("timetables.create", "Create recurring timetable schedule rules"),
+    ("timetables.update", "Update recurring timetable schedule rules"),
+    ("timetables.deactivate", "Deactivate recurring timetable schedule rules"),
+    (
+        "timetables.generate_occurrences",
+        "Generate concrete class occurrences from timetable rules",
+    ),
+    ("class_occurrences.read", "View concrete scheduled class occurrences"),
+    ("class_occurrences.cancel", "Cancel concrete scheduled class occurrences"),
+    ("class_occurrences.reschedule", "Reschedule concrete scheduled class occurrences"),
 ]
 
 # Base role definitions
@@ -178,6 +197,22 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "course_offerings.manage",
             "enrollments.read",
             "enrollments.manage",
+            "buildings.read",
+            "buildings.create",
+            "buildings.update",
+            "buildings.deactivate",
+            "rooms.read",
+            "rooms.create",
+            "rooms.update",
+            "rooms.deactivate",
+            "timetables.read",
+            "timetables.create",
+            "timetables.update",
+            "timetables.deactivate",
+            "timetables.generate_occurrences",
+            "class_occurrences.read",
+            "class_occurrences.cancel",
+            "class_occurrences.reschedule",
         ]
         for admin_p_code in uni_admin_perms:
             target_perm = perm_map.get(admin_p_code)
@@ -207,6 +242,16 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "course_offerings.manage",
             "enrollments.read",
             "enrollments.manage",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "timetables.create",
+            "timetables.update",
+            "timetables.deactivate",
+            "timetables.generate_occurrences",
+            "class_occurrences.read",
+            "class_occurrences.cancel",
+            "class_occurrences.reschedule",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -238,6 +283,16 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "course_offerings.manage",
             "enrollments.read",
             "enrollments.manage",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "timetables.create",
+            "timetables.update",
+            "timetables.deactivate",
+            "timetables.generate_occurrences",
+            "class_occurrences.read",
+            "class_occurrences.cancel",
+            "class_occurrences.reschedule",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -263,6 +318,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "lecturers.read",
             "course_offerings.read",
             "enrollments.read",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "class_occurrences.read",
         ]
         for off_p_code in officer_perms:
             target_perm = perm_map.get(off_p_code)
@@ -290,6 +349,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "lecturers.read",
             "course_offerings.read",
             "enrollments.read",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "class_occurrences.read",
         ]
         for p_code in lecturer_perms:
             target_perm = perm_map.get(p_code)
@@ -309,6 +372,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "courses.read",
             "sections.read",
             "course_offerings.read",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "class_occurrences.read",
         ]
         target_perm_ids = {perm_map[p].id for p in student_perms if p in perm_map}
         for p_code in student_perms:
@@ -342,6 +409,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "lecturers.read",
             "course_offerings.read",
             "enrollments.read",
+            "buildings.read",
+            "rooms.read",
+            "timetables.read",
+            "class_occurrences.read",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)
