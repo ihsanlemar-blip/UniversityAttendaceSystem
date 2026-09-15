@@ -110,3 +110,29 @@ def test_password_composition_when_configured(monkeypatch: pytest.MonkeyPatch) -
 
     # Valid with composition
     validate_password_policy("ValidPass123!")
+
+
+def test_password_hash_engine_production_vs_testing(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Verify production environment uses strong NIST-recommended Argon2id parameters,
+    and fast parameters are strictly isolated to testing environment.
+    """
+    from backend.app.auth.passwords import _create_password_hash_engine
+    from backend.app.core.config import get_settings
+    from backend.app.core.constants import Environment
+
+    settings = get_settings()
+
+    # In testing environment (current test harness default)
+    test_engine = _create_password_hash_engine()
+    test_hasher = test_engine.hashers[0]._hasher  # type: ignore[attr-defined]
+    assert test_hasher.time_cost == 1
+    assert test_hasher.memory_cost == 1024
+    assert test_hasher.parallelism == 1
+
+    # In production environment
+    monkeypatch.setattr(settings, "APP_ENV", Environment.PRODUCTION)
+    prod_engine = _create_password_hash_engine()
+    prod_hasher = prod_engine.hashers[0]._hasher  # type: ignore[attr-defined]
+    assert prod_hasher.time_cost == 3
+    assert prod_hasher.memory_cost == 65536
+    assert prod_hasher.parallelism == 4
