@@ -9,9 +9,13 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.app.attendance.ble import BlePresenceEngine
 from backend.app.attendance.schemas import (
     AttendancePolicyCreateRequest,
     AttendancePolicyUpdateRequest,
+    BleAdvertisementResponse,
+    BleObservationSchema,
+    PresenceCheckInResponse,
     QrCheckInResponse,
     QrTokenResponse,
 )
@@ -237,6 +241,7 @@ class AttendanceService:
             return uni_policy, AttendanceService._create_policy_snapshot(uni_policy)
 
         # 4. Fallback Default
+        settings = get_settings()
         fallback_snapshot = {
             "name": "System Institutional Fallback",
             "scope_type": "UNIVERSITY",
@@ -249,12 +254,20 @@ class AttendanceService:
             "checkpoint_weights": dict(DEFAULT_CHECKPOINT_WEIGHTS),
             "status_mapping": dict(DEFAULT_STATUS_MAPPING),
             "status_credit": dict(DEFAULT_STATUS_CREDIT),
+            "presence_requirement_mode": "QR_ONLY",
+            "ble_min_rssi": settings.ATTENDANCE_BLE_MIN_RSSI,
+            "ble_rotation_seconds": settings.ATTENDANCE_BLE_ROTATION_SECONDS,
         }
         return None, fallback_snapshot
 
     @staticmethod
-    def _create_policy_snapshot(policy: AttendancePolicy) -> dict[str, Any]:
+    def _create_policy_snapshot(
+        policy: AttendancePolicy,
+        presence_requirement_mode: str | None = None,
+        ble_min_rssi: int | None = None,
+    ) -> dict[str, Any]:
         """Create an immutable snapshot dictionary of an attendance policy."""
+        settings = get_settings()
         return {
             "policy_id": str(policy.id),
             "name": policy.name,
@@ -268,6 +281,11 @@ class AttendanceService:
             "checkpoint_weights": dict(policy.checkpoint_weights),
             "status_mapping": dict(policy.status_mapping),
             "status_credit": dict(DEFAULT_STATUS_CREDIT),
+            "presence_requirement_mode": presence_requirement_mode or "QR_ONLY",
+            "ble_min_rssi": ble_min_rssi
+            if ble_min_rssi is not None
+            else settings.ATTENDANCE_BLE_MIN_RSSI,
+            "ble_rotation_seconds": settings.ATTENDANCE_BLE_ROTATION_SECONDS,
         }
 
     # =========================================================================
@@ -282,6 +300,8 @@ class AttendanceService:
         actor_id: uuid.UUID,
         attendance_policy_id: uuid.UUID | None = None,
         activate_immediately: bool = False,
+        presence_requirement_mode: str | None = None,
+        ble_min_rssi: int | None = None,
     ) -> AttendanceSession:
         """Initialize an AttendanceSession anchored 1:1 to a ClassOccurrence."""
         # Validate occurrence
@@ -327,7 +347,11 @@ class AttendanceService:
         # Policy resolution
         if attendance_policy_id:
             policy = await AttendanceService.get_policy(db, attendance_policy_id, university_id)
-            policy_snapshot = AttendanceService._create_policy_snapshot(policy)
+            policy_snapshot = AttendanceService._create_policy_snapshot(
+                policy,
+                presence_requirement_mode=presence_requirement_mode,
+                ble_min_rssi=ble_min_rssi,
+            )
             resolved_policy_id: uuid.UUID | None = policy.id
         else:
             policy_obj, policy_snapshot = await AttendanceService.resolve_policy_for_occurrence(
@@ -336,6 +360,10 @@ class AttendanceService:
                 university_id=university_id,
             )
             resolved_policy_id = policy_obj.id if policy_obj else None
+            if presence_requirement_mode:
+                policy_snapshot["presence_requirement_mode"] = presence_requirement_mode
+            if ble_min_rssi is not None:
+                policy_snapshot["ble_min_rssi"] = ble_min_rssi
 
         initial_status = (
             AttendanceSessionStatus.ACTIVE.value
@@ -1116,6 +1144,20 @@ class AttendanceService:
         checkpoint_id = uuid.UUID(claims["cid"])
         checkpoint_type = claims["cpt"]
 
+        # Check if session requires dual-factor QR_AND_BLE
+        sess_stmt = select(AttendanceSession).where(AttendanceSession.id == session_id)
+        sess_res = await db.execute(sess_stmt)
+        session = sess_res.scalar_one_or_none()
+        if session and session.policy_snapshot.get("presence_requirement_mode") == "QR_AND_BLE":
+            raise DomainException(
+                code="PRESENCE_FACTORS_INCOMPLETE",
+                message=(
+                    "Session policy requires dual-factor QR and BLE presence verification. "
+                    "Please submit via presence check-in endpoint."
+                ),
+                status_code=400,
+            )
+
         # 3. Check if student already has verified evidence for this checkpoint (idempotency check)
         ev_stmt = select(AttendanceEvidence).where(
             AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
@@ -1163,6 +1205,347 @@ class AttendanceService:
             already_credited=already_credited,
             verified_at=evidence.server_received_at_utc,
             attendance_record_id=record_id,
+        )
+
+    # =========================================================================
+    # 4.2 Bluetooth BLE & Multi-Factor Presence Operations (Milestone 11)
+    # =========================================================================
+
+    @staticmethod
+    async def generate_checkpoint_ble_advertisement(
+        db: AsyncSession,
+        checkpoint_id: uuid.UUID,
+        university_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        current_time: datetime.datetime | None = None,
+    ) -> BleAdvertisementResponse:
+        """Generate a cryptographically signed compact BLE presence payload
+        for classroom broadcasting.
+        """
+        now = current_time or utc_now()
+        settings = get_settings()
+
+        if not settings.ATTENDANCE_BLE_ENABLED:
+            raise DomainException(
+                code="BLE_NOT_ENABLED",
+                message=(
+                    "Bluetooth Low Energy presence verification is currently "
+                    "disabled by system configuration."
+                ),
+                status_code=400,
+            )
+
+        stmt = (
+            select(AttendanceCheckpoint)
+            .join(
+                AttendanceSession,
+                AttendanceSession.id == AttendanceCheckpoint.attendance_session_id,
+            )
+            .options(selectinload(AttendanceCheckpoint.session))
+            .where(
+                AttendanceCheckpoint.id == checkpoint_id,
+                AttendanceSession.university_id == university_id,
+            )
+        )
+        res = await db.execute(stmt)
+        cp = res.scalar_one_or_none()
+        if not cp:
+            raise NotFoundException("AttendanceCheckpoint", checkpoint_id)
+
+        session = cp.session
+
+        if session.status != AttendanceSessionStatus.ACTIVE.value:
+            raise DomainException(
+                code="SESSION_NOT_ACTIVE",
+                message="Cannot generate BLE advertisement when attendance session is not active.",
+                status_code=400,
+            )
+
+        if cp.status != AttendanceCheckpointStatus.OPEN.value:
+            raise DomainException(
+                code="CHECKPOINT_NOT_OPEN",
+                message=f"Checkpoint '{cp.checkpoint_type}' is not currently open.",
+                status_code=400,
+            )
+
+        # Check window expiration against authoritative server time
+        checkpoint_close_utc: datetime.datetime | None = None
+        if cp.opened_at_utc is not None:
+            checkpoint_close_utc = cp.opened_at_utc + datetime.timedelta(
+                seconds=cp.window_duration_seconds
+            )
+            if now > checkpoint_close_utc:
+                cp.status = AttendanceCheckpointStatus.CLOSED.value
+                cp.closed_at_utc = now
+                await db.commit()
+                diff_sec = int((now - checkpoint_close_utc).total_seconds())
+                raise DomainException(
+                    code="CHECKPOINT_WINDOW_EXPIRED",
+                    message=f"Checkpoint window expired {diff_sec}s ago.",
+                    status_code=400,
+                )
+
+        rot_sec = (
+            session.policy_snapshot.get("ble_rotation_seconds")
+            if session.policy_snapshot
+            else settings.ATTENDANCE_BLE_ROTATION_SECONDS
+        ) or settings.ATTENDANCE_BLE_ROTATION_SECONDS
+
+        raw, b64, hex_str, issued_at, expires_at, slot = (
+            BlePresenceEngine.generate_ble_advertisement_payload(
+                university_id=university_id,
+                session_id=session.id,
+                checkpoint_id=cp.id,
+                checkpoint_type=cp.checkpoint_type,
+                checkpoint_close_utc=checkpoint_close_utc,
+                current_time=now,
+                rotation_seconds=rot_sec,
+            )
+        )
+
+        refresh_after_seconds = max(1, int((expires_at - now).total_seconds()))
+
+        return BleAdvertisementResponse(
+            service_uuid=settings.ATTENDANCE_BLE_SERVICE_UUID,
+            payload_base64=b64,
+            payload_hex=hex_str,
+            protocol_version=settings.ATTENDANCE_BLE_PROTOCOL_VERSION,
+            rotation_seconds=rot_sec,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            checkpoint_id=cp.id,
+            checkpoint_type=cp.checkpoint_type,
+            server_time=now,
+            refresh_after_seconds=refresh_after_seconds,
+        )
+
+    @staticmethod
+    async def verify_presence_checkin(
+        db: AsyncSession,
+        current_user: User,
+        qr_token: str | None = None,
+        ble_observation: BleObservationSchema | None = None,
+        current_time: datetime.datetime | None = None,
+    ) -> PresenceCheckInResponse:
+        """Verify unified multi-factor presence evidence (dynamic QR and/or BLE proximity).
+
+        Enforces:
+        - INV-01: Client cannot mark itself present; only server evaluates evidence.
+        - INV-03: University server UTC clock evaluates token rotation and expiration.
+        - INV-04: Expired QR/BLE tokens rejected unconditionally.
+        - INV-05: Exactly one checkpoint credit per student (idempotent duplicate response).
+        - Multi-factor policy evaluation (QR_ONLY vs QR_AND_BLE).
+        - RSSI threshold validation against session policy snapshot.
+        - Shared classroom broadcast: multiple enrolled students can submit the same broadcast.
+        """
+        now = current_time or utc_now()
+        settings = get_settings()
+
+        # 1. Look up student profile for authenticated user
+        stu_stmt = select(Student).where(Student.user_id == current_user.id)
+        stu_res = await db.execute(stu_stmt)
+        student = stu_res.scalar_one_or_none()
+        if not student:
+            raise DomainException(
+                code="STUDENT_PROFILE_REQUIRED",
+                message="Authenticated user does not possess an active student profile.",
+                status_code=403,
+            )
+
+        if not qr_token and not ble_observation:
+            raise DomainException(
+                code="PRESENCE_FACTORS_INCOMPLETE",
+                message=(
+                    "At least one presence factor (QR token or BLE observation) must be provided."
+                ),
+                status_code=400,
+            )
+
+        # 2. Extract context from QR token if provided
+        qr_claims: dict[str, Any] | None = None
+        session_id: uuid.UUID | None = None
+        checkpoint_id: uuid.UUID | None = None
+        checkpoint_type: str | None = None
+
+        if qr_token:
+            qr_claims = PresenceTokenEngine.verify_presence_token(
+                token=qr_token,
+                expected_university_id=current_user.university_id,
+                current_time=now,
+            )
+            if str(student.university_id) != qr_claims.get("uid"):
+                raise DomainException(
+                    code="INVALID_QR_TOKEN",
+                    message="Token university does not match student university.",
+                    status_code=400,
+                )
+            session_id = uuid.UUID(qr_claims["sid"])
+            checkpoint_id = uuid.UUID(qr_claims["cid"])
+            checkpoint_type = qr_claims["cpt"]
+
+        if session_id is None or checkpoint_id is None or checkpoint_type is None:
+            raise DomainException(
+                code="PRESENCE_FACTORS_INCOMPLETE",
+                message="Dynamic QR token is required to establish classroom session anchor.",
+                status_code=400,
+            )
+
+        # 3. Retrieve Session and Checkpoint
+        stmt = (
+            select(AttendanceCheckpoint)
+            .join(
+                AttendanceSession,
+                AttendanceSession.id == AttendanceCheckpoint.attendance_session_id,
+            )
+            .options(selectinload(AttendanceCheckpoint.session))
+            .where(
+                AttendanceCheckpoint.id == checkpoint_id,
+                AttendanceSession.university_id == current_user.university_id,
+            )
+        )
+        res = await db.execute(stmt)
+        cp = res.scalar_one_or_none()
+        if not cp:
+            raise NotFoundException("AttendanceCheckpoint", checkpoint_id)
+
+        session = cp.session
+
+        # 4. Check policy requirement mode
+        policy_mode = (
+            session.policy_snapshot.get("presence_requirement_mode", "QR_ONLY")
+            if session.policy_snapshot
+            else "QR_ONLY"
+        )
+        min_rssi = (
+            session.policy_snapshot.get("ble_min_rssi", settings.ATTENDANCE_BLE_MIN_RSSI)
+            if session.policy_snapshot
+            else settings.ATTENDANCE_BLE_MIN_RSSI
+        )
+        ble_rot_sec = (
+            session.policy_snapshot.get(
+                "ble_rotation_seconds", settings.ATTENDANCE_BLE_ROTATION_SECONDS
+            )
+            if session.policy_snapshot
+            else settings.ATTENDANCE_BLE_ROTATION_SECONDS
+        ) or settings.ATTENDANCE_BLE_ROTATION_SECONDS
+
+        verified_factors: list[str] = []
+        if qr_claims:
+            verified_factors.append(EvidenceSourceMode.ONLINE_DYNAMIC_QR.value)
+
+        ble_claims: dict[str, Any] | None = None
+        if policy_mode == "QR_AND_BLE":
+            if not ble_observation:
+                raise DomainException(
+                    code="PRESENCE_FACTORS_INCOMPLETE",
+                    message=(
+                        "Policy requires dual-factor QR and BLE proximity. "
+                        "BLE observation was not provided."
+                    ),
+                    status_code=400,
+                )
+
+            # Verify BLE observation against session and checkpoint context
+            ble_claims = BlePresenceEngine.verify_ble_observation(
+                payload_input=ble_observation.payload,
+                expected_university_id=current_user.university_id,
+                expected_session_id=session_id,
+                expected_checkpoint_id=checkpoint_id,
+                expected_checkpoint_type=checkpoint_type,
+                current_time=now,
+                observed_rssi=ble_observation.rssi,
+                min_rssi=min_rssi,
+                rotation_seconds=ble_rot_sec,
+            )
+            verified_factors.append(EvidenceSourceMode.BLUETOOTH_BLE.value)
+        elif ble_observation:
+            # Optionally verify BLE observation if submitted in QR_ONLY mode
+            ble_claims = BlePresenceEngine.verify_ble_observation(
+                payload_input=ble_observation.payload,
+                expected_university_id=current_user.university_id,
+                expected_session_id=session_id,
+                expected_checkpoint_id=checkpoint_id,
+                expected_checkpoint_type=checkpoint_type,
+                current_time=now,
+                observed_rssi=ble_observation.rssi,
+                min_rssi=min_rssi,
+                rotation_seconds=ble_rot_sec,
+            )
+            verified_factors.append(EvidenceSourceMode.BLUETOOTH_BLE.value)
+
+        # 5. Idempotency Check (INV-05)
+        ev_stmt = select(AttendanceEvidence).where(
+            AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
+            AttendanceEvidence.student_id == student.id,
+        )
+        ev_res = await db.execute(ev_stmt)
+        existing_evidence = ev_res.scalar_one_or_none()
+        already_credited = existing_evidence is not None
+
+        # 6. Build evidence metadata
+        evidence_metadata: dict[str, Any] = {
+            "presence_mode": policy_mode,
+            "factors": verified_factors,
+        }
+        if qr_claims and qr_token:
+            evidence_metadata["qr_token_hash"] = hashlib.sha256(
+                qr_token.encode("utf-8")
+            ).hexdigest()
+            evidence_metadata["qr_slot"] = qr_claims.get("slot")
+            evidence_metadata["qr_jti"] = qr_claims.get("jti")
+            evidence_metadata["qr_iat"] = qr_claims.get("iat")
+        if ble_claims:
+            evidence_metadata["ble_payload_digest"] = ble_claims.get("payload_digest")
+            evidence_metadata["ble_slot"] = ble_claims.get("slot")
+            evidence_metadata["ble_rssi"] = ble_claims.get("rssi")
+            evidence_metadata["ble_protocol_version"] = ble_claims.get("version")
+            if ble_observation and ble_observation.observed_at_client:
+                evidence_metadata["ble_client_observed_at"] = (
+                    ble_observation.observed_at_client.isoformat()
+                )
+            if ble_observation and ble_observation.platform:
+                evidence_metadata["ble_platform"] = ble_observation.platform
+
+        primary_source = (
+            EvidenceSourceMode.BLUETOOTH_BLE.value
+            if policy_mode == "QR_AND_BLE"
+            else EvidenceSourceMode.ONLINE_DYNAMIC_QR.value
+        )
+
+        factors_label = ", ".join(verified_factors)
+        evidence_reason = f"Presence verified via {factors_label} under policy mode {policy_mode}."
+
+        # 7. Record verified checkpoint credit via domain service
+        evidence = await AttendanceService.record_verified_checkpoint_credit(
+            db=db,
+            session_id=session_id,
+            checkpoint_type=checkpoint_type,
+            student_id=student.id,
+            actor_id=current_user.id,
+            source_mode=primary_source,
+            reason=evidence_reason,
+            evidence_metadata=evidence_metadata,
+            is_real_time=True,
+            override_now=now,
+        )
+
+        # 8. Retrieve student's AttendanceRecord to return its ID
+        rec_stmt = select(AttendanceRecord).where(
+            AttendanceRecord.attendance_session_id == session_id,
+            AttendanceRecord.student_id == student.id,
+        )
+        rec_res = await db.execute(rec_stmt)
+        record = rec_res.scalar_one_or_none()
+        record_id = record.id if record else evidence.id
+
+        return PresenceCheckInResponse(
+            accepted=True,
+            checkpoint_type=checkpoint_type,
+            already_credited=already_credited,
+            verified_at=evidence.server_received_at_utc,
+            attendance_record_id=record_id,
+            verified_factors=verified_factors,
+            presence_mode=policy_mode,
         )
 
     # =========================================================================

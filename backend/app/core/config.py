@@ -115,6 +115,30 @@ class Settings(BaseSettings):
     )
 
     # =========================================================================
+    # 5.1 ATTENDANCE & Bluetooth BLE Defaults (Milestone 11)
+    # =========================================================================
+    ATTENDANCE_BLE_ENABLED: bool = Field(default=True)
+    ATTENDANCE_BLE_SIGNING_KEY: str = Field(
+        default="dev-attendance-ble-signing-key-minimum-32-chars-for-testing-only",
+        description=(
+            "Dedicated HMAC signing key for attendance BLE presence tokens. "
+            "Strictly isolated from AUTH_SIGNING_KEY and ATTENDANCE_QR_SIGNING_KEY."
+        ),
+    )
+    ATTENDANCE_BLE_PROTOCOL_VERSION: int = Field(default=1)
+    ATTENDANCE_BLE_SERVICE_UUID: str = Field(
+        default="0000fee0-0000-1000-8000-00805f9b34fb",
+        description="Standard 128-bit service UUID advertised by classroom BLE broadcasters.",
+    )
+    ATTENDANCE_BLE_ROTATION_SECONDS: int = Field(default=20)
+    ATTENDANCE_BLE_MIN_RSSI: int | None = Field(
+        default=-85,
+        description=(
+            "Optional minimum RSSI (dBm) threshold for BLE proximity validation. Default -85 dBm."
+        ),
+    )
+
+    # =========================================================================
     # 6. NETWORK Settings
     # =========================================================================
     CAMPUS_TRUSTED_SUBNETS: str = Field(default="192.168.0.0/16,10.0.0.0/8")
@@ -149,6 +173,16 @@ class Settings(BaseSettings):
                 "(cryptographic separation)."
             )
 
+        if self.ATTENDANCE_BLE_ENABLED:
+            if (
+                self.ATTENDANCE_BLE_SIGNING_KEY == self.AUTH_SIGNING_KEY
+                or self.ATTENDANCE_BLE_SIGNING_KEY == self.ATTENDANCE_QR_SIGNING_KEY
+            ):
+                raise ValueError(
+                    "ATTENDANCE_BLE_SIGNING_KEY must be distinct from AUTH_SIGNING_KEY and "
+                    "ATTENDANCE_QR_SIGNING_KEY (cryptographic separation)."
+                )
+
         if self.APP_ENV == Environment.PRODUCTION:
             insecure_passwords = {
                 "change_me_in_production",
@@ -166,6 +200,7 @@ class Settings(BaseSettings):
             insecure_keys = {
                 "dev-auth-signing-key-minimum-32-chars-for-testing-purposes-only",
                 "dev-attendance-qr-signing-key-minimum-32-chars-for-testing-only",
+                "dev-attendance-ble-signing-key-minimum-32-chars-for-testing-only",
                 "change_me_in_production",
                 "secret",
                 "jwt_secret",
@@ -185,6 +220,15 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(
                     "A secure ATTENDANCE_QR_SIGNING_KEY of at least 32 characters is required "
+                    "in production."
+                )
+            if self.ATTENDANCE_BLE_ENABLED and (
+                not self.ATTENDANCE_BLE_SIGNING_KEY
+                or self.ATTENDANCE_BLE_SIGNING_KEY in insecure_keys
+                or len(self.ATTENDANCE_BLE_SIGNING_KEY) < 32
+            ):
+                raise ValueError(
+                    "A secure ATTENDANCE_BLE_SIGNING_KEY of at least 32 characters is required "
                     "in production."
                 )
 

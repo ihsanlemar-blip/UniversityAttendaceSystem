@@ -19,9 +19,12 @@ from backend.app.attendance.schemas import (
     AttendanceSessionCreateRequest,
     AttendanceSessionDetailResponse,
     AttendanceSessionResponse,
+    BleAdvertisementResponse,
     CheckpointCreditResponse,
     CheckpointOpenRequest,
     ManualCheckpointCreditRequest,
+    PresenceCheckInRequest,
+    PresenceCheckInResponse,
     QrCheckInRequest,
     QrCheckInResponse,
     QrTokenResponse,
@@ -630,6 +633,103 @@ async def get_checkpoint_qr_token(
     return StandardResponse(
         data=qr_data,
         meta={"message": "Dynamic QR token generated successfully."},
+    )
+
+
+@router.get(
+    "/checkpoints/{checkpoint_id}/ble-advertisement",
+    response_model=StandardResponse[BleAdvertisementResponse],
+    summary="Fetch current compact BLE advertisement payload for an active checkpoint",
+)
+async def get_checkpoint_ble_advertisement(
+    checkpoint_id: uuid.UUID,
+    response: Response,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance_checkpoints.manage", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[BleAdvertisementResponse]:
+    """Fetch current ephemeral BLE presence payload for classroom mobile broadcasting.
+
+    Restricted to assigned lecturers and authorized departmental/faculty administrators.
+    Students cannot access this endpoint.
+    """
+    stmt = (
+        select(AttendanceCheckpoint)
+        .join(
+            AttendanceSession,
+            AttendanceSession.id == AttendanceCheckpoint.attendance_session_id,
+        )
+        .where(
+            AttendanceCheckpoint.id == checkpoint_id,
+            AttendanceSession.university_id == current_user.university_id,
+        )
+    )
+    res = await db.execute(stmt)
+    cp = res.scalar_one_or_none()
+    if not cp:
+        raise NotFoundException("AttendanceCheckpoint", checkpoint_id)
+
+    session = await AttendanceService.get_session(
+        db, cp.attendance_session_id, current_user.university_id
+    )
+    occ = await db.get(ClassOccurrence, session.class_occurrence_id)
+    if occ:
+        await _verify_occurrence_authority(
+            db=db,
+            current_user=current_user,
+            occurrence=occ,
+            permission_code="attendance_checkpoints.manage",
+        )
+
+    ble_data = await AttendanceService.generate_checkpoint_ble_advertisement(
+        db=db,
+        checkpoint_id=checkpoint_id,
+        university_id=current_user.university_id,
+        actor_id=current_user.id,
+    )
+
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+
+    return StandardResponse(
+        data=ble_data,
+        meta={"message": "BLE presence advertisement payload generated successfully."},
+    )
+
+
+@router.post(
+    "/presence/check-in",
+    response_model=StandardResponse[PresenceCheckInResponse],
+    summary="Unified student presence check-in (dynamic QR + BLE proximity)",
+)
+async def student_presence_checkin(
+    payload: PresenceCheckInRequest,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance.self_read", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[PresenceCheckInResponse]:
+    """Self-service unified presence check-in for enrolled students.
+
+    Supports single-factor (QR_ONLY) and dual-factor (QR_AND_BLE) presence evaluation.
+    Student identity is derived strictly from the authenticated user context (INV-01).
+    """
+    result = await AttendanceService.verify_presence_checkin(
+        db=db,
+        current_user=current_user,
+        qr_token=payload.qr_token,
+        ble_observation=payload.ble_observation,
+    )
+    factors_str = ", ".join(result.verified_factors)
+    msg = (
+        f"Checkpoint '{result.checkpoint_type}' already credited."
+        if result.already_credited
+        else f"Checkpoint '{result.checkpoint_type}' presence verified via {factors_str}."
+    )
+    return StandardResponse(
+        data=result,
+        meta={"message": msg},
     )
 
 

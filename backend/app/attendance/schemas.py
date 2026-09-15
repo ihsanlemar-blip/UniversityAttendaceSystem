@@ -240,6 +240,75 @@ class QrCheckInResponse(BaseModel):
 
 
 # ==========================================
+# Bluetooth BLE & Unified Presence Schemas (Milestone 11)
+# ==========================================
+
+
+class BleAdvertisementResponse(BaseModel):
+    """Response payload for lecturer mobile BLE classroom presence broadcast."""
+
+    service_uuid: str = Field(..., description="Configured 128-bit attendance BLE service UUID.")
+    payload_base64: str = Field(..., description="Base64-encoded 17-byte compact presence payload.")
+    payload_hex: str = Field(..., description="Hex-encoded 17-byte compact presence payload.")
+    protocol_version: int = Field(default=1)
+    rotation_seconds: int = Field(..., description="Ephemeral rotation interval in seconds.")
+    issued_at: datetime.datetime
+    expires_at: datetime.datetime
+    checkpoint_id: uuid.UUID
+    checkpoint_type: str
+    server_time: datetime.datetime
+    refresh_after_seconds: int
+
+
+class BleObservationSchema(BaseModel):
+    """Client-observed Bluetooth Low Energy telemetry payload."""
+
+    payload: str = Field(
+        ..., min_length=1, description="Observed BLE payload in base64 or hex format."
+    )
+    rssi: int | None = Field(
+        default=None, description="Observed Received Signal Strength Indication in dBm."
+    )
+    observed_at_client: datetime.datetime | None = Field(
+        default=None,
+        description="Client device timestamp (telemetry only; non-authoritative).",
+    )
+    platform: str | None = Field(
+        default=None, max_length=50, description="Scanning platform (e.g., android, ios)."
+    )
+
+
+class PresenceCheckInRequest(BaseModel):
+    """Unified presence check-in request supporting multi-factor evidence (QR + BLE)."""
+
+    qr_token: str | None = Field(
+        default=None, description="Dynamic classroom QR token if captured."
+    )
+    ble_observation: BleObservationSchema | None = Field(
+        default=None,
+        description="Classroom BLE observation telemetry if captured.",
+    )
+
+
+class PresenceCheckInResponse(BaseModel):
+    """Unified response for multi-factor presence evaluation and checkpoint credit."""
+
+    accepted: bool
+    checkpoint_type: str
+    already_credited: bool
+    verified_at: datetime.datetime
+    attendance_record_id: uuid.UUID
+    verified_factors: list[str] = Field(
+        default_factory=list,
+        description="Evidence modalities verified (e.g. ONLINE_DYNAMIC_QR, BLUETOOTH_BLE).",
+    )
+    presence_mode: str = Field(
+        default="QR_ONLY",
+        description="Effective policy presence requirement mode (e.g. QR_ONLY, QR_AND_BLE).",
+    )
+
+
+# ==========================================
 # Attendance Record Schemas
 # ==========================================
 

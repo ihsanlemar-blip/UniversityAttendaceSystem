@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../services/ble_scanner_service.dart';
+import '../services/presence_checkin_service.dart';
 import '../services/qr_checkin_service.dart';
 
 enum ScannerViewStatus {
@@ -11,9 +14,12 @@ enum ScannerViewStatus {
   error,
 }
 
-/// Mobile scanner screen for students to capture rotating classroom dynamic QR codes.
+/// Mobile scanner screen for students to capture rotating classroom dynamic QR codes
+/// and simultaneously capture classroom BLE presence beacons.
 class StudentQrScannerScreen extends StatefulWidget {
   final QrCheckInService checkInService;
+  final PresenceCheckInService? presenceCheckInService;
+  final BleScannerInterface? bleScanner;
   final String authToken;
   final VoidCallback? onCompleted;
   final bool enableManualTokenEntry;
@@ -23,6 +29,8 @@ class StudentQrScannerScreen extends StatefulWidget {
   const StudentQrScannerScreen({
     super.key,
     required this.checkInService,
+    this.presenceCheckInService,
+    this.bleScanner,
     required this.authToken,
     this.onCompleted,
     this.enableManualTokenEntry = kDebugMode,
@@ -36,15 +44,33 @@ class StudentQrScannerScreen extends StatefulWidget {
 
 class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   ScannerViewStatus _status = ScannerViewStatus.scanning;
-  QrCheckInResult? _result;
+  PresenceCheckInResult? _result;
   String? _errorMessage;
   final TextEditingController _manualTokenController = TextEditingController();
   late final MobileScannerController _controller;
   bool _internalControllerCreated = false;
 
+  late final PresenceCheckInService _presenceService;
+  BleScannerInterface? _bleScanner;
+  StreamSubscription<BleObservation?>? _bleSubscription;
+  BleObservation? _latestBleObservation;
+
   @override
   void initState() {
     super.initState();
+    _presenceService = widget.presenceCheckInService ??
+        PresenceCheckInService(baseUrl: widget.checkInService.baseUrl);
+
+    _bleScanner = widget.bleScanner ?? BleScannerService();
+    _bleScanner?.startScan();
+    _bleSubscription = _bleScanner?.observationStream.listen((obs) {
+      if (mounted) {
+        setState(() {
+          _latestBleObservation = obs;
+        });
+      }
+    });
+
     if (widget.scannerController != null) {
       _controller = widget.scannerController!;
     } else {
@@ -60,6 +86,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   @override
   void dispose() {
     _manualTokenController.dispose();
+    _bleSubscription?.cancel();
+    _bleScanner?.stopScan();
     if (_internalControllerCreated) {
       _controller.dispose();
     }
@@ -76,8 +104,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
     });
 
     try {
-      final result = await widget.checkInService.submitQrCheckIn(
-        token: trimmed,
+      final result = await _presenceService.submitPresenceCheckIn(
+        qrToken: trimmed,
+        bleObservation: _latestBleObservation ?? _bleScanner?.latestObservation,
         authToken: widget.authToken,
       );
 
@@ -91,6 +120,11 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
       if (widget.onCompleted != null) {
         widget.onCompleted!();
       }
+    } on PresenceCheckInException catch (e) {
+      setState(() {
+        _status = ScannerViewStatus.error;
+        _errorMessage = '${e.code}: ${e.message}';
+      });
     } on QrCheckInException catch (e) {
       setState(() {
         _status = ScannerViewStatus.error;
@@ -111,6 +145,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
       _errorMessage = null;
       _manualTokenController.clear();
     });
+    _bleScanner?.startScan();
   }
 
   @override
@@ -126,13 +161,46 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
       body: SafeArea(
         child: Column(
           children: [
+            // BLE Status Indicator Bar
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              color: Colors.white10,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    _latestBleObservation != null
+                        ? Icons.bluetooth_connected
+                        : Icons.bluetooth_searching,
+                    size: 16,
+                    color: _latestBleObservation != null
+                        ? Colors.lightBlueAccent
+                        : Colors.white54,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _latestBleObservation != null
+                        ? 'Classroom BLE detected (${_latestBleObservation!.rssi} dBm)'
+                        : 'Searching for classroom BLE beacon...',
+                    style: TextStyle(
+                      color: _latestBleObservation != null
+                          ? Colors.lightBlueAccent
+                          : Colors.white54,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+
             // Instruction header
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               child: Text(
                 _status == ScannerViewStatus.scanning
                     ? 'Align the rotating QR code on the classroom projector screen inside the frame.'
-                    : 'Processing presence token...',
+                    : 'Processing presence evidence...',
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 14),
               ),
@@ -249,7 +317,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             CircularProgressIndicator(color: Colors.blueAccent),
             SizedBox(height: 24),
             Text(
-              'Verifying Presence Token...',
+              'Verifying Presence Evidence...',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -259,6 +327,9 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
         );
 
       case ScannerViewStatus.success:
+        final factorsStr = _result?.verifiedFactors.isNotEmpty == true
+            ? _result!.verifiedFactors.join(' + ')
+            : 'Verified';
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -272,9 +343,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
                   fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Attendance credit verified by university server.',
-              style: TextStyle(color: Colors.white70, fontSize: 13),
+            Text(
+              'Presence verified via $factorsStr.',
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: Colors.white70, fontSize: 13),
             ),
             const SizedBox(height: 24),
             ElevatedButton(
