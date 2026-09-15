@@ -35,6 +35,8 @@ from backend.app.core.constants import (
     RecordStatus,
 )
 from backend.app.core.exceptions import ConflictException, DomainException, NotFoundException
+from backend.app.devices.schemas import DeviceProofSchema
+from backend.app.devices.service import DeviceTrustService
 from backend.app.models.academic_unit import AcademicUnit
 from backend.app.models.attendance_checkpoint import AttendanceCheckpoint
 from backend.app.models.attendance_evidence import AttendanceEvidence
@@ -1100,6 +1102,7 @@ class AttendanceService:
         db: AsyncSession,
         token: str,
         current_user: User,
+        device_proof: DeviceProofSchema | None = None,
         current_time: datetime.datetime | None = None,
     ) -> QrCheckInResponse:
         """Verify dynamic presence QR token submitted by an enrolled student.
@@ -1110,9 +1113,11 @@ class AttendanceService:
         - INV-04: Expired tokens rejected unconditionally.
         - INV-05: Exactly one checkpoint credit per student (idempotent duplicate response).
         - Shared classroom token: Multiple students can scan the same rotating classroom QR.
+        - Milestone 13: Cryptographic primary device trust binding (INV-01/INV-02).
         - Cryptographic separation & zero migration schema drift.
         """
         now = current_time or utc_now()
+        settings = get_settings()
 
         # 1. Look up student profile for authenticated user
         stu_stmt = select(Student).where(Student.user_id == current_user.id)
@@ -1158,7 +1163,33 @@ class AttendanceService:
                 status_code=400,
             )
 
-        # 3. Check if student already has verified evidence for this checkpoint (idempotency check)
+        # 3. Verify Device Trust (Milestone 13)
+        device_meta: dict[str, Any] = {}
+        if settings.ATTENDANCE_DEVICE_TRUST_ENABLED:
+            if not device_proof:
+                raise DomainException(
+                    code="DEVICE_PROOF_REQUIRED",
+                    message=(
+                        "Cryptographic proof from a registered primary device "
+                        "is required for attendance."
+                    ),
+                    status_code=403,
+                )
+            trusted_dev = await DeviceTrustService.verify_online_attendance_proof(
+                db=db,
+                current_user=current_user,
+                device_proof=device_proof,
+                qr_token=token,
+                ble_payload=None,
+                current_time=now,
+            )
+            device_meta = {
+                "trusted_device_id": str(trusted_dev.id),
+                "device_label": trusted_dev.device_label,
+                "public_key_fingerprint": trusted_dev.public_key_fingerprint,
+            }
+
+        # 4. Check if student already has verified evidence for this checkpoint (idempotency check)
         ev_stmt = select(AttendanceEvidence).where(
             AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
             AttendanceEvidence.student_id == student.id,
@@ -1167,16 +1198,17 @@ class AttendanceService:
         existing_evidence = ev_res.scalar_one_or_none()
         already_credited = existing_evidence is not None
 
-        # 4. Hash token for audit trail & metadata storage
+        # 5. Hash token for audit trail & metadata storage
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         evidence_metadata = {
             "token_hash": token_hash,
             "slot": claims.get("slot"),
             "jti": claims.get("jti"),
             "issued_at": claims.get("iat"),
+            **device_meta,
         }
 
-        # 5. Record verified checkpoint credit via domain service
+        # 6. Record verified checkpoint credit via domain service
         evidence = await AttendanceService.record_verified_checkpoint_credit(
             db=db,
             session_id=session_id,
@@ -1325,6 +1357,7 @@ class AttendanceService:
         current_user: User,
         qr_token: str | None = None,
         ble_observation: BleObservationSchema | None = None,
+        device_proof: DeviceProofSchema | None = None,
         current_time: datetime.datetime | None = None,
     ) -> PresenceCheckInResponse:
         """Verify unified multi-factor presence evidence (dynamic QR and/or BLE proximity).
@@ -1336,6 +1369,7 @@ class AttendanceService:
         - INV-05: Exactly one checkpoint credit per student (idempotent duplicate response).
         - Multi-factor policy evaluation (QR_ONLY vs QR_AND_BLE).
         - RSSI threshold validation against session policy snapshot.
+        - Milestone 13: Cryptographic primary device trust binding (INV-01/INV-02).
         - Shared classroom broadcast: multiple enrolled students can submit the same broadcast.
         """
         now = current_time or utc_now()
@@ -1473,7 +1507,33 @@ class AttendanceService:
             )
             verified_factors.append(EvidenceSourceMode.BLUETOOTH_BLE.value)
 
-        # 5. Idempotency Check (INV-05)
+        # 5. Verify Device Trust (Milestone 13)
+        device_meta: dict[str, Any] = {}
+        if settings.ATTENDANCE_DEVICE_TRUST_ENABLED:
+            if not device_proof:
+                raise DomainException(
+                    code="DEVICE_PROOF_REQUIRED",
+                    message=(
+                        "Cryptographic proof from a registered primary device "
+                        "is required for attendance."
+                    ),
+                    status_code=403,
+                )
+            trusted_dev = await DeviceTrustService.verify_online_attendance_proof(
+                db=db,
+                current_user=current_user,
+                device_proof=device_proof,
+                qr_token=qr_token,
+                ble_payload=ble_observation.payload if ble_observation else None,
+                current_time=now,
+            )
+            device_meta = {
+                "trusted_device_id": str(trusted_dev.id),
+                "device_label": trusted_dev.device_label,
+                "public_key_fingerprint": trusted_dev.public_key_fingerprint,
+            }
+
+        # 6. Idempotency Check (INV-05)
         ev_stmt = select(AttendanceEvidence).where(
             AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
             AttendanceEvidence.student_id == student.id,
@@ -1482,10 +1542,11 @@ class AttendanceService:
         existing_evidence = ev_res.scalar_one_or_none()
         already_credited = existing_evidence is not None
 
-        # 6. Build evidence metadata
+        # 7. Build evidence metadata
         evidence_metadata: dict[str, Any] = {
             "presence_mode": policy_mode,
             "factors": verified_factors,
+            **device_meta,
         }
         if qr_claims and qr_token:
             evidence_metadata["qr_token_hash"] = hashlib.sha256(

@@ -12,6 +12,7 @@ from backend.app.core.constants import (
     PolicyScopeType,
     RecordStatus,
 )
+from backend.app.devices.schemas import DeviceProofSchema
 
 # ==========================================
 # Attendance Policy Schemas
@@ -227,6 +228,10 @@ class QrCheckInRequest(BaseModel):
     """Request payload for student self-service QR check-in."""
 
     token: str = Field(..., min_length=10, description="Scanned dynamic presence QR token.")
+    device_proof: DeviceProofSchema | None = Field(
+        default=None,
+        description="Cryptographic proof of possession from primary trusted device.",
+    )
 
 
 class QrCheckInResponse(BaseModel):
@@ -287,6 +292,10 @@ class PresenceCheckInRequest(BaseModel):
     ble_observation: BleObservationSchema | None = Field(
         default=None,
         description="Classroom BLE observation telemetry if captured.",
+    )
+    device_proof: DeviceProofSchema | None = Field(
+        default=None,
+        description="Cryptographic proof of possession from primary trusted device.",
     )
 
 

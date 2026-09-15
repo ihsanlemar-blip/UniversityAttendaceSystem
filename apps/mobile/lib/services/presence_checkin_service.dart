@@ -73,6 +73,7 @@ class PresenceCheckInService {
   Future<PresenceCheckInResult> submitPresenceCheckIn({
     String? qrToken,
     BleObservation? bleObservation,
+    Map<String, dynamic>? deviceProof,
     required String authToken,
   }) async {
     final uri = Uri.parse('$baseUrl/api/v1/attendance/presence/check-in');
@@ -88,6 +89,9 @@ class PresenceCheckInService {
     }
     if (bleObservation != null) {
       body['ble_observation'] = bleObservation.toJson();
+    }
+    if (deviceProof != null) {
+      body['device_proof'] = deviceProof;
     }
 
     final payload = jsonEncode(body);

@@ -11,6 +11,7 @@ from backend.app.common.schemas import ApiMetadataResponse
 from backend.app.common.types import utc_now
 from backend.app.core.config import get_settings
 from backend.app.curriculum.router import router as curriculum_router
+from backend.app.devices.router import router as devices_router
 from backend.app.facilities.router import router as facilities_router
 from backend.app.offerings.router import router as offerings_router
 from backend.app.people.router import router as people_router
@@ -60,3 +61,6 @@ api_v1_router.include_router(scheduling_router)
 # Mount Milestone 9 Attendance Core Engine Sub-Routers
 api_v1_router.include_router(attendance_router)
 api_v1_router.include_router(student_attendance_router)
+
+# Mount Milestone 13 Student Device Registration & Primary Device Trust Sub-Router
+api_v1_router.include_router(devices_router)

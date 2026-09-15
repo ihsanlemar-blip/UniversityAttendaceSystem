@@ -48,6 +48,12 @@ from backend.app.core.constants import (
     SyncEntryStatus,
 )
 from backend.app.core.exceptions import DomainException, NotFoundException
+from backend.app.devices.crypto import (
+    InvalidDeviceSignatureException,
+    build_offline_device_proof_payload,
+    verify_device_signature,
+)
+from backend.app.devices.service import DeviceTrustService
 from backend.app.models.attendance_session import AttendanceSession
 from backend.app.models.enrollment import Enrollment
 from backend.app.models.offline_attendance import (
@@ -59,6 +65,7 @@ from backend.app.models.offline_attendance import (
     SyncInboxEntry,
 )
 from backend.app.models.student import Student
+from backend.app.models.trusted_device import TrustedDevice
 from backend.app.models.user import User
 
 
@@ -466,6 +473,15 @@ class OfflineAttendanceService:
                 credited=False,
             )
 
+        # Resolve known host session if present in database (avoids FK violation on rejection)
+        known_host_session_id: uuid.UUID | None = None
+        if claim_item.host_session_id:
+            h_stmt = select(OfflineHostSession.id).where(
+                OfflineHostSession.id == claim_item.host_session_id
+            )
+            h_res = await db.execute(h_stmt)
+            known_host_session_id = h_res.scalar_one_or_none()
+
         # 3. Verify Challenge Signature
         try:
             _ = OfflineChallengeEngine.verify_challenge(
@@ -480,7 +496,7 @@ class OfflineAttendanceService:
             claim = OfflineAttendanceClaim(
                 id=claim_item.claim_id,
                 offline_permit_id=permit.id,
-                offline_host_session_id=claim_item.host_session_id,
+                offline_host_session_id=known_host_session_id,
                 student_id=student.id,
                 submitted_by_user_id=current_user.id,
                 checkpoint_type=claim_item.checkpoint_type,
@@ -503,6 +519,259 @@ class OfflineAttendanceService:
                 credited=False,
             )
 
+        # 3b. Verify Student Device Cryptographic Binding (Milestone 13)
+        settings = get_settings()
+        trusted_device_id: uuid.UUID | None = None
+        device_proof_sig: str | None = None
+
+        if settings.ATTENDANCE_DEVICE_TRUST_ENABLED:
+            if claim_item.trusted_device_id and claim_item.device_proof_signature:
+                dev_stmt = select(TrustedDevice).where(
+                    TrustedDevice.id == claim_item.trusted_device_id
+                )
+                dev_res = await db.execute(dev_stmt)
+                trusted_dev = dev_res.scalar_one_or_none()
+                if not trusted_dev:
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=None,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Trusted device not found on server.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                if (
+                    trusted_dev.student_id != student.id
+                    or trusted_dev.university_id != student.university_id
+                ):
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=trusted_dev.id,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Device does not belong to claiming student.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                # Active-at-claim-time semantics
+                claim_time = claim_item.client_captured_at_utc
+                if trusted_dev.created_at > claim_time + datetime.timedelta(minutes=5):
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=trusted_dev.id,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Device was registered after claim was captured.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                if trusted_dev.revoked_at is not None and trusted_dev.revoked_at < claim_time:
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=trusted_dev.id,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Device was revoked prior to offline claim capture.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                if trusted_dev.replaced_at is not None and trusted_dev.replaced_at < claim_time:
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=trusted_dev.id,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Device was replaced prior to offline claim capture.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                # Verify signature over canonical offline payload
+                ble_raw = None
+                if claim_item.ble_evidence and isinstance(claim_item.ble_evidence, dict):
+                    ble_raw = claim_item.ble_evidence.get("payload")
+
+                canonical_bytes = build_offline_device_proof_payload(
+                    user_id=current_user.id,
+                    university_id=current_user.university_id,
+                    device_id=trusted_dev.id,
+                    claim_id=claim_item.claim_id,
+                    permit_id=permit.id,
+                    authority_epoch=permit.authority_epoch,
+                    host_session_id=claim_item.host_session_id,
+                    checkpoint_type=claim_item.checkpoint_type,
+                    qr_challenge_token=claim_item.qr_challenge_token,
+                    ble_payload=ble_raw,
+                )
+
+                try:
+                    verify_device_signature(
+                        public_key_material=trusted_dev.public_key,
+                        message_bytes=canonical_bytes,
+                        signature_input=claim_item.device_proof_signature,
+                    )
+                except InvalidDeviceSignatureException:
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        trusted_device_id=trusted_dev.id,
+                        device_proof_signature=claim_item.device_proof_signature,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason="Invalid device cryptographic proof signature.",
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
+                trusted_device_id = trusted_dev.id
+                device_proof_sig = claim_item.device_proof_signature
+            else:
+                # If student has registered active device, proof of possession is required
+                active_dev = await DeviceTrustService.get_student_active_device(
+                    db=db,
+                    student_id=student.id,
+                    university_id=current_user.university_id,
+                )
+                if active_dev:
+                    claim = OfflineAttendanceClaim(
+                        id=claim_item.claim_id,
+                        offline_permit_id=permit.id,
+                        offline_host_session_id=known_host_session_id,
+                        student_id=student.id,
+                        submitted_by_user_id=current_user.id,
+                        checkpoint_type=claim_item.checkpoint_type,
+                        rotation_slot=claim_item.rotation_slot,
+                        qr_challenge_token=claim_item.qr_challenge_token,
+                        ble_evidence_payload=claim_item.ble_evidence,
+                        status=OfflineClaimStatus.REJECTED.value,
+                        rejection_reason=(
+                            "Offline attendance requires cryptographic proof from primary device."
+                        ),
+                        client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
+                        client_captured_at_utc=claim_item.client_captured_at_utc,
+                        server_synced_at_utc=now,
+                        created_at=now,
+                    )
+                    db.add(claim)
+                    return OfflineStudentClaimSyncResult(
+                        claim_id=claim.id,
+                        checkpoint_type=claim.checkpoint_type,
+                        status=claim.status,
+                        rejection_reason=claim.rejection_reason,
+                        credited=False,
+                    )
+
         # 4. Check if matching Host Session is already synced
         host_stmt = select(OfflineHostSession).where(
             OfflineHostSession.offline_permit_id == permit.id,
@@ -523,6 +792,8 @@ class OfflineAttendanceService:
                 rotation_slot=claim_item.rotation_slot,
                 qr_challenge_token=claim_item.qr_challenge_token,
                 ble_evidence_payload=claim_item.ble_evidence,
+                trusted_device_id=trusted_device_id,
+                device_proof_signature=device_proof_sig,
                 status=OfflineClaimStatus.PENDING_HOST_EVENTS.value,
                 client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
                 client_captured_at_utc=claim_item.client_captured_at_utc,
@@ -548,6 +819,8 @@ class OfflineAttendanceService:
             rotation_slot=claim_item.rotation_slot,
             qr_challenge_token=claim_item.qr_challenge_token,
             ble_evidence_payload=claim_item.ble_evidence,
+            trusted_device_id=trusted_device_id,
+            device_proof_signature=device_proof_sig,
             client_monotonic_offset_ms=claim_item.client_monotonic_offset_ms,
             client_captured_at_utc=claim_item.client_captured_at_utc,
             server_synced_at_utc=now,
@@ -648,6 +921,9 @@ class OfflineAttendanceService:
                     "rotation_slot": claim.rotation_slot,
                     "client_captured_at_utc": claim.client_captured_at_utc.isoformat(),
                     "ble_evidence": claim.ble_evidence_payload,
+                    "trusted_device_id": (
+                        str(claim.trusted_device_id) if claim.trusted_device_id else None
+                    ),
                 },
                 is_real_time=False,
                 override_now=now,

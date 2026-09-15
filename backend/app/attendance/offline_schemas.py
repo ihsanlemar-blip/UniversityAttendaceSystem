@@ -101,6 +101,14 @@ class OfflineStudentClaimItem(BaseModel):
     ble_evidence: dict[str, Any] | None = None
     client_monotonic_offset_ms: int | None = None
     client_captured_at_utc: datetime.datetime
+    trusted_device_id: uuid.UUID | None = Field(
+        default=None,
+        description="ID of student's trusted device that captured the claim.",
+    )
+    device_proof_signature: str | None = Field(
+        default=None,
+        description="Cryptographic Ed25519 signature over canonical offline claim payload.",
+    )
 
 
 class OfflineStudentSyncRequest(BaseModel):

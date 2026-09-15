@@ -32,6 +32,7 @@ if TYPE_CHECKING:
     from backend.app.models.attendance_session import AttendanceSession
     from backend.app.models.class_occurrence import ClassOccurrence
     from backend.app.models.student import Student
+    from backend.app.models.trusted_device import TrustedDevice
     from backend.app.models.university import University
     from backend.app.models.user import User
 
@@ -273,6 +274,7 @@ class OfflineAttendanceClaim(Base, UUIDv7PrimaryKeyMixin):
         ),
         Index("ix_offline_claims_permit_id", "offline_permit_id"),
         Index("ix_offline_claims_student_id", "student_id"),
+        Index("ix_offline_claims_device_id", "trusted_device_id"),
         Index("ix_offline_claims_status", "status"),
     )
 
@@ -326,6 +328,15 @@ class OfflineAttendanceClaim(Base, UUIDv7PrimaryKeyMixin):
         ForeignKey("attendance_evidence.id", ondelete="SET NULL"),
         nullable=True,
     )
+    trusted_device_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("trusted_devices.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    device_proof_signature: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
     client_monotonic_offset_ms: Mapped[int | None] = mapped_column(
         BigInteger,
         nullable=True,
@@ -357,6 +368,7 @@ class OfflineAttendanceClaim(Base, UUIDv7PrimaryKeyMixin):
     student: Mapped[Student] = relationship("Student")
     submitted_by_user: Mapped[User] = relationship("User", foreign_keys=[submitted_by_user_id])
     evidence: Mapped[AttendanceEvidence | None] = relationship("AttendanceEvidence")
+    trusted_device: Mapped[TrustedDevice | None] = relationship("TrustedDevice")
 
 
 class SyncInboxEntry(Base, UUIDv7PrimaryKeyMixin):

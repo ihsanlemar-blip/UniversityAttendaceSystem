@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/offline/offline_storage.dart';
 import '../services/ble_scanner_service.dart';
+import '../services/device_key_service.dart';
 import '../services/presence_checkin_service.dart';
 import '../services/qr_checkin_service.dart';
 
@@ -22,7 +23,10 @@ class StudentQrScannerScreen extends StatefulWidget {
   final QrCheckInService checkInService;
   final PresenceCheckInService? presenceCheckInService;
   final BleScannerInterface? bleScanner;
+  final DeviceKeyService? deviceKeyService;
   final String authToken;
+  final String? userId;
+  final String? universityId;
   final VoidCallback? onCompleted;
   final bool enableManualTokenEntry;
   final MobileScannerController? scannerController;
@@ -33,7 +37,10 @@ class StudentQrScannerScreen extends StatefulWidget {
     required this.checkInService,
     this.presenceCheckInService,
     this.bleScanner,
+    this.deviceKeyService,
     required this.authToken,
+    this.userId,
+    this.universityId,
     this.onCompleted,
     this.enableManualTokenEntry = kDebugMode,
     this.scannerController,
@@ -100,10 +107,33 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
     final trimmed = rawToken.trim();
     if (trimmed.isEmpty) return;
 
-    // Check for offline QR presence challenge (Milestone 12)
+    // Check for offline QR presence challenge (Milestone 12 & 13)
     if (trimmed.contains('offline_qr')) {
+      final claimId = 'claim_${DateTime.now().millisecondsSinceEpoch}';
+      String? trustedDevId;
+      String? deviceProofSig;
+
+      if (widget.deviceKeyService != null) {
+        trustedDevId = await widget.deviceKeyService!.getDeviceId();
+        if (trustedDevId != null &&
+            widget.userId != null &&
+            widget.universityId != null) {
+          deviceProofSig =
+              await widget.deviceKeyService!.signOfflineAttendanceClaim(
+            userId: widget.userId!,
+            universityId: widget.universityId!,
+            deviceId: trustedDevId,
+            claimId: claimId,
+            permitId: 'offline_permit',
+            authorityEpoch: 1,
+            checkpointType: 'START',
+            qrChallengeToken: trimmed,
+          );
+        }
+      }
+
       final claim = OfflineStudentClaimModel(
-        claimId: 'claim_${DateTime.now().millisecondsSinceEpoch}',
+        claimId: claimId,
         permitId: 'offline_permit',
         checkpointType: 'START',
         rotationSlot: DateTime.now().millisecondsSinceEpoch ~/ 20000,
@@ -113,6 +143,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             : null,
         clientCapturedAtUtc: DateTime.now().toUtc(),
         status: 'PENDING_SYNC',
+        trustedDeviceId: trustedDevId,
+        deviceProofSignature: deviceProofSig,
       );
       MobileOfflineStorage().addStudentClaim(claim);
       setState(() {
@@ -130,9 +162,34 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
     });
 
     try {
+      // Build Device Proof (Milestone 13)
+      Map<String, dynamic>? deviceProof;
+      if (widget.deviceKeyService != null) {
+        final devId = await widget.deviceKeyService!.getDeviceId();
+        if (devId != null &&
+            widget.userId != null &&
+            widget.universityId != null) {
+          final proofId = 'proof_${DateTime.now().millisecondsSinceEpoch}';
+          final sig = await widget.deviceKeyService!.signOnlinePresenceCheckIn(
+            userId: widget.userId!,
+            universityId: widget.universityId!,
+            deviceId: devId,
+            proofId: proofId,
+            qrToken: trimmed,
+            blePayload: _latestBleObservation?.payloadBase64,
+          );
+          deviceProof = {
+            'device_id': devId,
+            'proof_id': proofId,
+            'signature': sig,
+          };
+        }
+      }
+
       final result = await _presenceService.submitPresenceCheckIn(
         qrToken: trimmed,
         bleObservation: _latestBleObservation ?? _bleScanner?.latestObservation,
+        deviceProof: deviceProof,
         authToken: widget.authToken,
       );
 

@@ -137,6 +137,13 @@ class PermissionCode(StrEnum):
     ATTENDANCE_RECORDS_OVERRIDE = "attendance_records.override"
     ATTENDANCE_AUDIT_READ = "attendance_audit.read"
     ATTENDANCE_SELF_READ = "attendance.self_read"
+    DEVICES_SELF_READ = "devices.self_read"
+    DEVICES_SELF_REGISTER = "devices.self_register"
+    DEVICES_REPLACEMENT_REQUEST = "devices.replacement_request"
+    DEVICES_READ = "devices.read"
+    DEVICES_REPLACEMENT_REVIEW = "devices.replacement_review"
+    DEVICES_SUSPEND = "devices.suspend"
+    DEVICES_REVOKE = "devices.revoke"
 
 
 class StudentStatus(StrEnum):
@@ -368,3 +375,45 @@ class SyncEntryStatus(StrEnum):
     PROCESSED = "PROCESSED"
     FAILED = "FAILED"
     DUPLICATE = "DUPLICATE"
+
+
+class DeviceStatus(StrEnum):
+    """Registered student device lifecycle status."""
+
+    PENDING_REGISTRATION = "PENDING_REGISTRATION"
+    ACTIVE = "ACTIVE"
+    SUSPENDED = "SUSPENDED"
+    REPLACEMENT_PENDING = "REPLACEMENT_PENDING"
+    REPLACED = "REPLACED"
+    REVOKED = "REVOKED"
+    COMPROMISED = "COMPROMISED"
+
+
+class DeviceRole(StrEnum):
+    """Device role within the attendance trust domain."""
+
+    PRIMARY = "PRIMARY"
+
+
+class DeviceReplacementStatus(StrEnum):
+    """Student primary device replacement request lifecycle status."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+
+
+class DeviceTrustEventType(StrEnum):
+    """Append-only device security and trust lifecycle event type."""
+
+    DEVICE_REGISTRATION_REQUESTED = "DEVICE_REGISTRATION_REQUESTED"
+    DEVICE_ACTIVATED = "DEVICE_ACTIVATED"
+    DEVICE_REGISTRATION_FAILED = "DEVICE_REGISTRATION_FAILED"
+    DEVICE_REPLACEMENT_REQUESTED = "DEVICE_REPLACEMENT_REQUESTED"
+    DEVICE_REPLACEMENT_APPROVED = "DEVICE_REPLACEMENT_APPROVED"
+    DEVICE_REPLACEMENT_REJECTED = "DEVICE_REPLACEMENT_REJECTED"
+    DEVICE_SUSPENDED = "DEVICE_SUSPENDED"
+    DEVICE_REACTIVATED = "DEVICE_REACTIVATED"
+    DEVICE_REVOKED = "DEVICE_REVOKED"
+    DEVICE_MARKED_COMPROMISED = "DEVICE_MARKED_COMPROMISED"

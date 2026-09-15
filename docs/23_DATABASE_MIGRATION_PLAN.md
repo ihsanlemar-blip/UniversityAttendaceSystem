@@ -56,11 +56,15 @@ To support real testability and adhere to modular milestones, the actual linear 
 │  009_offline_attendance (Milestone 12 - permits, claims, sync inbox)   │
 │      │                                                                 │
 │      ▼                                                                 │
-│  [Subsequent Milestones - device trust, reporting, etc.]               │
+│  010_device_registration_trust (Milestone 13 - devices, challenges,   │
+│                                 replacements, trust events)            │
+│      │                                                                 │
+│      ▼                                                                 │
+│  [Subsequent Milestones - presence fraud, risk flags, reporting]       │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 009 are fully applied, verified reversible, and operational as of Milestone 12 (009_offline_attendance).*
+*Note: Migrations 001 through 010 are fully applied, verified reversible, and operational as of Milestone 13 (010_device_registration_trust).*
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 

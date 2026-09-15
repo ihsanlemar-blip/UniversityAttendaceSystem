@@ -170,6 +170,18 @@ class Settings(BaseSettings):
     ATTENDANCE_OFFLINE_MAX_CLOCK_DRIFT_SECONDS: int = Field(default=300)
 
     # =========================================================================
+    # 5.3 DEVICE TRUST & PRIMARY DEVICE BINDING (Milestone 13)
+    # =========================================================================
+    ATTENDANCE_DEVICE_TRUST_ENABLED: bool = Field(
+        default=True,
+        description="Enforce primary device trust for student attendance check-ins.",
+    )
+    DEVICE_REGISTRATION_CHALLENGE_LIFETIME_SECONDS: int = Field(
+        default=300,
+        description="Lifetime of device registration challenge in seconds (default 5 minutes).",
+    )
+
+    # =========================================================================
     # 6. NETWORK Settings
     # =========================================================================
     CAMPUS_TRUSTED_SUBNETS: str = Field(default="192.168.0.0/16,10.0.0.0/8")

@@ -35,6 +35,12 @@ from backend.app.models.section import Section
 from backend.app.models.semester import Semester
 from backend.app.models.student import Student
 from backend.app.models.timetable import Timetable
+from backend.app.models.trusted_device import (
+    DeviceRegistrationChallenge,
+    DeviceReplacementRequest,
+    DeviceTrustEvent,
+    TrustedDevice,
+)
 from backend.app.models.university import University
 from backend.app.models.user import User
 
@@ -52,6 +58,9 @@ __all__ = [
     "ClassOccurrence",
     "Course",
     "CourseOffering",
+    "DeviceRegistrationChallenge",
+    "DeviceReplacementRequest",
+    "DeviceTrustEvent",
     "Enrollment",
     "Lecturer",
     "LecturerAssignment",
@@ -73,6 +82,7 @@ __all__ = [
     "SyncInboxEntry",
     "TimestampMixin",
     "Timetable",
+    "TrustedDevice",
     "UUIDv7PrimaryKeyMixin",
     "University",
     "User",

@@ -95,6 +95,8 @@ class OfflineStudentClaimModel {
   final DateTime clientCapturedAtUtc;
   final String status; // PENDING_SYNC, SYNCED, REJECTED
   final String userId; // Account isolation context (M12.1 Section 13)
+  final String? trustedDeviceId;
+  final String? deviceProofSignature;
 
   OfflineStudentClaimModel({
     required this.claimId,
@@ -107,6 +109,8 @@ class OfflineStudentClaimModel {
     required this.clientCapturedAtUtc,
     this.status = 'PENDING_SYNC',
     this.userId = 'default_student',
+    this.trustedDeviceId,
+    this.deviceProofSignature,
   });
 
   Map<String, dynamic> toJson() => {
@@ -120,6 +124,8 @@ class OfflineStudentClaimModel {
         'client_captured_at_utc': clientCapturedAtUtc.toIso8601String(),
         'status': status,
         'user_id': userId,
+        'trusted_device_id': trustedDeviceId,
+        'device_proof_signature': deviceProofSignature,
       };
 
   factory OfflineStudentClaimModel.fromJson(Map<String, dynamic> json) =>
@@ -135,6 +141,8 @@ class OfflineStudentClaimModel {
             DateTime.parse(json['client_captured_at_utc'] as String),
         status: json['status'] as String? ?? 'PENDING_SYNC',
         userId: json['user_id'] as String? ?? 'default_student',
+        trustedDeviceId: json['trusted_device_id'] as String?,
+        deviceProofSignature: json['device_proof_signature'] as String?,
       );
 }
 

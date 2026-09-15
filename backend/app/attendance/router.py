@@ -722,6 +722,7 @@ async def student_presence_checkin(
         current_user=current_user,
         qr_token=payload.qr_token,
         ble_observation=payload.ble_observation,
+        device_proof=payload.device_proof,
     )
     factors_str = ", ".join(result.verified_factors)
     msg = (
@@ -755,6 +756,7 @@ async def student_qr_checkin(
         db=db,
         token=payload.token,
         current_user=current_user,
+        device_proof=payload.device_proof,
     )
     msg = (
         f"Checkpoint '{result.checkpoint_type}' already credited."
