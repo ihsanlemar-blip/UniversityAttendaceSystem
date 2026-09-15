@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_ble_peripheral/flutter_ble_peripheral.dart';
 
-/// Abstract interface for BLE presence advertiser.
+/// Abstract interface for BLE presence advertiser to allow deterministic mocking.
 abstract class BleAdvertiserInterface {
   bool get isAdvertising;
+  Future<bool> checkSupported();
   Future<bool> startAdvertising({
     required String serviceUuid,
     required Uint8List payload,
+  });
+  Future<bool> startAdvertisingFromBase64({
+    required String serviceUuid,
+    required String payloadBase64,
   });
   Future<void> stopAdvertising();
 }
@@ -20,10 +26,37 @@ class BleAdvertiserService implements BleAdvertiserInterface {
   bool get isAdvertising => _isAdvertising;
 
   @override
+  Future<bool> checkSupported() async {
+    try {
+      return await _peripheral.isSupported;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  @override
+  Future<bool> startAdvertisingFromBase64({
+    required String serviceUuid,
+    required String payloadBase64,
+  }) async {
+    final rawBytes = base64.decode(payloadBase64.trim());
+    return startAdvertising(
+      serviceUuid: serviceUuid,
+      payload: Uint8List.fromList(rawBytes),
+    );
+  }
+
+  @override
   Future<bool> startAdvertising({
     required String serviceUuid,
     required Uint8List payload,
   }) async {
+    if (payload.length != 17) {
+      debugPrint(
+        'Warning: Expected 17-byte binary BLE presence payload, got ${payload.length} bytes.',
+      );
+    }
+
     try {
       final isSupported = await _peripheral.isSupported;
       if (!isSupported) {
@@ -31,9 +64,11 @@ class BleAdvertiserService implements BleAdvertiserInterface {
         return false;
       }
 
-      final advertiseData = AdvertiseDataCore(
+      final advertiseData = AndroidAdvertiseData(
         serviceUuid: serviceUuid,
-        manufacturerId: 0x004C, // Standard manufacturer identifier fallback
+        serviceDataUuid: serviceUuid,
+        serviceData: payload,
+        manufacturerId: 0x004C, // Standard fallback manufacturer ID
         manufacturerData: payload,
       );
 
