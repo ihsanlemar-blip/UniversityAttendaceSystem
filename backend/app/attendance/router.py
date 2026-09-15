@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -22,6 +22,9 @@ from backend.app.attendance.schemas import (
     CheckpointCreditResponse,
     CheckpointOpenRequest,
     ManualCheckpointCreditRequest,
+    QrCheckInRequest,
+    QrCheckInResponse,
+    QrTokenResponse,
     StudentAttendanceSelfResponse,
 )
 from backend.app.attendance.service import AttendanceService
@@ -29,7 +32,9 @@ from backend.app.common.schemas import StandardResponse
 from backend.app.core.constants import AttendanceStatus, SystemRole
 from backend.app.core.database import get_db_session
 from backend.app.core.exceptions import DomainException, NotFoundException
+from backend.app.models.attendance_checkpoint import AttendanceCheckpoint
 from backend.app.models.attendance_record import AttendanceRecord
+from backend.app.models.attendance_session import AttendanceSession
 from backend.app.models.class_occurrence import ClassOccurrence
 from backend.app.models.course_offering import CourseOffering
 from backend.app.models.lecturer import Lecturer
@@ -558,6 +563,105 @@ async def close_checkpoint_window(
     return StandardResponse(
         data=AttendanceCheckpointResponse.model_validate(cp),
         meta={"message": f"Checkpoint '{checkpoint_type}' closed successfully."},
+    )
+
+
+# ==========================================
+# Dynamic QR Presence Verification Endpoints (Milestone 10)
+# ==========================================
+
+
+@router.get(
+    "/checkpoints/{checkpoint_id}/qr-token",
+    response_model=StandardResponse[QrTokenResponse],
+    summary="Get dynamic QR presence token for active checkpoint",
+)
+async def get_checkpoint_qr_token(
+    checkpoint_id: uuid.UUID,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance_checkpoints.manage", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    response: Response,
+) -> StandardResponse[QrTokenResponse]:
+    """Retrieve cryptographically signed dynamic QR token for projector display.
+
+    Returns the current rotating token for the open checkpoint window.
+    Disables caching (Cache-Control: no-store).
+    """
+    stmt = (
+        select(AttendanceCheckpoint)
+        .join(
+            AttendanceSession,
+            AttendanceSession.id == AttendanceCheckpoint.attendance_session_id,
+        )
+        .where(
+            AttendanceCheckpoint.id == checkpoint_id,
+            AttendanceSession.university_id == current_user.university_id,
+        )
+    )
+    res = await db.execute(stmt)
+    cp = res.scalar_one_or_none()
+    if not cp:
+        raise NotFoundException("AttendanceCheckpoint", checkpoint_id)
+
+    session = await AttendanceService.get_session(
+        db, cp.attendance_session_id, current_user.university_id
+    )
+    occ = await db.get(ClassOccurrence, session.class_occurrence_id)
+    if occ:
+        await _verify_occurrence_authority(
+            db=db,
+            current_user=current_user,
+            occurrence=occ,
+            permission_code="attendance_checkpoints.manage",
+        )
+
+    qr_data = await AttendanceService.generate_checkpoint_qr_token(
+        db=db,
+        checkpoint_id=checkpoint_id,
+        university_id=current_user.university_id,
+        actor_id=current_user.id,
+    )
+
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+
+    return StandardResponse(
+        data=qr_data,
+        meta={"message": "Dynamic QR token generated successfully."},
+    )
+
+
+@router.post(
+    "/qr/check-in",
+    response_model=StandardResponse[QrCheckInResponse],
+    summary="Student dynamic QR check-in",
+)
+async def student_qr_checkin(
+    payload: QrCheckInRequest,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance.self_read", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[QrCheckInResponse]:
+    """Self-service dynamic QR attendance check-in for enrolled students.
+
+    Student identity is derived strictly from the authenticated current user context (INV-01).
+    """
+    result = await AttendanceService.verify_qr_checkin(
+        db=db,
+        token=payload.token,
+        current_user=current_user,
+    )
+    msg = (
+        f"Checkpoint '{result.checkpoint_type}' already credited."
+        if result.already_credited
+        else f"Checkpoint '{result.checkpoint_type}' credited successfully."
+    )
+    return StandardResponse(
+        data=result,
+        meta={"message": msg},
     )
 
 

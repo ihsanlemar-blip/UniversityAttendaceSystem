@@ -206,6 +206,40 @@ class CheckpointCreditResponse(BaseModel):
 
 
 # ==========================================
+# Dynamic QR Schemas (Milestone 10)
+# ==========================================
+
+
+class QrTokenResponse(BaseModel):
+    """Response payload for lecturer visual QR token display."""
+
+    token: str
+    checkpoint_id: uuid.UUID
+    checkpoint_type: str
+    issued_at: datetime.datetime
+    expires_at: datetime.datetime
+    rotation_seconds: int
+    server_time: datetime.datetime
+    refresh_after_seconds: int
+
+
+class QrCheckInRequest(BaseModel):
+    """Request payload for student self-service QR check-in."""
+
+    token: str = Field(..., min_length=10, description="Scanned dynamic presence QR token.")
+
+
+class QrCheckInResponse(BaseModel):
+    """Confirmation response for a verified dynamic QR check-in."""
+
+    accepted: bool
+    checkpoint_type: str
+    already_credited: bool
+    verified_at: datetime.datetime
+    attendance_record_id: uuid.UUID
+
+
+# ==========================================
 # Attendance Record Schemas
 # ==========================================
 

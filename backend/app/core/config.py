@@ -91,8 +91,19 @@ class Settings(BaseSettings):
     AUTH_AUDIENCE: str = Field(default="university-attendance-client")
 
     # =========================================================================
-    # 5. ATTENDANCE Defaults (ADR-010)
+    # 5. ATTENDANCE & Dynamic QR Defaults (Milestone 10)
     # =========================================================================
+    ATTENDANCE_QR_ENABLED: bool = Field(default=True)
+    ATTENDANCE_QR_SIGNING_KEY: str = Field(
+        default="dev-attendance-qr-signing-key-minimum-32-chars-for-testing-only",
+        description=(
+            "Dedicated HMAC signing key for attendance QR tokens. Isolated from AUTH_SIGNING_KEY."
+        ),
+    )
+    ATTENDANCE_QR_SIGNING_KID: str = Field(default="att-qr-k1")
+    ATTENDANCE_QR_ISSUER: str = Field(default="digital-student-attendance-system")
+    ATTENDANCE_QR_AUDIENCE: str = Field(default="attendance-checkpoint")
+    ATTENDANCE_QR_ROTATION_SECONDS: int = Field(default=30)
     ATTENDANCE_TOKEN_ROTATION_SECONDS: int = Field(default=30)
     ATTENDANCE_TOKEN_TOLERANCE_STEPS: int = Field(default=1)
     ATTENDANCE_DEFAULT_CHECKPOINT_SECONDS: int = Field(default=300)
@@ -100,7 +111,7 @@ class Settings(BaseSettings):
     ATTENDANCE_MINIMUM_PERCENTAGE: float = Field(default=75.0)
     ATTENDANCE_TOKEN_HMAC_SECRET: str | None = Field(
         default=None,
-        description="HMAC secret for dynamic QR rotation. Required in Attendance Engine.",
+        description="Legacy alias / optional auxiliary secret.",
     )
 
     # =========================================================================
@@ -132,6 +143,12 @@ class Settings(BaseSettings):
         if self.CLOUD_SYNC_ENABLED and not self.CLOUD_SYNC_API_KEY:
             raise ValueError("CLOUD_SYNC_API_KEY is required when CLOUD_SYNC_ENABLED is True.")
 
+        if self.ATTENDANCE_QR_ENABLED and self.ATTENDANCE_QR_SIGNING_KEY == self.AUTH_SIGNING_KEY:
+            raise ValueError(
+                "ATTENDANCE_QR_SIGNING_KEY must be distinct from AUTH_SIGNING_KEY "
+                "(cryptographic separation)."
+            )
+
         if self.APP_ENV == Environment.PRODUCTION:
             insecure_passwords = {
                 "change_me_in_production",
@@ -148,6 +165,7 @@ class Settings(BaseSettings):
                 )
             insecure_keys = {
                 "dev-auth-signing-key-minimum-32-chars-for-testing-purposes-only",
+                "dev-attendance-qr-signing-key-minimum-32-chars-for-testing-only",
                 "change_me_in_production",
                 "secret",
                 "jwt_secret",
@@ -159,6 +177,15 @@ class Settings(BaseSettings):
             ):
                 raise ValueError(
                     "A secure AUTH_SIGNING_KEY of at least 32 characters is required in production."
+                )
+            if self.ATTENDANCE_QR_ENABLED and (
+                not self.ATTENDANCE_QR_SIGNING_KEY
+                or self.ATTENDANCE_QR_SIGNING_KEY in insecure_keys
+                or len(self.ATTENDANCE_QR_SIGNING_KEY) < 32
+            ):
+                raise ValueError(
+                    "A secure ATTENDANCE_QR_SIGNING_KEY of at least 32 characters is required "
+                    "in production."
                 )
 
         return self

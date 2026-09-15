@@ -1,6 +1,7 @@
 """Attendance Service for lifecycle, policies, 3-checkpoint windows, and evaluation."""
 
 import datetime
+import hashlib
 import uuid
 from typing import Any
 
@@ -11,8 +12,12 @@ from sqlalchemy.orm import selectinload
 from backend.app.attendance.schemas import (
     AttendancePolicyCreateRequest,
     AttendancePolicyUpdateRequest,
+    QrCheckInResponse,
+    QrTokenResponse,
 )
+from backend.app.attendance.tokens import PresenceTokenEngine
 from backend.app.common.types import utc_now
+from backend.app.core.config import get_settings
 from backend.app.core.constants import (
     AttendanceAuditEventType,
     AttendanceCheckpointStatus,
@@ -42,6 +47,7 @@ from backend.app.models.class_occurrence import ClassOccurrence
 from backend.app.models.course_offering import CourseOffering
 from backend.app.models.enrollment import Enrollment
 from backend.app.models.student import Student
+from backend.app.models.user import User
 
 
 class AttendanceService:
@@ -965,6 +971,199 @@ class AttendanceService:
         await db.commit()
         await db.refresh(evidence)
         return evidence
+
+    # =========================================================================
+    # 4.1 Dynamic QR Presence Token Operations (Milestone 10)
+    # =========================================================================
+
+    @staticmethod
+    async def generate_checkpoint_qr_token(
+        db: AsyncSession,
+        checkpoint_id: uuid.UUID,
+        university_id: uuid.UUID,
+        actor_id: uuid.UUID,
+        current_time: datetime.datetime | None = None,
+    ) -> QrTokenResponse:
+        """Generate a cryptographically signed dynamic QR token for an active checkpoint."""
+        now = current_time or utc_now()
+
+        stmt = (
+            select(AttendanceCheckpoint)
+            .join(
+                AttendanceSession,
+                AttendanceSession.id == AttendanceCheckpoint.attendance_session_id,
+            )
+            .options(selectinload(AttendanceCheckpoint.session))
+            .where(
+                AttendanceCheckpoint.id == checkpoint_id,
+                AttendanceSession.university_id == university_id,
+            )
+        )
+        res = await db.execute(stmt)
+        cp = res.scalar_one_or_none()
+        if not cp:
+            raise NotFoundException("AttendanceCheckpoint", checkpoint_id)
+
+        session = cp.session
+
+        if session.status != AttendanceSessionStatus.ACTIVE.value:
+            raise DomainException(
+                code="SESSION_NOT_ACTIVE",
+                message="Cannot generate QR token when attendance session is not active.",
+                status_code=400,
+            )
+
+        if cp.status != AttendanceCheckpointStatus.OPEN.value:
+            raise DomainException(
+                code="CHECKPOINT_NOT_OPEN",
+                message=f"Checkpoint '{cp.checkpoint_type}' is not currently open.",
+                status_code=400,
+            )
+
+        # Check window expiration against authoritative server time
+        checkpoint_close_utc: datetime.datetime | None = None
+        if cp.opened_at_utc is not None:
+            checkpoint_close_utc = cp.opened_at_utc + datetime.timedelta(
+                seconds=cp.window_duration_seconds
+            )
+            if now > checkpoint_close_utc:
+                cp.status = AttendanceCheckpointStatus.CLOSED.value
+                cp.closed_at_utc = now
+                await db.commit()
+                diff_sec = int((now - checkpoint_close_utc).total_seconds())
+                raise DomainException(
+                    code="CHECKPOINT_WINDOW_EXPIRED",
+                    message=f"Checkpoint window expired {diff_sec}s ago.",
+                    status_code=400,
+                )
+
+        settings = get_settings()
+        rot_sec = (
+            session.policy_snapshot.get("token_rotation_seconds")
+            if session.policy_snapshot
+            else settings.ATTENDANCE_QR_ROTATION_SECONDS
+        ) or settings.ATTENDANCE_QR_ROTATION_SECONDS
+
+        token, issued_at, expires_at, slot = PresenceTokenEngine.generate_presence_token(
+            university_id=university_id,
+            session_id=session.id,
+            checkpoint_id=cp.id,
+            checkpoint_type=cp.checkpoint_type,
+            checkpoint_close_utc=checkpoint_close_utc,
+            current_time=now,
+            rotation_seconds=rot_sec,
+        )
+
+        refresh_after_seconds = max(1, int((expires_at - now).total_seconds()))
+
+        return QrTokenResponse(
+            token=token,
+            checkpoint_id=cp.id,
+            checkpoint_type=cp.checkpoint_type,
+            issued_at=issued_at,
+            expires_at=expires_at,
+            rotation_seconds=rot_sec,
+            server_time=now,
+            refresh_after_seconds=refresh_after_seconds,
+        )
+
+    @staticmethod
+    async def verify_qr_checkin(
+        db: AsyncSession,
+        token: str,
+        current_user: User,
+        current_time: datetime.datetime | None = None,
+    ) -> QrCheckInResponse:
+        """Verify dynamic presence QR token submitted by an enrolled student.
+
+        Enforces:
+        - INV-01: Client cannot mark itself present; server verifies token and domain state.
+        - INV-03: University server UTC clock evaluates token expiration and slot.
+        - INV-04: Expired tokens rejected unconditionally.
+        - INV-05: Exactly one checkpoint credit per student (idempotent duplicate response).
+        - Shared classroom token: Multiple students can scan the same rotating classroom QR.
+        - Cryptographic separation & zero migration schema drift.
+        """
+        now = current_time or utc_now()
+
+        # 1. Look up student profile for authenticated user
+        stu_stmt = select(Student).where(Student.user_id == current_user.id)
+        stu_res = await db.execute(stu_stmt)
+        student = stu_res.scalar_one_or_none()
+        if not student:
+            raise DomainException(
+                code="STUDENT_PROFILE_REQUIRED",
+                message="Authenticated user does not possess an active student profile.",
+                status_code=403,
+            )
+
+        # 2. Cryptographically verify and decode token claims
+        # Enforce tenant isolation via expected_university_id
+        claims = PresenceTokenEngine.verify_presence_token(
+            token=token,
+            expected_university_id=current_user.university_id,
+            current_time=now,
+        )
+
+        if str(student.university_id) != claims.get("uid"):
+            raise DomainException(
+                code="INVALID_QR_TOKEN",
+                message="Token university does not match student university.",
+                status_code=400,
+            )
+
+        session_id = uuid.UUID(claims["sid"])
+        checkpoint_id = uuid.UUID(claims["cid"])
+        checkpoint_type = claims["cpt"]
+
+        # 3. Check if student already has verified evidence for this checkpoint (idempotency check)
+        ev_stmt = select(AttendanceEvidence).where(
+            AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
+            AttendanceEvidence.student_id == student.id,
+        )
+        ev_res = await db.execute(ev_stmt)
+        existing_evidence = ev_res.scalar_one_or_none()
+        already_credited = existing_evidence is not None
+
+        # 4. Hash token for audit trail & metadata storage
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        evidence_metadata = {
+            "token_hash": token_hash,
+            "slot": claims.get("slot"),
+            "jti": claims.get("jti"),
+            "issued_at": claims.get("iat"),
+        }
+
+        # 5. Record verified checkpoint credit via domain service
+        evidence = await AttendanceService.record_verified_checkpoint_credit(
+            db=db,
+            session_id=session_id,
+            checkpoint_type=checkpoint_type,
+            student_id=student.id,
+            actor_id=current_user.id,
+            source_mode=EvidenceSourceMode.ONLINE_DYNAMIC_QR.value,
+            reason="Dynamic QR presence verified.",
+            evidence_metadata=evidence_metadata,
+            is_real_time=True,
+            override_now=now,
+        )
+
+        # 6. Retrieve student's AttendanceRecord to return its ID
+        rec_stmt = select(AttendanceRecord).where(
+            AttendanceRecord.attendance_session_id == session_id,
+            AttendanceRecord.student_id == student.id,
+        )
+        rec_res = await db.execute(rec_stmt)
+        record = rec_res.scalar_one_or_none()
+        record_id = record.id if record else evidence.id
+
+        return QrCheckInResponse(
+            accepted=True,
+            checkpoint_type=checkpoint_type,
+            already_credited=already_credited,
+            verified_at=evidence.server_received_at_utc,
+            attendance_record_id=record_id,
+        )
 
     # =========================================================================
     # 5. Combinatorial 8-Pattern Evaluation Engine
