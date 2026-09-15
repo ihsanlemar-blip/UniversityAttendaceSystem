@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mobile_scanner/mobile_scanner.dart';
 import '../services/qr_checkin_service.dart';
 
 enum ScannerViewStatus {
@@ -16,6 +17,8 @@ class StudentQrScannerScreen extends StatefulWidget {
   final String authToken;
   final VoidCallback? onCompleted;
   final bool enableManualTokenEntry;
+  final MobileScannerController? scannerController;
+  final Widget? customScannerView;
 
   const StudentQrScannerScreen({
     super.key,
@@ -23,8 +26,9 @@ class StudentQrScannerScreen extends StatefulWidget {
     required this.authToken,
     this.onCompleted,
     this.enableManualTokenEntry = kDebugMode,
+    this.scannerController,
+    this.customScannerView,
   });
-
 
   @override
   State<StudentQrScannerScreen> createState() => _StudentQrScannerScreenState();
@@ -35,10 +39,30 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   QrCheckInResult? _result;
   String? _errorMessage;
   final TextEditingController _manualTokenController = TextEditingController();
+  late final MobileScannerController _controller;
+  bool _internalControllerCreated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.scannerController != null) {
+      _controller = widget.scannerController!;
+    } else {
+      _controller = MobileScannerController(
+        formats: const [BarcodeFormat.qrCode],
+        detectionSpeed: DetectionSpeed.noDuplicates,
+        facing: CameraFacing.back,
+      );
+      _internalControllerCreated = true;
+    }
+  }
 
   @override
   void dispose() {
     _manualTokenController.dispose();
+    if (_internalControllerCreated) {
+      _controller.dispose();
+    }
     super.dispose();
   }
 
@@ -161,26 +185,56 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   Widget _buildScannerContent() {
     switch (_status) {
       case ScannerViewStatus.scanning:
-        return Container(
-          width: 280,
-          height: 280,
-          decoration: BoxDecoration(
-            border: Border.all(color: Colors.blueAccent, width: 3),
-            borderRadius: BorderRadius.circular(16),
-          ),
-          child: const Stack(
-            alignment: Alignment.center,
-            children: [
-              Icon(Icons.qr_code_scanner, size: 80, color: Colors.white24),
-              Positioned(
-                bottom: 16,
-                child: Text(
-                  'Camera Active',
-                  style: TextStyle(color: Colors.white54, fontSize: 12),
+        if (widget.customScannerView != null) {
+          return widget.customScannerView!;
+        }
+        return Stack(
+          alignment: Alignment.center,
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: SizedBox(
+                width: 280,
+                height: 280,
+                child: MobileScanner(
+                  controller: _controller,
+                  onDetect: (BarcodeCapture capture) {
+                    if (_status != ScannerViewStatus.scanning) return;
+                    for (final barcode in capture.barcodes) {
+                      final raw = barcode.rawValue;
+                      if (raw != null && raw.isNotEmpty) {
+                        _processScannedToken(raw);
+                        break;
+                      }
+                    }
+                  },
+                  errorBuilder: (context, error) {
+                    return Container(
+                      color: Colors.black87,
+                      padding: const EdgeInsets.all(16),
+                      child: Center(
+                        child: Text(
+                          'Camera error: ${error.errorCode.name}',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                        ),
+                      ),
+                    );
+                  },
                 ),
               ),
-            ],
-          ),
+            ),
+            IgnorePointer(
+              child: Container(
+                width: 280,
+                height: 280,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.blueAccent, width: 3),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+              ),
+            ),
+          ],
         );
 
       case ScannerViewStatus.submitting:
