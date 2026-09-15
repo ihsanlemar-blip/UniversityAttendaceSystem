@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../core/offline/offline_storage.dart';
 import '../services/ble_scanner_service.dart';
 import '../services/presence_checkin_service.dart';
 import '../services/qr_checkin_service.dart';
@@ -11,6 +12,7 @@ enum ScannerViewStatus {
   submitting,
   success,
   alreadyCredited,
+  offlineRecorded,
   error,
 }
 
@@ -97,6 +99,30 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   Future<void> _processScannedToken(String rawToken) async {
     final trimmed = rawToken.trim();
     if (trimmed.isEmpty) return;
+
+    // Check for offline QR presence challenge (Milestone 12)
+    if (trimmed.contains('offline_qr')) {
+      final claim = OfflineStudentClaimModel(
+        claimId: 'claim_${DateTime.now().millisecondsSinceEpoch}',
+        permitId: 'offline_permit',
+        checkpointType: 'START',
+        rotationSlot: DateTime.now().millisecondsSinceEpoch ~/ 20000,
+        qrChallengeToken: trimmed,
+        bleEvidence: _latestBleObservation != null
+            ? {'rssi': _latestBleObservation!.rssi}
+            : null,
+        clientCapturedAtUtc: DateTime.now().toUtc(),
+        status: 'PENDING_SYNC',
+      );
+      MobileOfflineStorage().addStudentClaim(claim);
+      setState(() {
+        _status = ScannerViewStatus.offlineRecorded;
+      });
+      if (widget.onCompleted != null) {
+        widget.onCompleted!();
+      }
+      return;
+    }
 
     setState(() {
       _status = ScannerViewStatus.submitting;
@@ -381,6 +407,39 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
               onPressed: () => Navigator.of(context).maybePop(),
               style:
                   ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+              child: const Text('Done', style: TextStyle(color: Colors.white)),
+            ),
+          ],
+        );
+
+      case ScannerViewStatus.offlineRecorded:
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.cloud_upload_outlined,
+                size: 80, color: Colors.amberAccent),
+            const SizedBox(height: 16),
+            const Text(
+              'Locally Recorded',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Offline attendance evidence stored in outbox. Official credit will be confirmed after server synchronization.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white70, fontSize: 13),
+              ),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.of(context).maybePop(),
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber.shade800),
               child: const Text('Done', style: TextStyle(color: Colors.white)),
             ),
           ],

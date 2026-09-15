@@ -298,3 +298,73 @@ class AttendanceAuditEventType(StrEnum):
     EXCUSED_APPLIED = "EXCUSED_APPLIED"
     LEAVE_APPLIED = "LEAVE_APPLIED"
     EVALUATION_FINALIZED = "EVALUATION_FINALIZED"
+    OFFLINE_SYNC_RECONCILED = "OFFLINE_SYNC_RECONCILED"
+    OFFLINE_CONFLICT_RESOLVED = "OFFLINE_CONFLICT_RESOLVED"
+    OFFLINE_PERMIT_ISSUED = "OFFLINE_PERMIT_ISSUED"
+    OFFLINE_PERMIT_REVOKED = "OFFLINE_PERMIT_REVOKED"
+
+
+class OfflinePermitStatus(StrEnum):
+    """Offline attendance permit lifecycle status."""
+
+    ISSUED = "ISSUED"
+    ACTIVE = "ACTIVE"
+    SYNCED = "SYNCED"
+    REVOKED = "REVOKED"
+    EXPIRED = "EXPIRED"
+
+
+class OfflineHostSessionStatus(StrEnum):
+    """Offline host session operational status."""
+
+    ACTIVE = "ACTIVE"
+    COMPLETED = "COMPLETED"
+    SYNCED = "SYNCED"
+    DISPUTED = "DISPUTED"
+
+
+class OfflineClaimStatus(StrEnum):
+    """Offline student attendance claim reconciliation status."""
+
+    PENDING_HOST_EVENTS = "PENDING_HOST_EVENTS"
+    VERIFIED = "VERIFIED"
+    REJECTED = "REJECTED"
+    CONFLICT = "CONFLICT"
+
+
+class OfflineConflictType(StrEnum):
+    """Offline synchronization conflict classification."""
+
+    UNAUTHORIZED_HOST = "UNAUTHORIZED_HOST"
+    EXPIRED_PERMIT = "EXPIRED_PERMIT"
+    WINDOW_EXPIRED = "WINDOW_EXPIRED"
+    CLOCK_DRIFT_EXCESSIVE = "CLOCK_DRIFT_EXCESSIVE"
+    EXISTING_RECORD_CONFLICT = "EXISTING_RECORD_CONFLICT"
+    SIGNATURE_INVALID = "SIGNATURE_INVALID"
+    HASH_CHAIN_BROKEN = "HASH_CHAIN_BROKEN"
+    STUDENT_NOT_ROSTERED = "STUDENT_NOT_ROSTERED"
+    DUPLICATE_CLAIM = "DUPLICATE_CLAIM"
+
+
+class OfflineConflictResolution(StrEnum):
+    """Resolution outcome for an offline synchronization conflict."""
+
+    UNRESOLVED = "UNRESOLVED"
+    RESOLVED_AUTO = "RESOLVED_AUTO"
+    RESOLVED_MANUAL = "RESOLVED_MANUAL"
+    DISMISSED = "DISMISSED"
+
+
+class SyncBatchType(StrEnum):
+    """Synchronization inbox payload classification."""
+
+    HOST_EVENTS = "HOST_EVENTS"
+    STUDENT_CLAIMS = "STUDENT_CLAIMS"
+
+
+class SyncEntryStatus(StrEnum):
+    """Synchronization inbox processing status."""
+
+    PROCESSED = "PROCESSED"
+    FAILED = "FAILED"
+    DUPLICATE = "DUPLICATE"

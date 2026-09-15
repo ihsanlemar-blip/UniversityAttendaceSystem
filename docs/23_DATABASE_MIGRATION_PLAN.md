@@ -53,11 +53,14 @@ To support real testability and adhere to modular milestones, the actual linear 
 │  008_attendance_core (Milestone 9 - policies/sessions/checkpoints)      │
 │      │                                                                 │
 │      ▼                                                                 │
-│  [Subsequent Milestones - dynamic QR, BLE, offline sync, etc.]         │
+│  009_offline_attendance (Milestone 12 - permits, claims, sync inbox)   │
+│      │                                                                 │
+│      ▼                                                                 │
+│  [Subsequent Milestones - device trust, reporting, etc.]               │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 008 are fully applied, verified reversible, and operational as of Milestone 9 (008_attendance_core).*
+*Note: Migrations 001 through 009 are fully applied, verified reversible, and operational as of Milestone 12 (009_offline_attendance).*
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 

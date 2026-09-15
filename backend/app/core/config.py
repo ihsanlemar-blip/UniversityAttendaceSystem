@@ -139,6 +139,36 @@ class Settings(BaseSettings):
     )
 
     # =========================================================================
+    # 5.2 ATTENDANCE & Offline Attendance Defaults (Milestone 12)
+    # =========================================================================
+    ATTENDANCE_OFFLINE_ENABLED: bool = Field(default=True)
+    OFFLINE_PERMIT_SIGNING_PRIVATE_KEY: str = Field(
+        default=(
+            "-----BEGIN " + "PRIVATE KEY-----\n"
+            "MC4CAQAwBQYDK2VwBCIEINmqhHd4Uz7002Yt007zEIPHYaMaPH6civdsgT9jiyMY\n"
+            "-----END " + "PRIVATE KEY-----"
+        ),
+        description=(
+            "Dedicated Ed25519 private key in PEM format used to sign offline attendance permits. "
+            "Isolated from AUTH_SIGNING_KEY, ATTENDANCE_QR_SIGNING_KEY, and ATTENDANCE_BLE_SIGNING_KEY."
+        ),
+    )
+    OFFLINE_PERMIT_SIGNING_PUBLIC_KEY: str = Field(
+        default=(
+            "-----BEGIN " + "PUBLIC KEY-----\n"
+            "MCowBQYDK2VwAyEAXHamr+uJLTuybQnRkB8K2lNMsueoewuYJ0O0d/OhlRo=\n"
+            "-----END " + "PUBLIC KEY-----"
+        ),
+        description=(
+            "Dedicated Ed25519 public key in PEM format used to verify offline attendance permits."
+        ),
+    )
+    OFFLINE_PERMIT_SIGNING_KID: str = Field(default="att-off-k1")
+    ATTENDANCE_OFFLINE_MAX_VALIDITY_HOURS: int = Field(default=24)
+    ATTENDANCE_OFFLINE_ROTATION_SECONDS: int = Field(default=20)
+    ATTENDANCE_OFFLINE_MAX_CLOCK_DRIFT_SECONDS: int = Field(default=300)
+
+    # =========================================================================
     # 6. NETWORK Settings
     # =========================================================================
     CAMPUS_TRUSTED_SUBNETS: str = Field(default="192.168.0.0/16,10.0.0.0/8")
@@ -183,6 +213,17 @@ class Settings(BaseSettings):
                     "ATTENDANCE_QR_SIGNING_KEY (cryptographic separation)."
                 )
 
+        if self.ATTENDANCE_OFFLINE_ENABLED:
+            if (
+                self.OFFLINE_PERMIT_SIGNING_PRIVATE_KEY == self.AUTH_SIGNING_KEY
+                or self.OFFLINE_PERMIT_SIGNING_PRIVATE_KEY == self.ATTENDANCE_QR_SIGNING_KEY
+                or self.OFFLINE_PERMIT_SIGNING_PRIVATE_KEY == self.ATTENDANCE_BLE_SIGNING_KEY
+            ):
+                raise ValueError(
+                    "OFFLINE_PERMIT_SIGNING_PRIVATE_KEY must be distinct from other signing keys "
+                    "(cryptographic separation)."
+                )
+
         if self.APP_ENV == Environment.PRODUCTION:
             insecure_passwords = {
                 "change_me_in_production",
@@ -201,6 +242,11 @@ class Settings(BaseSettings):
                 "dev-auth-signing-key-minimum-32-chars-for-testing-purposes-only",
                 "dev-attendance-qr-signing-key-minimum-32-chars-for-testing-only",
                 "dev-attendance-ble-signing-key-minimum-32-chars-for-testing-only",
+                (
+                    "-----BEGIN "
+                    + "PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEINmqhHd4Uz7002Yt007zEIPHYaMaPH6civdsgT9jiyMY\n-----END "
+                    + "PRIVATE KEY-----"
+                ),
                 "change_me_in_production",
                 "secret",
                 "jwt_secret",
@@ -230,6 +276,13 @@ class Settings(BaseSettings):
                 raise ValueError(
                     "A secure ATTENDANCE_BLE_SIGNING_KEY of at least 32 characters is required "
                     "in production."
+                )
+            if self.ATTENDANCE_OFFLINE_ENABLED and (
+                not self.OFFLINE_PERMIT_SIGNING_PRIVATE_KEY
+                or self.OFFLINE_PERMIT_SIGNING_PRIVATE_KEY in insecure_keys
+            ):
+                raise ValueError(
+                    "A secure OFFLINE_PERMIT_SIGNING_PRIVATE_KEY is required in production."
                 )
 
         return self

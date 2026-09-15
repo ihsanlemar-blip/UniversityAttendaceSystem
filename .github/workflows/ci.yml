@@ -86,7 +86,7 @@ jobs:
             tests: "backend/tests/test_facilities.py backend/tests/test_timetables.py backend/tests/test_occurrences.py backend/tests/test_scheduling_rbac.py"
           - name: "Backend Shard 4 (Attendance & Presence)"
             id: 4
-            tests: "backend/tests/test_attendance_policy.py backend/tests/test_attendance_sessions.py backend/tests/test_attendance_checkpoints.py backend/tests/test_attendance_evaluation.py backend/tests/test_attendance_overrides_and_audit.py backend/tests/test_attendance_rbac.py backend/tests/test_qr_tokens.py backend/tests/test_qr_service.py backend/tests/test_qr_rbac.py backend/tests/test_ble_tokens.py backend/tests/test_ble_service.py backend/tests/test_ble_rbac.py"
+            tests: "backend/tests/test_attendance_policy.py backend/tests/test_attendance_sessions.py backend/tests/test_attendance_checkpoints.py backend/tests/test_attendance_evaluation.py backend/tests/test_attendance_overrides_and_audit.py backend/tests/test_attendance_rbac.py backend/tests/test_qr_tokens.py backend/tests/test_qr_service.py backend/tests/test_qr_rbac.py backend/tests/test_ble_tokens.py backend/tests/test_ble_service.py backend/tests/test_ble_rbac.py backend/tests/test_offline_crypto.py backend/tests/test_offline_service.py backend/tests/test_offline_reconciliation.py backend/tests/test_offline_rbac.py"
     services:
       postgres:
         image: postgres:16-alpine

@@ -17,6 +17,14 @@ from backend.app.models.enrollment import Enrollment
 from backend.app.models.lecturer import Lecturer
 from backend.app.models.lecturer_assignment import LecturerAssignment
 from backend.app.models.login_attempt import LoginAttempt
+from backend.app.models.offline_attendance import (
+    OfflineAttendanceClaim,
+    OfflineAttendancePermit,
+    OfflineHostEvent,
+    OfflineHostSession,
+    OfflineSyncConflict,
+    SyncInboxEntry,
+)
 from backend.app.models.permission import Permission
 from backend.app.models.refresh_session import RefreshSession
 from backend.app.models.role import Role
@@ -48,6 +56,11 @@ __all__ = [
     "Lecturer",
     "LecturerAssignment",
     "LoginAttempt",
+    "OfflineAttendanceClaim",
+    "OfflineAttendancePermit",
+    "OfflineHostEvent",
+    "OfflineHostSession",
+    "OfflineSyncConflict",
     "Permission",
     "RefreshSession",
     "Role",
@@ -57,6 +70,7 @@ __all__ = [
     "Section",
     "Semester",
     "Student",
+    "SyncInboxEntry",
     "TimestampMixin",
     "Timetable",
     "UUIDv7PrimaryKeyMixin",
