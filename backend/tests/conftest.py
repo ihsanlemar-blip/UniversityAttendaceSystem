@@ -11,6 +11,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 # Ensure testing environment
 os.environ["APP_ENV"] = "testing"
+os.environ.setdefault("DATABASE_HOST", "127.0.0.1")
+os.environ.setdefault("REDIS_URL", "redis://127.0.0.1:6379/0")
+os.environ.setdefault("CELERY_BROKER_URL", "redis://127.0.0.1:6379/1")
+os.environ.setdefault("CELERY_RESULT_BACKEND", "redis://127.0.0.1:6379/2")
 
 from backend.app.auth.passwords import hash_password
 from backend.app.core.constants import ScopeType, SystemRole, UserStatus

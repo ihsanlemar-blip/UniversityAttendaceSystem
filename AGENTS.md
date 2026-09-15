@@ -65,3 +65,27 @@ When implementing any task:
 3. Format code (`ruff format`, `Prettier`, `dart format`).
 4. Run tests and typecheckers.
 5. Verify compliance with `docs/26_DEFINITION_OF_DONE.md`.
+
+---
+
+## 5. Test Infrastructure & Fast Testing Directives (Mandatory)
+
+All future milestones and coding agents must follow this test execution strategy:
+
+1. **Development Workflow**:
+   - Run targeted tests for the specific unit, service, or endpoint being modified.
+   - Do NOT run the 180-test full regression suite locally in a loop during active feature coding.
+2. **Milestone Development**:
+   - Run feature-specific test suites plus focused dependency regression modules.
+   - Run static analysis (`ruff check`, `ruff format --check`, `mypy backend`).
+3. **Full Regression Workflow**:
+   - The primary full regression suite executes on GitHub Actions sharded across 4 parallel jobs, each with an independent real PostgreSQL 16 service container.
+   - Local full-suite execution (`pytest backend/tests`) remains available for pre-release validation and debugging.
+4. **Real PostgreSQL Preserved**:
+   - Never replace PostgreSQL integration tests with SQLite or in-memory mocks.
+   - Real schema constraints, partial indexes, and transaction semantics must remain verified.
+5. **Zero Real-World Sleeps**:
+   - Tests must never use `time.sleep()` or `asyncio.sleep()` for token rotation or checkpoint windows.
+   - Always inject fake UTC timestamps and mock authoritative server time (`utc_now`).
+6. **Final Gate Enforcement**:
+   - Milestone sign-off requires all GitHub Actions backend shards, static analysis, web, mobile, and the final aggregate `quality-gate` job to pass.

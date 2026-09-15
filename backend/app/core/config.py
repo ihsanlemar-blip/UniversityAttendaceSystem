@@ -37,7 +37,7 @@ class Settings(BaseSettings):
     # =========================================================================
     # 2. DATABASE Settings (PostgreSQL)
     # =========================================================================
-    DATABASE_HOST: str = Field(default="localhost")
+    DATABASE_HOST: str = Field(default="127.0.0.1")
     DATABASE_PORT: int = Field(default=5432)
     DATABASE_NAME: str = Field(default="attendance_db")
     DATABASE_USER: str = Field(default="attendance_user")
@@ -67,9 +67,9 @@ class Settings(BaseSettings):
     # =========================================================================
     # 3. REDIS & CELERY Settings
     # =========================================================================
-    REDIS_URL: str = Field(default="redis://localhost:6379/0")
-    CELERY_BROKER_URL: str = Field(default="redis://localhost:6379/1")
-    CELERY_RESULT_BACKEND: str = Field(default="redis://localhost:6379/2")
+    REDIS_URL: str = Field(default="redis://127.0.0.1:6379/0")
+    CELERY_BROKER_URL: str = Field(default="redis://127.0.0.1:6379/1")
+    CELERY_RESULT_BACKEND: str = Field(default="redis://127.0.0.1:6379/2")
 
     # =========================================================================
     # 4. AUTH Settings (Milestone 5)

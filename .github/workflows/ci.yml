@@ -2,7 +2,7 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [main]
+    branches: [main, "feature/**"]
   pull_request:
     branches: [main]
 
@@ -15,7 +15,7 @@ jobs:
   # 1. Repository Governance & Secret Scanning
   # ============================================================================
   repo-security:
-    name: Repository Security & Checks
+    name: Repository Security & Governance
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -23,29 +23,22 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Run Gitleaks Secret Scan
-        uses: gitleaks/gitleaks-action@v2
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Run Secret Scan
+        run: python scripts/check_secrets.py
 
       - name: Validate Documentation Integrity
-        run: |
-          for i in $(seq -w 0 30); do
-            file=$(find docs -name "${i}_*.md" | head -n 1)
-            if [ -z "$file" ]; then
-              echo "Error: Missing documentation file with prefix ${i}_ in docs/"
-              exit 1
-            fi
-            echo "Found: $file"
-          done
-          test -f docs/MILESTONE_3_MANIFEST.md || { echo "Missing MILESTONE_3_MANIFEST.md"; exit 1; }
-          test -f docs/MILESTONE_4_MANIFEST.md || { echo "Missing MILESTONE_4_MANIFEST.md"; exit 1; }
+        run: python scripts/check_docs.py
 
   # ============================================================================
-  # 2. FastAPI Backend Checks
+  # 2. FastAPI Backend Static Analysis
   # ============================================================================
-  backend-ci:
-    name: Backend Lint & Tests
+  backend-static:
+    name: Backend Static Analysis (Ruff & Mypy)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -68,19 +61,94 @@ jobs:
           ruff format --check backend/
           ruff check backend/
 
-      - name: Run Mypy Typecheck
+      - name: Run Mypy Strict Typecheck
         run: |
           mypy backend
 
-      - name: Run Pytest Test Suite
+  # ============================================================================
+  # 3. FastAPI Backend Sharded Integration Tests (Real PostgreSQL 16 & Redis 7)
+  # ============================================================================
+  backend-shard:
+    name: ${{ matrix.shard.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard:
+          - name: "Backend Shard 1 (Platform & RBAC)"
+            id: 1
+            tests: "backend/tests/test_api_v1.py backend/tests/test_auth.py backend/tests/test_bootstrap.py backend/tests/test_celery.py backend/tests/test_config.py backend/tests/test_database.py backend/tests/test_errors.py backend/tests/test_health.py backend/tests/test_middleware.py backend/tests/test_passwords.py backend/tests/test_rbac.py backend/tests/test_redis.py backend/tests/test_tokens.py backend/tests/test_types.py backend/tests/test_users.py"
+          - name: "Backend Shard 2 (Academic Domain)"
+            id: 2
+            tests: "backend/tests/test_academic_calendar.py backend/tests/test_academic_rbac.py backend/tests/test_academic_units.py backend/tests/test_courses.py backend/tests/test_curriculum_rbac.py backend/tests/test_offerings.py backend/tests/test_people.py backend/tests/test_sections.py"
+          - name: "Backend Shard 3 (Facilities & Scheduling)"
+            id: 3
+            tests: "backend/tests/test_facilities.py backend/tests/test_timetables.py backend/tests/test_occurrences.py backend/tests/test_scheduling_rbac.py"
+          - name: "Backend Shard 4 (Attendance & Presence)"
+            id: 4
+            tests: "backend/tests/test_attendance_policy.py backend/tests/test_attendance_sessions.py backend/tests/test_attendance_checkpoints.py backend/tests/test_attendance_evaluation.py backend/tests/test_attendance_overrides_and_audit.py backend/tests/test_attendance_rbac.py backend/tests/test_qr_tokens.py backend/tests/test_qr_service.py backend/tests/test_qr_rbac.py"
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: attendance_user
+          POSTGRES_PASSWORD: dev_insecure_password
+          POSTGRES_DB: attendance_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      APP_ENV: testing
+      DATABASE_HOST: "127.0.0.1"
+      DATABASE_PORT: 5432
+      DATABASE_NAME: attendance_db
+      DATABASE_USER: attendance_user
+      DATABASE_PASSWORD: dev_insecure_password
+      REDIS_URL: "redis://127.0.0.1:6379/0"
+      CELERY_BROKER_URL: "redis://127.0.0.1:6379/1"
+      CELERY_RESULT_BACKEND: "redis://127.0.0.1:6379/2"
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install dependencies
         run: |
-          python -m pytest backend/tests
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run Alembic Database Migrations
+        run: |
+          alembic -c backend/migrations/alembic.ini upgrade head
+
+      - name: Run Shard Integration Tests
+        run: |
+          pytest -c backend/pyproject.toml ${{ matrix.shard.tests }} -q --tb=short
 
   # ============================================================================
-  # 3. Next.js Web Checks
+  # 4. Next.js Web Frontend Checks
   # ============================================================================
   web-ci:
-    name: Web Lint & Typecheck
+    name: Web Lint, Typecheck & Build
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -105,8 +173,11 @@ jobs:
       - name: Run Linter
         run: npm run lint
 
+      - name: Run Next.js Production Build
+        run: npm run build
+
   # ============================================================================
-  # 4. Flutter Mobile Checks
+  # 5. Flutter Mobile Client Checks
   # ============================================================================
   mobile-ci:
     name: Mobile Analyze & Tests
@@ -141,3 +212,34 @@ jobs:
 
       - name: Run Flutter Tests
         run: flutter test
+
+  # ============================================================================
+  # 6. Final Aggregate Quality Gate
+  # ============================================================================
+  quality-gate:
+    name: Final Quality Gate
+    runs-on: ubuntu-latest
+    needs: [repo-security, backend-static, backend-shard, web-ci, mobile-ci]
+    if: always()
+    steps:
+      - name: Evaluate Pipeline Status
+        run: |
+          echo "=========================================="
+          echo "      CI PIPELINE RESULTS SUMMARY         "
+          echo "=========================================="
+          echo "Repository Security: ${{ needs.repo-security.result }}"
+          echo "Backend Static:      ${{ needs.backend-static.result }}"
+          echo "Backend Shards:      ${{ needs.backend-shard.result }}"
+          echo "Web Frontend:        ${{ needs.web-ci.result }}"
+          echo "Mobile Client:       ${{ needs.mobile-ci.result }}"
+          echo "=========================================="
+
+          if [ "${{ needs.repo-security.result }}" != "success" ] || \
+             [ "${{ needs.backend-static.result }}" != "success" ] || \
+             [ "${{ needs.backend-shard.result }}" != "success" ] || \
+             [ "${{ needs.web-ci.result }}" != "success" ] || \
+             [ "${{ needs.mobile-ci.result }}" != "success" ]; then
+            echo "[FAILED] One or more quality gates did not succeed. CI Pipeline FAILED."
+            exit 1
+          fi
+          echo "[SUCCESS] All CI quality gates passed successfully!"

@@ -4,10 +4,20 @@ from pwdlib import PasswordHash
 from pwdlib.hashers.argon2 import Argon2Hasher
 
 from backend.app.core.config import get_settings
+from backend.app.core.constants import Environment
 from backend.app.core.exceptions import ValidationException
 
+
+def _create_password_hash_engine() -> PasswordHash:
+    """Initialize password hash engine with Argon2id (optimized for testing environment)."""
+    settings = get_settings()
+    if settings.APP_ENV == Environment.TESTING:
+        return PasswordHash((Argon2Hasher(time_cost=1, memory_cost=1024, parallelism=1),))
+    return PasswordHash((Argon2Hasher(),))
+
+
 # Initialize password hash engine with Argon2id
-password_hash_engine = PasswordHash((Argon2Hasher(),))
+password_hash_engine = _create_password_hash_engine()
 
 
 def validate_password_policy(password: str) -> None:
