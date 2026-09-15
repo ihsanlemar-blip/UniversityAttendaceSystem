@@ -149,7 +149,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             ),
 
             // Development/testing manual token input (strictly submits to backend HMAC verification)
-            if (_status == ScannerViewStatus.scanning && widget.enableManualTokenEntry)
+            if (_status == ScannerViewStatus.scanning &&
+                widget.enableManualTokenEntry)
               Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
@@ -158,7 +159,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
                       controller: _manualTokenController,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: '[DEV/TEST ONLY] Paste signed QR token string',
+                        hintText:
+                            '[DEV/TEST ONLY] Paste signed QR token string',
                         hintStyle: const TextStyle(color: Colors.white38),
                         filled: true,
                         fillColor: Colors.white10,
@@ -167,8 +169,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
                           borderSide: BorderSide.none,
                         ),
                         suffixIcon: IconButton(
-                          icon: const Icon(Icons.send, color: Colors.blueAccent),
-                          onPressed: () => _processScannedToken(_manualTokenController.text),
+                          icon:
+                              const Icon(Icons.send, color: Colors.blueAccent),
+                          onPressed: () =>
+                              _processScannedToken(_manualTokenController.text),
                         ),
                       ),
                       onSubmitted: _processScannedToken,
@@ -216,7 +220,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
                         child: Text(
                           'Camera error: ${error.errorCode.name}',
                           textAlign: TextAlign.center,
-                          style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          style: const TextStyle(
+                              color: Colors.white70, fontSize: 13),
                         ),
                       ),
                     );
@@ -245,7 +250,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             SizedBox(height: 24),
             Text(
               'Verifying Presence Token...',
-              style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600),
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
           ],
         );
@@ -258,7 +266,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             const SizedBox(height: 16),
             Text(
               '${_result?.checkpointType} Checkpoint Credited!',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -282,7 +293,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             const SizedBox(height: 16),
             Text(
               '${_result?.checkpointType} Already Recorded',
-              style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             const Text(
@@ -293,7 +307,8 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             const SizedBox(height: 24),
             ElevatedButton(
               onPressed: () => Navigator.of(context).maybePop(),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.blueAccent),
               child: const Text('Done', style: TextStyle(color: Colors.white)),
             ),
           ],
@@ -307,7 +322,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             const SizedBox(height: 16),
             const Text(
               'Check-In Failed',
-              style: TextStyle(color: Colors.redAccent, fontSize: 18, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                  color: Colors.redAccent,
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Padding(
@@ -322,8 +340,10 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             ElevatedButton.icon(
               onPressed: _resetScanner,
               icon: const Icon(Icons.refresh, color: Colors.white),
-              label: const Text('Try Again', style: TextStyle(color: Colors.white)),
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+              label: const Text('Try Again',
+                  style: TextStyle(color: Colors.white)),
+              style:
+                  ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             ),
           ],
         );

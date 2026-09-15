@@ -92,7 +92,8 @@ class QrCheckInService {
     } else {
       final err = decoded['error'] as Map<String, dynamic>?;
       final code = err?['code'] as String? ?? 'CHECKIN_ERROR';
-      final message = err?['message'] as String? ?? 'Attendance check-in rejected.';
+      final message =
+          err?['message'] as String? ?? 'Attendance check-in rejected.';
       throw QrCheckInException(
         code: code,
         message: message,

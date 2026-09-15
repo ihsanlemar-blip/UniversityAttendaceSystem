@@ -16,7 +16,8 @@ void main() {
       expect(result.accepted, isTrue);
       expect(result.checkpointType, equals('START'));
       expect(result.alreadyCredited, isFalse);
-      expect(result.attendanceRecordId, equals('0192323e-6708-724a-a43b-8106daee86fa'));
+      expect(result.attendanceRecordId,
+          equals('0192323e-6708-724a-a43b-8106daee86fa'));
       expect(result.verifiedAt.isUtc, isTrue);
     });
 
