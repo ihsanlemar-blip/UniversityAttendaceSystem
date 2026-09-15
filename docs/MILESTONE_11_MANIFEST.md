@@ -24,14 +24,17 @@
 | `apps/mobile/android/app/src/main/AndroidManifest.xml` | Mobile Permissions | Added Android BLE permissions (`BLUETOOTH_SCAN` with `neverForLocation`, `BLUETOOTH_ADVERTISE`, `BLUETOOTH_CONNECT`) |
 | `apps/mobile/ios/Runner/Info.plist` | Mobile Permissions | Added `NSBluetoothAlwaysUsageDescription` and `NSBluetoothPeripheralUsageDescription` |
 | `apps/mobile/lib/services/ble_scanner_service.dart` | Mobile Service | Proximity BLE scanner service for classroom presence beacons |
-| `apps/mobile/lib/services/ble_advertiser_service.dart` | Mobile Service | Lecturer BLE advertising broadcaster service |
+| `apps/mobile/lib/services/ble_advertiser_service.dart` | Mobile Service | Lecturer BLE advertising broadcaster service with 17-byte raw binary service data |
+| `apps/mobile/lib/services/lecturer_ble_service.dart` | Mobile Service | HTTP client service for lecturers fetching rotating classroom BLE payloads |
+| `apps/mobile/lib/screens/lecturer_ble_broadcast_screen.dart` | Mobile UI | Lecturer beacon broadcasting screen with live circular countdown, pause/resume, and disposal cleanup |
 | `apps/mobile/lib/services/presence_checkin_service.dart` | Mobile Service | HTTP client service submitting multi-factor presence evidence |
 | `apps/mobile/lib/screens/student_qr_scanner_screen.dart` | Mobile UI | Integrated live BLE detection status badge with camera viewfinder and dual-factor submission |
 | `apps/mobile/test/ble_scanner_service_test.dart` | Mobile Unit Tests | Unit tests verifying BleObservation serialization and mock scanner stream behavior |
 | `apps/mobile/test/presence_checkin_service_test.dart` | Mobile Unit Tests | Unit tests verifying PresenceCheckInResult deserialization and exceptions |
 | `apps/mobile/test/qr_scanner_screen_test.dart` | Mobile Widget Tests | Widget tests verifying camera preview, release mode hiding of manual input, and live BLE status badge |
+| `apps/mobile/test/lecturer_ble_broadcast_screen_test.dart` | Mobile Widget Tests | Widget tests verifying lecturer broadcast initialization, countdown, pause/resume, stop, hardware checks, and disposal |
 | `.github/workflows/ci.yml` | CI Workflow | Added BLE unit, service, and RBAC test suites to Backend Shard 4 |
-| `docs/43_MILESTONE_11_BLE_PRESENCE_VERIFICATION.md` | Documentation | Architectural specification for BLE presence verification |
+| `docs/43_MILESTONE_11_BLE_PRESENCE_VERIFICATION.md` | Documentation | Architectural specification for BLE presence verification and 30-item Physical Acceptance Checklist |
 | `docs/44_NEXT_IMPLEMENTATION_TASK.md` | Handoff Document | Boundary and entry specification for Milestone 12 |
 | `scripts/check_docs.py` | Verification Script | Updated to validate 45 docs (00-44) and manifests M3 through M11 |
 
@@ -48,3 +51,12 @@
 7. **Classroom Shared Broadcast Model**: Enforced. Multiple enrolled students can observe and submit the same classroom advertisement broadcast.
 8. **Cryptographic Key Separation**: Enforced. `ATTENDANCE_BLE_SIGNING_KEY` is validated at startup to be distinct from `AUTH_SIGNING_KEY` and `ATTENDANCE_QR_SIGNING_KEY`.
 9. **Zero Database Schema Drift**: Enforced. Uses existing `attendance_evidence.source_mode="BLUETOOTH_BLE"` and `evidence_metadata` JSONB. Zero new migrations required.
+
+---
+
+## 3. Operational Acceptance Status
+
+**SOFTWARE VERIFICATION COMPLETE; MANUAL BLE DEVICE ACCEPTANCE REQUIRED BEFORE PILOT/PRODUCTION.**
+
+Automated unit, integration, and widget test suites pass completely with real PostgreSQL 16, Redis 7, and mocked BLE radio streams. The 30-item Physical Device Acceptance Checklist documented in `docs/43_MILESTONE_11_BLE_PRESENCE_VERIFICATION.md` must be executed on physical hardware prior to production rollout.
+
