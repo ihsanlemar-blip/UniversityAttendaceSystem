@@ -29,13 +29,15 @@ class DeviceKeyService {
   })  : _storage = storage ??
             const FlutterSecureStorage(
               aOptions: AndroidOptions(encryptedSharedPreferences: true),
-              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+              iOptions:
+                  IOSOptions(accessibility: KeychainAccessibility.first_unlock),
             ),
         _algorithm = algorithm ?? Ed25519();
 
   /// Ensure a local device keypair exists; generates one if missing.
   Future<void> ensureKeyPair() async {
-    final existingSeed = await _storage.read(key: DeviceStorageKeys.privateKeySeed);
+    final existingSeed =
+        await _storage.read(key: DeviceStorageKeys.privateKeySeed);
     if (existingSeed == null || existingSeed.isEmpty) {
       await generateNewKeyPair();
     }
@@ -83,7 +85,18 @@ class DeviceKeyService {
     }
     // 12-byte standard Ed25519 ASN.1 SPKI header
     final derHeader = [
-      0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00,
+      0x30,
+      0x2a,
+      0x30,
+      0x05,
+      0x06,
+      0x03,
+      0x2b,
+      0x65,
+      0x70,
+      0x03,
+      0x21,
+      0x00,
     ];
     final fullDer = [...derHeader, ...rawBytes];
     final b64 = base64Encode(fullDer);
@@ -106,7 +119,8 @@ class DeviceKeyService {
     if (fp == null || fp.length < 12) {
       return null;
     }
-    return '${fp.substring(0, 6)}...${fp.substring(fp.length - 6)}'.toUpperCase();
+    return '${fp.substring(0, 6)}...${fp.substring(fp.length - 6)}'
+        .toUpperCase();
   }
 
   /// Get registered device UUID string (if registered with server).
@@ -132,7 +146,8 @@ class DeviceKeyService {
 
   /// Store activation timestamp.
   Future<void> setRegistrationDate(String isoString) async {
-    await _storage.write(key: DeviceStorageKeys.registrationDate, value: isoString);
+    await _storage.write(
+        key: DeviceStorageKeys.registrationDate, value: isoString);
   }
 
   /// Get activation timestamp.
@@ -188,7 +203,8 @@ class DeviceKeyService {
   }) async {
     final keyPair = await getKeyPair();
     if (keyPair == null) {
-      throw StateError('No local device keypair available for signing attendance proof.');
+      throw StateError(
+          'No local device keypair available for signing attendance proof.');
     }
 
     var qrDigest = '';
@@ -198,7 +214,8 @@ class DeviceKeyService {
 
     var bleDigest = '';
     if (blePayload != null && blePayload.trim().isNotEmpty) {
-      bleDigest = crypto.sha256.convert(utf8.encode(blePayload.trim())).toString();
+      bleDigest =
+          crypto.sha256.convert(utf8.encode(blePayload.trim())).toString();
     }
 
     final canonicalString =
@@ -230,13 +247,16 @@ class DeviceKeyService {
   }) async {
     final keyPair = await getKeyPair();
     if (keyPair == null) {
-      throw StateError('No local device keypair available for signing offline claim.');
+      throw StateError(
+          'No local device keypair available for signing offline claim.');
     }
 
-    final qrDigest = crypto.sha256.convert(utf8.encode(qrChallengeToken.trim())).toString();
+    final qrDigest =
+        crypto.sha256.convert(utf8.encode(qrChallengeToken.trim())).toString();
     var bleDigest = '';
     if (blePayload != null && blePayload.trim().isNotEmpty) {
-      bleDigest = crypto.sha256.convert(utf8.encode(blePayload.trim())).toString();
+      bleDigest =
+          crypto.sha256.convert(utf8.encode(blePayload.trim())).toString();
     }
 
     final hostStr = hostSessionId ?? '';

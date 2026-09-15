@@ -33,7 +33,8 @@ void main() {
       expect(fp!.length, equals(64)); // 32-byte SHA-256 hex string
 
       // Verify fingerprint matches SHA-256 of raw public bytes
-      final expectedFp = crypto.sha256.convert(pubBytes).toString().toLowerCase();
+      final expectedFp =
+          crypto.sha256.convert(pubBytes).toString().toLowerCase();
       expect(fp, equals(expectedFp));
 
       final shortFp = await service.getShortFingerprint();
@@ -53,7 +54,8 @@ void main() {
       expect(fp1, equals(fp2));
     });
 
-    test('Signs registration challenge deterministically with Ed25519', () async {
+    test('Signs registration challenge deterministically with Ed25519',
+        () async {
       final service = DeviceKeyService();
       await service.ensureKeyPair();
       final fp = (await service.getPublicKeyFingerprint())!;
@@ -121,9 +123,11 @@ void main() {
       await service.setDeviceStatus('ACTIVE');
       await service.setRegistrationDate('2026-09-14T10:00:00Z');
 
-      expect(await service.getDeviceId(), equals('0192323e-6708-724a-a43b-8106daee86fa'));
+      expect(await service.getDeviceId(),
+          equals('0192323e-6708-724a-a43b-8106daee86fa'));
       expect(await service.getDeviceStatus(), equals('ACTIVE'));
-      expect(await service.getRegistrationDate(), equals('2026-09-14T10:00:00Z'));
+      expect(
+          await service.getRegistrationDate(), equals('2026-09-14T10:00:00Z'));
 
       await service.clearAll();
       expect(await service.getDeviceStatus(), equals('UNREGISTERED'));

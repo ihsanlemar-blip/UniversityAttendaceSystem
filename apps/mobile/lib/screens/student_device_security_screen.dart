@@ -72,8 +72,11 @@ class _StudentDeviceSecurityScreenState
   }
 
   Future<void> _handleInitialRegistration() async {
-    if (widget.authToken == null || widget.userId == null || widget.universityId == null) {
-      _showSnackbar('Authentication required to register device.', isError: true);
+    if (widget.authToken == null ||
+        widget.userId == null ||
+        widget.universityId == null) {
+      _showSnackbar('Authentication required to register device.',
+          isError: true);
       return;
     }
 
@@ -90,11 +93,14 @@ class _StudentDeviceSecurityScreenState
       }
 
       // 1. Request registration challenge from server
-      final challengeUri = Uri.parse('${widget.apiClient.baseUrl}/api/v1/devices/challenges');
+      final challengeUri =
+          Uri.parse('${widget.apiClient.baseUrl}/api/v1/devices/challenges');
       final client = HttpClient();
       final challengeReq = await client.postUrl(challengeUri);
-      challengeReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
-      challengeReq.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
+      challengeReq.headers
+          .set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
+      challengeReq.headers
+          .set(HttpHeaders.contentTypeHeader, 'application/json');
       challengeReq.write(jsonEncode({
         'candidate_public_key': pubKeyPem,
       }));
@@ -103,7 +109,8 @@ class _StudentDeviceSecurityScreenState
 
       if (challengeResp.statusCode != 200 && challengeResp.statusCode != 201) {
         final decodedErr = jsonDecode(challengeBody);
-        throw Exception(decodedErr['detail'] ?? 'Failed to obtain registration challenge.');
+        throw Exception(
+            decodedErr['detail'] ?? 'Failed to obtain registration challenge.');
       }
 
       final challengeData = jsonDecode(challengeBody)['data'];
@@ -124,9 +131,11 @@ class _StudentDeviceSecurityScreenState
       );
 
       // 3. Submit confirmation to server
-      final confirmUri = Uri.parse('${widget.apiClient.baseUrl}/api/v1/devices/register');
+      final confirmUri =
+          Uri.parse('${widget.apiClient.baseUrl}/api/v1/devices/register');
       final confirmReq = await client.postUrl(confirmUri);
-      confirmReq.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
+      confirmReq.headers
+          .set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
       confirmReq.headers.set(HttpHeaders.contentTypeHeader, 'application/json');
       confirmReq.write(jsonEncode({
         'challenge_id': challengeId,
@@ -182,7 +191,8 @@ class _StudentDeviceSecurityScreenState
           ElevatedButton(
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Confirm Revocation', style: TextStyle(color: Colors.white)),
+            child: const Text('Confirm Revocation',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -192,10 +202,12 @@ class _StudentDeviceSecurityScreenState
 
     setState(() => _isLoading = true);
     try {
-      final uri = Uri.parse('${widget.apiClient.baseUrl}/api/v1/devices/me/report-lost');
+      final uri = Uri.parse(
+          '${widget.apiClient.baseUrl}/api/v1/devices/me/report-lost');
       final client = HttpClient();
       final req = await client.postUrl(uri);
-      req.headers.set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
+      req.headers
+          .set(HttpHeaders.authorizationHeader, 'Bearer ${widget.authToken}');
       final resp = await req.close();
 
       if (resp.statusCode == 200) {
@@ -284,7 +296,8 @@ class _StudentDeviceSecurityScreenState
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
                     color: statusColor.withAlpha(38),
                     borderRadius: BorderRadius.circular(20),
@@ -364,7 +377,8 @@ class _StudentDeviceSecurityScreenState
                     IconButton(
                       icon: const Icon(Icons.copy, size: 20),
                       onPressed: () {
-                        Clipboard.setData(ClipboardData(text: _fullFingerprint!));
+                        Clipboard.setData(
+                            ClipboardData(text: _fullFingerprint!));
                         _showSnackbar('Full fingerprint copied to clipboard.');
                       },
                     ),
@@ -403,11 +417,13 @@ class _StudentDeviceSecurityScreenState
         children: [
           OutlinedButton.icon(
             icon: const Icon(Icons.report_problem, color: Colors.red),
-            label: const Text('Report Lost or Stolen', style: TextStyle(color: Colors.red)),
+            label: const Text('Report Lost or Stolen',
+                style: TextStyle(color: Colors.red)),
             style: OutlinedButton.styleFrom(
               padding: const EdgeInsets.symmetric(vertical: 12),
               side: const BorderSide(color: Colors.red),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
             ),
             onPressed: _isLoading ? null : _handleReportLost,
           ),
