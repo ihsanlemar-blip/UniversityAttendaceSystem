@@ -156,8 +156,8 @@ class PresenceTokenEngine:
             )
 
         kid = unverified_header.get("kid")
-        if kid and kid != settings.ATTENDANCE_QR_SIGNING_KID:
-            raise InvalidQrTokenException("Unknown key ID (kid).")
+        if not kid or kid != settings.ATTENDANCE_QR_SIGNING_KID:
+            raise InvalidQrTokenException("Invalid or missing key ID (kid).")
 
         try:
             # Decode with verify_exp=False to evaluate exp against authoritative server time

@@ -406,3 +406,121 @@ def test_checkpoint_type_mismatch_rejection() -> None:
             expected_checkpoint_type="MIDDLE",
             current_time=now,
         )
+
+
+def test_kid_header_mandatory_and_validated() -> None:
+    """Token must contain kid matching ATTENDANCE_QR_SIGNING_KID in protected header."""
+    settings = get_settings()
+    now = datetime.datetime(2026, 9, 14, 10, 0, 0, tzinfo=datetime.UTC)
+    payload = {
+        "ver": 1,
+        "typ": "attendance_qr",
+        "iss": settings.ATTENDANCE_QR_ISSUER,
+        "aud": settings.ATTENDANCE_QR_AUDIENCE,
+        "uid": str(uuid.uuid4()),
+        "sid": str(uuid.uuid4()),
+        "cid": str(uuid.uuid4()),
+        "cpt": "START",
+        "slot": 1,
+        "iat": int(now.timestamp()),
+        "nbf": int(now.timestamp()),
+        "exp": int(now.timestamp()) + 30,
+        "jti": str(uuid.uuid4()),
+    }
+
+    # Missing kid
+    token_no_kid = jwt.encode(
+        payload,
+        settings.ATTENDANCE_QR_SIGNING_KEY,
+        algorithm="HS256",
+        headers={"alg": "HS256", "typ": "attendance_qr"},
+    )
+    with pytest.raises(InvalidQrTokenException) as exc_info:
+        PresenceTokenEngine.verify_presence_token(token=token_no_kid, current_time=now)
+    assert "key ID" in exc_info.value.message
+
+    # Wrong kid
+    token_wrong_kid = jwt.encode(
+        payload,
+        settings.ATTENDANCE_QR_SIGNING_KEY,
+        algorithm="HS256",
+        headers={"alg": "HS256", "typ": "attendance_qr", "kid": "unknown-key-id-999"},
+    )
+    with pytest.raises(InvalidQrTokenException) as exc_info:
+        PresenceTokenEngine.verify_presence_token(token=token_wrong_kid, current_time=now)
+    assert "key ID" in exc_info.value.message
+
+
+def test_strict_immediate_expiration_at_exp_boundary() -> None:
+    """Ensure zero post-expiry grace period: token is invalid immediately once exp is reached."""
+    u_id = uuid.uuid4()
+    s_id = uuid.uuid4()
+    c_id = uuid.uuid4()
+    now = datetime.datetime(2026, 9, 14, 10, 0, 0, tzinfo=datetime.UTC)
+
+    token, _, exp_dt, _ = PresenceTokenEngine.generate_presence_token(
+        university_id=u_id,
+        session_id=s_id,
+        checkpoint_id=c_id,
+        checkpoint_type="START",
+        current_time=now,
+        rotation_seconds=20,
+    )
+
+    # 1 second before exp -> strictly valid
+    valid_t = exp_dt - datetime.timedelta(seconds=1)
+    claims = PresenceTokenEngine.verify_presence_token(token=token, current_time=valid_t)
+    assert claims["cid"] == str(c_id)
+
+    # Exactly at exp -> strictly expired immediately
+    with pytest.raises(QrTokenExpiredException):
+        PresenceTokenEngine.verify_presence_token(token=token, current_time=exp_dt)
+
+    # 1 second past exp -> strictly expired immediately (no tolerance window)
+    with pytest.raises(QrTokenExpiredException):
+        PresenceTokenEngine.verify_presence_token(
+            token=token, current_time=exp_dt + datetime.timedelta(seconds=1)
+        )
+
+
+def test_cryptographic_context_binding_rejection() -> None:
+    """Verify cryptographic binding to university_id, session_id, and checkpoint_id."""
+    u_id = uuid.uuid4()
+    s_id = uuid.uuid4()
+    c_id = uuid.uuid4()
+    now = datetime.datetime(2026, 9, 14, 10, 0, 0, tzinfo=datetime.UTC)
+
+    token, _, _, _ = PresenceTokenEngine.generate_presence_token(
+        university_id=u_id,
+        session_id=s_id,
+        checkpoint_id=c_id,
+        checkpoint_type="START",
+        current_time=now,
+    )
+
+    # Wrong university ID -> rejected
+    with pytest.raises(InvalidQrTokenException) as exc_u:
+        PresenceTokenEngine.verify_presence_token(
+            token=token,
+            expected_university_id=uuid.uuid4(),
+            current_time=now,
+        )
+    assert "university" in exc_u.value.message.lower()
+
+    # Wrong session ID -> rejected
+    with pytest.raises(InvalidQrTokenException) as exc_s:
+        PresenceTokenEngine.verify_presence_token(
+            token=token,
+            expected_session_id=uuid.uuid4(),
+            current_time=now,
+        )
+    assert "session" in exc_s.value.message.lower()
+
+    # Wrong checkpoint ID -> rejected
+    with pytest.raises(InvalidQrTokenException) as exc_c:
+        PresenceTokenEngine.verify_presence_token(
+            token=token,
+            expected_checkpoint_id=uuid.uuid4(),
+            current_time=now,
+        )
+    assert "checkpoint" in exc_c.value.message.lower()
