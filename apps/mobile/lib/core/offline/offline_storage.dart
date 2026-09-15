@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:io';
+
 /// Local offline storage and outbox for mobile offline attendance (M12).
 class OfflinePermitModel {
   final String permitId;
@@ -91,6 +94,7 @@ class OfflineStudentClaimModel {
   final Map<String, dynamic>? bleEvidence;
   final DateTime clientCapturedAtUtc;
   final String status; // PENDING_SYNC, SYNCED, REJECTED
+  final String userId; // Account isolation context (M12.1 Section 13)
 
   OfflineStudentClaimModel({
     required this.claimId,
@@ -102,6 +106,7 @@ class OfflineStudentClaimModel {
     this.bleEvidence,
     required this.clientCapturedAtUtc,
     this.status = 'PENDING_SYNC',
+    this.userId = 'default_student',
   });
 
   Map<String, dynamic> toJson() => {
@@ -114,6 +119,7 @@ class OfflineStudentClaimModel {
         'ble_evidence': bleEvidence,
         'client_captured_at_utc': clientCapturedAtUtc.toIso8601String(),
         'status': status,
+        'user_id': userId,
       };
 
   factory OfflineStudentClaimModel.fromJson(Map<String, dynamic> json) =>
@@ -128,27 +134,133 @@ class OfflineStudentClaimModel {
         clientCapturedAtUtc:
             DateTime.parse(json['client_captured_at_utc'] as String),
         status: json['status'] as String? ?? 'PENDING_SYNC',
+        userId: json['user_id'] as String? ?? 'default_student',
       );
 }
 
-/// In-memory and local cache outbox manager.
+/// Outbox item representing an atomic submission queue entry (M12.1 Section 10 & 11).
+class OutboxItemModel {
+  final String outboxId;
+  final String userId;
+  final String itemType; // 'STUDENT_CLAIM', 'HOST_EVENTS'
+  final String referenceId; // claimId or hostSessionId
+  final Map<String, dynamic> payload;
+  final String status; // 'PENDING_SYNC', 'SYNCED', 'FAILED'
+  final DateTime createdAtUtc;
+  final int retryCount;
+
+  OutboxItemModel({
+    required this.outboxId,
+    required this.userId,
+    required this.itemType,
+    required this.referenceId,
+    required this.payload,
+    this.status = 'PENDING_SYNC',
+    required this.createdAtUtc,
+    this.retryCount = 0,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'outbox_id': outboxId,
+        'user_id': userId,
+        'item_type': itemType,
+        'reference_id': referenceId,
+        'payload': payload,
+        'status': status,
+        'created_at_utc': createdAtUtc.toIso8601String(),
+        'retry_count': retryCount,
+      };
+
+  factory OutboxItemModel.fromJson(Map<String, dynamic> json) =>
+      OutboxItemModel(
+        outboxId: json['outbox_id'] as String,
+        userId: json['user_id'] as String,
+        itemType: json['item_type'] as String,
+        referenceId: json['reference_id'] as String,
+        payload: json['payload'] as Map<String, dynamic>,
+        status: json['status'] as String? ?? 'PENDING_SYNC',
+        createdAtUtc: DateTime.parse(json['created_at_utc'] as String),
+        retryCount: json['retry_count'] as int? ?? 0,
+      );
+}
+
+/// Dedicated abstraction for secure host private-key storage (M12.1 Section 14 & 15).
+/// Isolated from standard storage tables, never logged, and deleted upon session sync.
+abstract class SecureKeyStorage {
+  Future<void> writePrivateKey({
+    required String permitId,
+    required String privateKeyPem,
+  });
+  Future<String?> readPrivateKey({required String permitId});
+  Future<void> deletePrivateKey({required String permitId});
+}
+
+/// In-memory implementation of secure storage for tests and platform fallback.
+class MemorySecureKeyStorage implements SecureKeyStorage {
+  final Map<String, String> _keys = {};
+
+  @override
+  Future<void> writePrivateKey({
+    required String permitId,
+    required String privateKeyPem,
+  }) async {
+    _keys[permitId] = privateKeyPem;
+  }
+
+  @override
+  Future<String?> readPrivateKey({required String permitId}) async {
+    return _keys[permitId];
+  }
+
+  @override
+  Future<void> deletePrivateKey({required String permitId}) async {
+    _keys.remove(permitId);
+  }
+}
+
+/// Persistent local storage and transactional outbox manager.
 class MobileOfflineStorage {
-  static final MobileOfflineStorage _instance = MobileOfflineStorage._();
-  factory MobileOfflineStorage() => _instance;
-  MobileOfflineStorage._();
+  static MobileOfflineStorage? _instance;
+  Directory? _storageDirectory;
+  SecureKeyStorage secureKeyStorage = MemorySecureKeyStorage();
 
   final Map<String, OfflinePermitModel> _cachedPermits = {};
   final List<OfflineHostEventModel> _hostEventsOutbox = [];
-  final List<OfflineStudentClaimModel> _studentClaimsOutbox = [];
+  final List<OfflineStudentClaimModel> _studentClaims = [];
+  final List<OutboxItemModel> _outboxItems = [];
+
+  factory MobileOfflineStorage({Directory? storageDir}) {
+    if (_instance == null || storageDir != null) {
+      _instance = MobileOfflineStorage._internal(storageDir: storageDir);
+    }
+    return _instance!;
+  }
+
+  MobileOfflineStorage._internal({Directory? storageDir}) {
+    _storageDirectory = storageDir;
+    loadFromDiskSync();
+  }
+
+  /// Create a fresh, distinct instance for testing app restarts without using singleton.
+  static MobileOfflineStorage createInstance({Directory? storageDir}) {
+    return MobileOfflineStorage._internal(storageDir: storageDir);
+  }
+
+  File? get _storageFile {
+    if (_storageDirectory == null) return null;
+    return File('${_storageDirectory!.path}/offline_store.json');
+  }
 
   void cachePermit(OfflinePermitModel permit) {
     _cachedPermits[permit.permitId] = permit;
+    flushToDiskSync();
   }
 
   OfflinePermitModel? getPermit(String permitId) => _cachedPermits[permitId];
 
   void addHostEvent(OfflineHostEventModel event) {
     _hostEventsOutbox.add(event);
+    flushToDiskSync();
   }
 
   List<OfflineHostEventModel> getHostEvents() =>
@@ -156,24 +268,72 @@ class MobileOfflineStorage {
 
   void clearHostEvents() {
     _hostEventsOutbox.clear();
+    flushToDiskSync();
   }
 
-  void addStudentClaim(OfflineStudentClaimModel claim) {
-    // Deduplicate by permitId and checkpointType
-    _studentClaimsOutbox.removeWhere((c) =>
+  /// Transactional creation of Student claim + corresponding Outbox item (INV-01 / Section 10).
+  /// Guarantees atomicity: claim and outbox item are saved together or not at all.
+  void saveClaimWithOutboxTransactional({
+    required String userId,
+    required OfflineStudentClaimModel claim,
+  }) {
+    // 1. Deduplicate existing claims for same permit and checkpoint
+    _studentClaims.removeWhere((c) =>
         c.permitId == claim.permitId &&
         c.checkpointType == claim.checkpointType);
-    _studentClaimsOutbox.add(claim);
+    _studentClaims.add(claim);
+
+    // 2. Insert corresponding outbox queue entry
+    final outboxId = 'outbox_${claim.claimId}';
+    _outboxItems.removeWhere((item) => item.referenceId == claim.claimId);
+    _outboxItems.add(
+      OutboxItemModel(
+        outboxId: outboxId,
+        userId: userId,
+        itemType: 'STUDENT_CLAIM',
+        referenceId: claim.claimId,
+        payload: claim.toJson(),
+        status: 'PENDING_SYNC',
+        createdAtUtc: claim.clientCapturedAtUtc,
+      ),
+    );
+
+    // 3. Atomically persist both to durable storage
+    flushToDiskSync();
   }
 
-  List<OfflineStudentClaimModel> getPendingStudentClaims() =>
-      _studentClaimsOutbox.where((c) => c.status == 'PENDING_SYNC').toList();
+  /// Backwards-compatible claim addition.
+  void addStudentClaim(OfflineStudentClaimModel claim) {
+    saveClaimWithOutboxTransactional(userId: claim.userId, claim: claim);
+  }
 
-  void markClaimSynced(String claimId) {
-    final idx = _studentClaimsOutbox.indexWhere((c) => c.claimId == claimId);
-    if (idx != -1) {
-      final old = _studentClaimsOutbox[idx];
-      _studentClaimsOutbox[idx] = OfflineStudentClaimModel(
+  /// Query pending student claims across all accounts.
+  List<OfflineStudentClaimModel> getPendingStudentClaims() =>
+      _studentClaims.where((c) => c.status == 'PENDING_SYNC').toList();
+
+  /// Query pending student claims strictly isolated to a specific user (Section 13).
+  List<OfflineStudentClaimModel> getPendingStudentClaimsForUser(
+          String userId) =>
+      _studentClaims
+          .where((c) => c.userId == userId && c.status == 'PENDING_SYNC')
+          .toList();
+
+  /// Query pending outbox entries strictly isolated to a specific user (Section 13).
+  List<OutboxItemModel> getPendingOutboxForUser(String userId) => _outboxItems
+      .where((item) => item.userId == userId && item.status == 'PENDING_SYNC')
+      .toList();
+
+  /// Outbox acknowledgement: ONLY marks item as synced upon deterministic server ACK (Section 11).
+  /// On network error/failure, item remains in PENDING_SYNC with incremented retry count.
+  void acknowledgeClaimSync({
+    required String claimId,
+    required bool success,
+    String? rejectionReason,
+  }) {
+    final claimIdx = _studentClaims.indexWhere((c) => c.claimId == claimId);
+    if (claimIdx != -1) {
+      final old = _studentClaims[claimIdx];
+      _studentClaims[claimIdx] = OfflineStudentClaimModel(
         claimId: old.claimId,
         permitId: old.permitId,
         hostSessionId: old.hostSessionId,
@@ -182,14 +342,117 @@ class MobileOfflineStorage {
         qrChallengeToken: old.qrChallengeToken,
         bleEvidence: old.bleEvidence,
         clientCapturedAtUtc: old.clientCapturedAtUtc,
-        status: 'SYNCED',
+        status: success ? 'SYNCED' : 'PENDING_SYNC',
+        userId: old.userId,
       );
+    }
+
+    final outboxIdx =
+        _outboxItems.indexWhere((item) => item.referenceId == claimId);
+    if (outboxIdx != -1) {
+      final oldItem = _outboxItems[outboxIdx];
+      if (success) {
+        _outboxItems.removeAt(outboxIdx);
+      } else {
+        _outboxItems[outboxIdx] = OutboxItemModel(
+          outboxId: oldItem.outboxId,
+          userId: oldItem.userId,
+          itemType: oldItem.itemType,
+          referenceId: oldItem.referenceId,
+          payload: oldItem.payload,
+          status: 'PENDING_SYNC',
+          createdAtUtc: oldItem.createdAtUtc,
+          retryCount: oldItem.retryCount + 1,
+        );
+      }
+    }
+
+    flushToDiskSync();
+  }
+
+  /// Backwards-compatible sync marking.
+  void markClaimSynced(String claimId) {
+    acknowledgeClaimSync(claimId: claimId, success: true);
+  }
+
+  /// Atomically write storage state to disk using a temporary file and rename (ACID semantics).
+  void flushToDiskSync() {
+    final file = _storageFile;
+    if (file == null) return;
+
+    try {
+      if (!file.parent.existsSync()) {
+        file.parent.createSync(recursive: true);
+      }
+      final data = {
+        'permits': _cachedPermits.values.map((p) => p.toJson()).toList(),
+        'host_events': _hostEventsOutbox.map((e) => e.toJson()).toList(),
+        'student_claims': _studentClaims.map((c) => c.toJson()).toList(),
+        'outbox': _outboxItems.map((o) => o.toJson()).toList(),
+      };
+      final tempFile = File('${file.path}.tmp');
+      tempFile.writeAsStringSync(jsonEncode(data), flush: true);
+      tempFile.renameSync(file.path);
+    } catch (_) {
+      // Degrade gracefully if storage directory is read-only
+    }
+  }
+
+  /// Reload stored data from disk (survives app restart).
+  void loadFromDiskSync() {
+    final file = _storageFile;
+    if (file == null || !file.existsSync()) return;
+
+    try {
+      final raw = file.readAsStringSync();
+      final Map<String, dynamic> data = jsonDecode(raw) as Map<String, dynamic>;
+
+      _cachedPermits.clear();
+      final permitsList = data['permits'] as List<dynamic>? ?? [];
+      for (final item in permitsList) {
+        final permit =
+            OfflinePermitModel.fromJson(item as Map<String, dynamic>);
+        _cachedPermits[permit.permitId] = permit;
+      }
+
+      _hostEventsOutbox.clear();
+      final eventsList = data['host_events'] as List<dynamic>? ?? [];
+      for (final item in eventsList) {
+        _hostEventsOutbox.add(
+          OfflineHostEventModel.fromJson(item as Map<String, dynamic>),
+        );
+      }
+
+      _studentClaims.clear();
+      final claimsList = data['student_claims'] as List<dynamic>? ?? [];
+      for (final item in claimsList) {
+        _studentClaims.add(
+          OfflineStudentClaimModel.fromJson(item as Map<String, dynamic>),
+        );
+      }
+
+      _outboxItems.clear();
+      final outboxList = data['outbox'] as List<dynamic>? ?? [];
+      for (final item in outboxList) {
+        _outboxItems.add(
+          OutboxItemModel.fromJson(item as Map<String, dynamic>),
+        );
+      }
+    } catch (_) {
+      // Ignore corrupted files in testing
     }
   }
 
   void reset() {
     _cachedPermits.clear();
     _hostEventsOutbox.clear();
-    _studentClaimsOutbox.clear();
+    _studentClaims.clear();
+    _outboxItems.clear();
+    final file = _storageFile;
+    if (file != null && file.existsSync()) {
+      try {
+        file.deleteSync();
+      } catch (_) {}
+    }
   }
 }

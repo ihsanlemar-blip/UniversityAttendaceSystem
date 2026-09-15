@@ -84,6 +84,11 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
+        "ix_offline_attendance_permits_id",
+        "offline_attendance_permits",
+        ["id"],
+    )
+    op.create_index(
         "ix_offline_permits_session_id",
         "offline_attendance_permits",
         ["attendance_session_id"],
@@ -131,6 +136,11 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
+        "ix_offline_host_sessions_id",
+        "offline_host_sessions",
+        ["id"],
+    )
+    op.create_index(
         "ix_offline_host_sessions_permit_id",
         "offline_host_sessions",
         ["offline_permit_id"],
@@ -170,6 +180,11 @@ def upgrade() -> None:
             "sequence_number",
             name="uq_offline_host_events_session_seq",
         ),
+    )
+    op.create_index(
+        "ix_offline_host_events_id",
+        "offline_host_events",
+        ["id"],
     )
     op.create_index(
         "ix_offline_host_events_session_id",
@@ -249,6 +264,11 @@ def upgrade() -> None:
         ),
     )
     op.create_index(
+        "ix_offline_attendance_claims_id",
+        "offline_attendance_claims",
+        ["id"],
+    )
+    op.create_index(
         "ix_offline_claims_permit_id",
         "offline_attendance_claims",
         ["offline_permit_id"],
@@ -297,6 +317,11 @@ def upgrade() -> None:
             "idempotency_key",
             name="uq_sync_inbox_batch_idempotency",
         ),
+    )
+    op.create_index(
+        "ix_sync_inbox_entries_id",
+        "sync_inbox_entries",
+        ["id"],
     )
     op.create_index(
         "ix_sync_inbox_actor_id",
@@ -363,6 +388,11 @@ def upgrade() -> None:
             name="fk_offline_conflicts_resolver_id",
             ondelete="SET NULL",
         ),
+    )
+    op.create_index(
+        "ix_offline_sync_conflicts_id",
+        "offline_sync_conflicts",
+        ["id"],
     )
     op.create_index(
         "ix_offline_conflicts_session_id",

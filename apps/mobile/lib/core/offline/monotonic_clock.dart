@@ -29,7 +29,6 @@ class MonotonicClockAnchor {
       MonotonicClockAnchor(
         serverTimeUtcAtAnchor:
             DateTime.parse(json['server_time_utc_at_anchor'] as String),
-        monotonicUptimeMsAtAnchor:
-            json['monotonic_uptime_ms_at_anchor'] as int,
+        monotonicUptimeMsAtAnchor: json['monotonic_uptime_ms_at_anchor'] as int,
       );
 }

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from backend.app.attendance.offline_router import router as offline_router
 from backend.app.attendance.schemas import (
     AttendanceCheckpointResponse,
     AttendancePolicyCreateRequest,
@@ -44,7 +45,6 @@ from backend.app.models.lecturer import Lecturer
 from backend.app.models.lecturer_assignment import LecturerAssignment
 from backend.app.models.student import Student
 from backend.app.models.user import User
-from backend.app.attendance.offline_router import router as offline_router
 from backend.app.rbac.dependencies import require_permission
 from backend.app.rbac.service import RbacService
 

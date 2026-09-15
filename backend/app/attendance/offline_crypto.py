@@ -379,13 +379,26 @@ class OfflineChallengeEngine:
         expected_slot = OfflineChallengeEngine.compute_rotation_slot(now, rotation_seconds)
         token_slot = payload.get("slot", -1)
 
-        # Expiry check with tolerance steps
+        # 1. Unconditional rejection of future slots (INV-04 / M12.1 Section 19 & 22)
+        if token_slot > expected_slot:
+            raise OfflineChallengeExpiredException(
+                f"Challenge slot {token_slot} is from the future "
+                f"(current server slot: {expected_slot})."
+            )
+
+        # 2. Strict expiration check against signed exp timestamp (now >= exp is rejected)
+        exp_ts = payload.get("exp")
+        if exp_ts is not None and now.timestamp() >= exp_ts:
+            raise OfflineChallengeExpiredException(
+                f"Challenge expired: current time {int(now.timestamp())} >= exp {exp_ts}."
+            )
+
+        # 3. Reject past slots outside allowable tolerance window
         min_allowed_slot = expected_slot - tolerance_steps
-        max_allowed_slot = expected_slot + tolerance_steps
-        if not (min_allowed_slot <= token_slot <= max_allowed_slot):
+        if token_slot < min_allowed_slot:
             raise OfflineChallengeExpiredException(
                 f"Challenge expired: slot {token_slot} outside allowable window "
-                f"[{min_allowed_slot}, {max_allowed_slot}] for current time {now.isoformat()}."
+                f"[{min_allowed_slot}, {expected_slot}] for current time {now.isoformat()}."
             )
 
         return payload

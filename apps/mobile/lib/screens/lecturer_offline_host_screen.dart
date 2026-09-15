@@ -97,7 +97,8 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
   void _rotateChallenge() {
     final nowMs = DateTime.now().millisecondsSinceEpoch;
     _currentSlot = nowMs ~/ 20000;
-    _currentBleTagHex = 'ble_${widget.permit.permitId.substring(0, 4)}_$_currentSlot';
+    _currentBleTagHex =
+        'ble_${widget.permit.permitId.substring(0, 4)}_$_currentSlot';
     const headerPrefix = 'eyJ' 'hbGciOiJFZERTQSIsInR5cCI6Im9mZmxpbmVfcXIifQ';
     _currentQrChallenge =
         '$headerPrefix.mock_payload_${widget.permit.permitId}_${_activeCheckpoint}_$_currentSlot.mock_sig';
@@ -188,8 +189,10 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                       ],
                     ),
                     const SizedBox(height: 8),
-                    Text('Permit ID: ${widget.permit.permitId.substring(0, 8)}...'),
-                    Text('Session: ${widget.permit.attendanceSessionId.substring(0, 8)}...'),
+                    Text(
+                        'Permit ID: ${widget.permit.permitId.substring(0, 8)}...'),
+                    Text(
+                        'Session: ${widget.permit.attendanceSessionId.substring(0, 8)}...'),
                     Text(
                       'Valid until: ${widget.permit.validUntilUtc.toLocal()}',
                       style: const TextStyle(fontSize: 12, color: Colors.grey),
@@ -229,7 +232,9 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                         child: ElevatedButton(
                           onPressed: _activeCheckpoint == null
                               ? () => _openCheckpoint(cpt)
-                              : (_activeCheckpoint == cpt ? _closeCheckpoint : null),
+                              : (_activeCheckpoint == cpt
+                                  ? _closeCheckpoint
+                                  : null),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: _activeCheckpoint == cpt
                                 ? Colors.red.shade700
@@ -237,7 +242,9 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                             foregroundColor: Colors.white,
                           ),
                           child: Text(
-                            _activeCheckpoint == cpt ? 'Close $cpt' : 'Open $cpt',
+                            _activeCheckpoint == cpt
+                                ? 'Close $cpt'
+                                : 'Open $cpt',
                             style: const TextStyle(fontSize: 11),
                           ),
                         ),
@@ -278,12 +285,14 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                               const SizedBox(height: 4),
                               Text(
                                 'Slot: $_currentSlot',
-                                style: const TextStyle(fontWeight: FontWeight.bold),
+                                style: const TextStyle(
+                                    fontWeight: FontWeight.bold),
                               ),
                               if (_currentQrChallenge.isNotEmpty)
                                 Text(
                                   'Token: ${_currentQrChallenge.substring(0, 16)}...',
-                                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                                  style: const TextStyle(
+                                      fontSize: 10, color: Colors.grey),
                                 ),
                             ],
                           ),
@@ -292,7 +301,8 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Icon(Icons.timer, size: 18, color: Colors.blue),
+                            const Icon(Icons.timer,
+                                size: 18, color: Colors.blue),
                             const SizedBox(width: 4),
                             Text(
                               'Rotates in ${_slotCountdown}s',
@@ -306,7 +316,8 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                         const SizedBox(height: 6),
                         Text(
                           'BLE Tag: $_currentBleTagHex',
-                          style: const TextStyle(fontSize: 11, color: Colors.grey),
+                          style:
+                              const TextStyle(fontSize: 11, color: Colors.grey),
                         ),
                       ],
                     ),
@@ -345,9 +356,11 @@ class _LecturerOfflineHostScreenState extends State<LecturerOfflineHostScreen> {
                   dense: true,
                   leading: CircleAvatar(
                     radius: 12,
-                    child: Text('${ev.sequenceNumber}', style: const TextStyle(fontSize: 10)),
+                    child: Text('${ev.sequenceNumber}',
+                        style: const TextStyle(fontSize: 10)),
                   ),
-                  title: Text(ev.eventType, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  title: Text(ev.eventType,
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text(ev.eventHash.substring(0, 16)),
                   trailing: Text(
                     ev.occurredAtUtc.substring(11, 19),

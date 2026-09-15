@@ -149,8 +149,9 @@ class Settings(BaseSettings):
             "-----END " + "PRIVATE KEY-----"
         ),
         description=(
-            "Dedicated Ed25519 private key in PEM format used to sign offline attendance permits. "
-            "Isolated from AUTH_SIGNING_KEY, ATTENDANCE_QR_SIGNING_KEY, and ATTENDANCE_BLE_SIGNING_KEY."
+            "Dedicated Ed25519 private key in PEM format used to sign offline permits. "
+            "Isolated from AUTH_SIGNING_KEY, ATTENDANCE_QR_SIGNING_KEY, and "
+            "ATTENDANCE_BLE_SIGNING_KEY."
         ),
     )
     OFFLINE_PERMIT_SIGNING_PUBLIC_KEY: str = Field(
@@ -244,7 +245,9 @@ class Settings(BaseSettings):
                 "dev-attendance-ble-signing-key-minimum-32-chars-for-testing-only",
                 (
                     "-----BEGIN "
-                    + "PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEINmqhHd4Uz7002Yt007zEIPHYaMaPH6civdsgT9jiyMY\n-----END "
+                    + "PRIVATE KEY-----\n"
+                    + "MC4CAQAwBQYDK2VwBCIEINmqhHd4Uz7002Yt007zEIPHYaMaPH6civdsgT9jiyMY\n"
+                    + "-----END "
                     + "PRIVATE KEY-----"
                 ),
                 "change_me_in_production",

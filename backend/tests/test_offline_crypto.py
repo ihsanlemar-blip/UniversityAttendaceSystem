@@ -202,6 +202,82 @@ def test_offline_challenge_expiry() -> None:
         )
 
 
+def test_offline_challenge_expiration_boundaries() -> None:
+    """Verify exact expiration boundary conditions: exp - 1s, exp exact, exp + 1s."""
+    host_priv_pem, host_pub_pem = generate_ed25519_keypair()
+    host_priv = load_ed25519_private_key(host_priv_pem)
+
+    t0 = datetime.datetime(2026, 9, 15, 10, 0, 0, tzinfo=datetime.UTC)
+    token, slot, iat, exp_dt, _ = OfflineChallengeEngine.generate_challenge(
+        permit_id=uuid.uuid4(),
+        host_session_id=uuid.uuid4(),
+        checkpoint_type="START",
+        host_private_key=host_priv,
+        current_time=t0,
+        rotation_seconds=20,
+    )
+
+    # 1. exp - 1 second: MUST be valid
+    t_valid = exp_dt - datetime.timedelta(seconds=1)
+    verified = OfflineChallengeEngine.verify_challenge(
+        token=token,
+        host_public_key_material=host_pub_pem,
+        current_time=t_valid,
+        rotation_seconds=20,
+        tolerance_steps=1,
+    )
+    assert verified["slot"] == slot
+
+    # 2. exp exact: MUST be rejected
+    with pytest.raises(OfflineChallengeExpiredException):
+        OfflineChallengeEngine.verify_challenge(
+            token=token,
+            host_public_key_material=host_pub_pem,
+            current_time=exp_dt,
+            rotation_seconds=20,
+            tolerance_steps=1,
+        )
+
+    # 3. exp + 1 second: MUST be rejected
+    t_expired = exp_dt + datetime.timedelta(seconds=1)
+    with pytest.raises(OfflineChallengeExpiredException):
+        OfflineChallengeEngine.verify_challenge(
+            token=token,
+            host_public_key_material=host_pub_pem,
+            current_time=t_expired,
+            rotation_seconds=20,
+            tolerance_steps=1,
+        )
+
+
+def test_offline_challenge_future_slot_rejected() -> None:
+    """Verify that a challenge generated for a future slot is unconditionally rejected (INV-04)."""
+    host_priv_pem, host_pub_pem = generate_ed25519_keypair()
+    host_priv = load_ed25519_private_key(host_priv_pem)
+
+    t_now = datetime.datetime(2026, 9, 15, 10, 0, 0, tzinfo=datetime.UTC)
+    # Generate token in future slot (+20s)
+    t_future = t_now + datetime.timedelta(seconds=20)
+    token, future_slot, _, _, _ = OfflineChallengeEngine.generate_challenge(
+        permit_id=uuid.uuid4(),
+        host_session_id=uuid.uuid4(),
+        checkpoint_type="START",
+        host_private_key=host_priv,
+        current_time=t_future,
+        rotation_seconds=20,
+    )
+
+    # Verifying at t_now (where expected_slot = future_slot - 1) MUST fail
+    with pytest.raises(OfflineChallengeExpiredException, match="from the future"):
+        OfflineChallengeEngine.verify_challenge(
+            token=token,
+            host_public_key_material=host_pub_pem,
+            current_time=t_now,
+            rotation_seconds=20,
+            tolerance_steps=1,
+        )
+
+
 def test_event_chain_verification_and_tamper_detection() -> None:
     """Verify hash-chain formation and tamper-detection in EventChainEngine."""
     host_priv_pem, host_pub_pem = generate_ed25519_keypair()
