@@ -84,7 +84,6 @@ class _StudentAttendanceHistoryScreenState
     super.dispose();
   }
 
-
   Future<void> _loadRequests() async {
     setState(() {
       _isLoading = true;
@@ -151,9 +150,10 @@ class _StudentAttendanceHistoryScreenState
                       children: [
                         Text(
                           'Request Attendance Correction',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -216,10 +216,13 @@ class _StudentAttendanceHistoryScreenState
                         DropdownMenuItem(
                             value: 'LATE', child: Text('LATE (0.5 cr)')),
                         DropdownMenuItem(
-                            value: 'EXCUSED', child: Text('EXCUSED (Policy cr)')),
+                            value: 'EXCUSED',
+                            child: Text('EXCUSED (Policy cr)')),
                       ],
                       onChanged: (val) {
-                        if (val != null) setModalState(() => requestedStatus = val);
+                        if (val != null) {
+                          setModalState(() => requestedStatus = val);
+                        }
                       },
                     ),
                     const SizedBox(height: 12),
@@ -270,9 +273,10 @@ class _StudentAttendanceHistoryScreenState
                                   requestType: requestType,
                                   requestedStatus: requestedStatus,
                                   reason: reason,
-                                  supportingNote: noteController.text.trim().isNotEmpty
-                                      ? noteController.text.trim()
-                                      : null,
+                                  supportingNote:
+                                      noteController.text.trim().isNotEmpty
+                                          ? noteController.text.trim()
+                                          : null,
                                   authToken: widget.authToken,
                                 );
                                 if (mounted) {
@@ -336,9 +340,10 @@ class _StudentAttendanceHistoryScreenState
                       children: [
                         Text(
                           'Submit Absence Excuse',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -362,9 +367,9 @@ class _StudentAttendanceHistoryScreenState
                         DropdownMenuItem(
                             value: 'BEREAVEMENT', child: Text('Bereavement')),
                         DropdownMenuItem(
-                            value: 'EMERGENCY', child: Text('Family Emergency')),
-                        DropdownMenuItem(
-                            value: 'OTHER', child: Text('Other')),
+                            value: 'EMERGENCY',
+                            child: Text('Family Emergency')),
+                        DropdownMenuItem(value: 'OTHER', child: Text('Other')),
                       ],
                       onChanged: (val) {
                         if (val != null) setModalState(() => category = val);
@@ -411,7 +416,8 @@ class _StudentAttendanceHistoryScreenState
                               final navigator = Navigator.of(ctx);
                               setModalState(() => isSubmitting = true);
                               try {
-                                await widget.operationsService.submitExcuseRequest(
+                                await widget.operationsService
+                                    .submitExcuseRequest(
                                   attendanceRecordId:
                                       record['record_id'] as String?,
                                   attendanceSessionId:
@@ -485,9 +491,10 @@ class _StudentAttendanceHistoryScreenState
                       children: [
                         Text(
                           'Submit Pre-Class Leave Request',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                              ),
+                          style:
+                              Theme.of(context).textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.bold,
+                                  ),
                         ),
                         IconButton(
                           icon: const Icon(Icons.close),
@@ -544,7 +551,8 @@ class _StudentAttendanceHistoryScreenState
                               final navigator = Navigator.of(ctx);
                               setModalState(() => isSubmitting = true);
                               try {
-                                await widget.operationsService.submitLeaveRequest(
+                                await widget.operationsService
+                                    .submitLeaveRequest(
                                   classOccurrenceId:
                                       record['occurrence_id'] as String,
                                   reason: reason,
@@ -693,7 +701,10 @@ class _StudentAttendanceHistoryScreenState
                               ],
                             ),
                             trailing: Text(
-                              rev.occurredAtUtc.toLocal().toString().split('.')[0],
+                              rev.occurredAtUtc
+                                  .toLocal()
+                                  .toString()
+                                  .split('.')[0],
                               style: const TextStyle(
                                   fontSize: 10, color: Colors.grey),
                             ),
@@ -762,7 +773,6 @@ class _StudentAttendanceHistoryScreenState
                       ],
                     ),
                   ),
-
                 Text(
                   'Recent Class Sessions',
                   style: Theme.of(context).textTheme.titleSmall?.copyWith(
@@ -770,7 +780,6 @@ class _StudentAttendanceHistoryScreenState
                       ),
                 ),
                 const SizedBox(height: 8),
-
                 ..._sampleRecords.map((rec) {
                   final status = rec['status'] as String;
                   Color statusColor = Colors.grey;
@@ -855,7 +864,8 @@ class _StudentAttendanceHistoryScreenState
                                 onPressed: () => _showCorrectionDialog(rec),
                               ),
                               OutlinedButton.icon(
-                                icon: const Icon(Icons.medical_services_outlined,
+                                icon: const Icon(
+                                    Icons.medical_services_outlined,
                                     size: 16),
                                 label: const Text('Excuse',
                                     style: TextStyle(fontSize: 12)),
@@ -909,7 +919,6 @@ class _StudentAttendanceHistoryScreenState
                                 color: Colors.red.shade900, fontSize: 13),
                           ),
                         ),
-
                       Text(
                         'Corrections (${_corrections.length})',
                         style: const TextStyle(
@@ -920,7 +929,8 @@ class _StudentAttendanceHistoryScreenState
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text('No correction requests.',
-                              style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 12)),
                         )
                       else
                         ..._corrections.map((c) {
@@ -979,7 +989,8 @@ class _StudentAttendanceHistoryScreenState
                                           size: 18, color: Colors.grey),
                                       tooltip: 'Cancel Request',
                                       onPressed: () async {
-                                        final messenger = ScaffoldMessenger.of(context);
+                                        final messenger =
+                                            ScaffoldMessenger.of(context);
                                         try {
                                           await widget.operationsService
                                               .cancelCorrectionRequest(
@@ -1001,7 +1012,6 @@ class _StudentAttendanceHistoryScreenState
                             ),
                           );
                         }),
-
                       const SizedBox(height: 16),
                       Text(
                         'Absence Excuses (${_excuses.length})',
@@ -1013,7 +1023,8 @@ class _StudentAttendanceHistoryScreenState
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text('No excuse requests.',
-                              style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 12)),
                         )
                       else
                         ..._excuses.map((e) {
@@ -1035,7 +1046,6 @@ class _StudentAttendanceHistoryScreenState
                             ),
                           );
                         }),
-
                       const SizedBox(height: 16),
                       Text(
                         'Pre-Class Leaves (${_leaves.length})',
@@ -1047,7 +1057,8 @@ class _StudentAttendanceHistoryScreenState
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 8),
                           child: Text('No leave requests.',
-                              style: TextStyle(color: Colors.grey, fontSize: 12)),
+                              style:
+                                  TextStyle(color: Colors.grey, fontSize: 12)),
                         )
                       else
                         ..._leaves.map((l) {

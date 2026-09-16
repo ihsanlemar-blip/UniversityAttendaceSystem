@@ -200,6 +200,12 @@ The original 29-milestone conceptual dependency sequence was:
   - Dependencies: `006`, `016`.
 
 ### Group VII: Governance, Audit, Resilience & Replication
+- **`012_attendance_ops_corrections` (Applied Milestone 15)**:
+  - Tables: `attendance_correction_requests`, `attendance_excuse_requests`, `attendance_leave_requests`.
+  - Foreign keys: `attendance_record_id`, `student_id`, `attendance_session_id`, `class_occurrence_id`, `reviewed_by_user_id`.
+  - Columns: `request_type`, `requested_status`, `reason`, `supporting_note`, `status`, `review_note`, `reviewed_at_utc`.
+  - Constraints & Indexes: Partial unique index `uq_open_correction_request_per_record` (INV-05), `uq_open_leave_request_per_occurrence` (Section 38), composite index on university + status.
+  - Dependencies: `008_attendance_core`, `011_campus_presence_anti_cheat`.
 - **`023_corrections`**:
   - Tables: `corrections`
   - Foreign keys: `final_attendance_record_id`, `requested_by_user_id`, `reviewed_by_user_id`.

@@ -52,23 +52,27 @@ void main() {
       expect(model.reviewNote, isNotNull);
     });
 
-    test('LeaveRequestModel parses pre-class leave (Section 38: 0.00 credit)', () {
+    test('LeaveRequestModel parses pre-class leave (Section 38: 0.00 credit)',
+        () {
       final json = {
         'id': '0192323e-6708-724a-a43b-8106daee8620',
         'student_id': '0192323e-6708-724a-a43b-8106daee8621',
         'class_occurrence_id': '0192323e-6708-724a-a43b-8106daee8622',
-        'reason': 'Attending national robotics tournament representing university',
+        'reason':
+            'Attending national robotics tournament representing university',
         'status': 'PENDING',
         'created_at': '2026-09-16T08:00:00Z',
       };
 
       final model = LeaveRequestModel.fromJson(json);
       expect(model.id, equals('0192323e-6708-724a-a43b-8106daee8620'));
-      expect(model.classOccurrenceId, equals('0192323e-6708-724a-a43b-8106daee8622'));
+      expect(model.classOccurrenceId,
+          equals('0192323e-6708-724a-a43b-8106daee8622'));
       expect(model.status, equals('PENDING'));
     });
 
-    test('RecordEligibilityModel evaluates window and duplicate request flags', () {
+    test('RecordEligibilityModel evaluates window and duplicate request flags',
+        () {
       final eligibleJson = {
         'record_id': '0192323e-6708-724a-a43b-8106daee8630',
         'eligible_for_correction': true,
@@ -88,7 +92,8 @@ void main() {
       final ineligibleJson = {
         'record_id': '0192323e-6708-724a-a43b-8106daee8631',
         'eligible_for_correction': false,
-        'correction_ineligibility_reason': 'Correction window expired at 2026-09-15T18:00:00 UTC.',
+        'correction_ineligibility_reason':
+            'Correction window expired at 2026-09-15T18:00:00 UTC.',
         'correction_window_deadline_utc': '2026-09-15T18:00:00Z',
         'has_open_correction': false,
         'has_open_excuse': false,
@@ -98,7 +103,8 @@ void main() {
 
       final ineligibleModel = RecordEligibilityModel.fromJson(ineligibleJson);
       expect(ineligibleModel.eligibleForCorrection, isFalse);
-      expect(ineligibleModel.correctionIneligibilityReason, contains('expired'));
+      expect(
+          ineligibleModel.correctionIneligibilityReason, contains('expired'));
     });
 
     test('RecordTimelineModel parses revision history items correctly', () {
@@ -148,9 +154,12 @@ void main() {
       expect(timeline.revisions[1].newCredit, equals(1.0));
     });
 
-    test('Offline error message instructs student to connect to university system', () {
+    test(
+        'Offline error message instructs student to connect to university system',
+        () {
       const ex = AttendanceOperationsException(
-        message: 'Connect to the university system to submit this request. Offline submission is not supported for operations.',
+        message:
+            'Connect to the university system to submit this request. Offline submission is not supported for operations.',
         code: 'OFFLINE_MODE',
       );
       expect(ex.code, equals('OFFLINE_MODE'));
@@ -159,9 +168,11 @@ void main() {
   });
 
   group('StudentAttendanceHistoryScreen Widget Tests', () {
-    testWidgets('Renders tab bar and class session cards with correction buttons',
+    testWidgets(
+        'Renders tab bar and class session cards with correction buttons',
         (WidgetTester tester) async {
-      final service = AttendanceOperationsService(baseUrl: 'http://localhost:8000');
+      final service =
+          AttendanceOperationsService(baseUrl: 'http://localhost:8000');
 
       await tester.pumpWidget(
         MaterialApp(
@@ -209,9 +220,11 @@ void main() {
       expect(find.text('Request Attendance Correction'), findsNothing);
     });
 
-    testWidgets('Tapping Pre-Class Leave button displays Section 38 0-credit policy notice',
+    testWidgets(
+        'Tapping Pre-Class Leave button displays Section 38 0-credit policy notice',
         (WidgetTester tester) async {
-      final service = AttendanceOperationsService(baseUrl: 'http://localhost:8000');
+      final service =
+          AttendanceOperationsService(baseUrl: 'http://localhost:8000');
 
       await tester.pumpWidget(
         MaterialApp(

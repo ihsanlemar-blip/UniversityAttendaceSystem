@@ -9,7 +9,6 @@ import 'services/campus_network_service.dart';
 import 'services/device_key_service.dart';
 import 'services/qr_checkin_service.dart';
 
-
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   runApp(const ProviderScope(child: AttendanceApp()));

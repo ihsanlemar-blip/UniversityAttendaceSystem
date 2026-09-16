@@ -175,8 +175,7 @@ class RecordEligibilityModel {
           json['correction_ineligibility_reason'] as String?,
       correctionWindowDeadlineUtc:
           json['correction_window_deadline_utc'] != null
-              ? DateTime.parse(
-                  json['correction_window_deadline_utc'] as String)
+              ? DateTime.parse(json['correction_window_deadline_utc'] as String)
               : null,
       hasOpenCorrection: json['has_open_correction'] as bool? ?? false,
       hasOpenExcuse: json['has_open_excuse'] as bool? ?? false,
@@ -253,8 +252,7 @@ class RecordTimelineModel {
 
   factory RecordTimelineModel.fromJson(Map<String, dynamic> json) {
     final revList = (json['revisions'] as List<dynamic>?)
-            ?.map((e) =>
-                RevisionItemModel.fromJson(e as Map<String, dynamic>))
+            ?.map((e) => RevisionItemModel.fromJson(e as Map<String, dynamic>))
             .toList() ??
         const [];
     return RecordTimelineModel(
@@ -323,8 +321,7 @@ class AttendanceOperationsService {
     String? supportingNote,
     required String authToken,
   }) async {
-    final uri =
-        Uri.parse('$baseUrl/api/v1/attendance/operations/corrections');
+    final uri = Uri.parse('$baseUrl/api/v1/attendance/operations/corrections');
     final body = jsonEncode({
       'attendance_record_id': recordId,
       'request_type': requestType,
@@ -347,8 +344,7 @@ class AttendanceOperationsService {
   }) async {
     final uri = Uri.parse(
         '$baseUrl/api/v1/attendance/operations/corrections/$requestId/cancel');
-    final response =
-        await _sendRequest('POST', uri, authToken: authToken);
+    final response = await _sendRequest('POST', uri, authToken: authToken);
     final json = jsonDecode(response) as Map<String, dynamic>;
     return CorrectionRequestModel.fromJson(
         json['data'] as Map<String, dynamic>);
@@ -364,8 +360,7 @@ class AttendanceOperationsService {
     final json = jsonDecode(response) as Map<String, dynamic>;
     final data = (json['data'] as List<dynamic>?) ?? [];
     return data
-        .map((e) =>
-            CorrectionRequestModel.fromJson(e as Map<String, dynamic>))
+        .map((e) => CorrectionRequestModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -383,35 +378,30 @@ class AttendanceOperationsService {
     final body = jsonEncode({
       if (attendanceSessionId != null)
         'attendance_session_id': attendanceSessionId,
-      if (classOccurrenceId != null)
-        'class_occurrence_id': classOccurrenceId,
+      if (classOccurrenceId != null) 'class_occurrence_id': classOccurrenceId,
       if (attendanceRecordId != null)
         'attendance_record_id': attendanceRecordId,
       'category': category,
       'description': description,
-      if (documentReference != null)
-        'document_reference': documentReference,
+      if (documentReference != null) 'document_reference': documentReference,
     });
 
     final response =
         await _sendRequest('POST', uri, authToken: authToken, body: body);
     final json = jsonDecode(response) as Map<String, dynamic>;
-    return ExcuseRequestModel.fromJson(
-        json['data'] as Map<String, dynamic>);
+    return ExcuseRequestModel.fromJson(json['data'] as Map<String, dynamic>);
   }
 
   /// List current student's absence excuses.
   Future<List<ExcuseRequestModel>> getMyExcuses({
     required String authToken,
   }) async {
-    final uri =
-        Uri.parse('$baseUrl/api/v1/attendance/operations/excuses/my');
+    final uri = Uri.parse('$baseUrl/api/v1/attendance/operations/excuses/my');
     final response = await _sendRequest('GET', uri, authToken: authToken);
     final json = jsonDecode(response) as Map<String, dynamic>;
     final data = (json['data'] as List<dynamic>?) ?? [];
     return data
-        .map((e) =>
-            ExcuseRequestModel.fromJson(e as Map<String, dynamic>))
+        .map((e) => ExcuseRequestModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -430,22 +420,19 @@ class AttendanceOperationsService {
     final response =
         await _sendRequest('POST', uri, authToken: authToken, body: body);
     final json = jsonDecode(response) as Map<String, dynamic>;
-    return LeaveRequestModel.fromJson(
-        json['data'] as Map<String, dynamic>);
+    return LeaveRequestModel.fromJson(json['data'] as Map<String, dynamic>);
   }
 
   /// List current student's pre-class leave requests.
   Future<List<LeaveRequestModel>> getMyLeaves({
     required String authToken,
   }) async {
-    final uri =
-        Uri.parse('$baseUrl/api/v1/attendance/operations/leave/my');
+    final uri = Uri.parse('$baseUrl/api/v1/attendance/operations/leave/my');
     final response = await _sendRequest('GET', uri, authToken: authToken);
     final json = jsonDecode(response) as Map<String, dynamic>;
     final data = (json['data'] as List<dynamic>?) ?? [];
     return data
-        .map((e) =>
-            LeaveRequestModel.fromJson(e as Map<String, dynamic>))
+        .map((e) => LeaveRequestModel.fromJson(e as Map<String, dynamic>))
         .toList();
   }
 
@@ -458,8 +445,7 @@ class AttendanceOperationsService {
         '$baseUrl/api/v1/attendance/operations/records/$recordId/timeline');
     final response = await _sendRequest('GET', uri, authToken: authToken);
     final json = jsonDecode(response) as Map<String, dynamic>;
-    return RecordTimelineModel.fromJson(
-        json['data'] as Map<String, dynamic>);
+    return RecordTimelineModel.fromJson(json['data'] as Map<String, dynamic>);
   }
 
   /// Internal HTTP dispatcher with offline-safety checks and error parsing.
@@ -480,8 +466,7 @@ class AttendanceOperationsService {
       }
 
       final response = await request.close();
-      final responseBody =
-          await response.transform(utf8.decoder).join();
+      final responseBody = await response.transform(utf8.decoder).join();
 
       if (response.statusCode >= 200 && response.statusCode < 300) {
         return responseBody;
