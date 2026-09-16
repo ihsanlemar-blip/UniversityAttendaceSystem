@@ -11,10 +11,12 @@ void main() {
   });
 
   group('NetworkChallengeDto Deserialization Tests', () {
-    test('Correctly deserializes successful challenge response from server', () {
+    test('Correctly deserializes successful challenge response from server',
+        () {
       final json = {
         'challenge_id': '0192323e-6708-724a-a43b-8106daee86fa',
-        'nonce': 'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
+        'nonce':
+            'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90',
         'issued_at': '2026-09-15T10:00:00Z',
         'expires_at': '2026-09-15T10:00:20Z',
         'session_id': '0192323e-6708-724a-a43b-8106daee86fb',
@@ -26,7 +28,10 @@ void main() {
 
       final dto = NetworkChallengeDto.fromJson(json);
       expect(dto.challengeId, equals('0192323e-6708-724a-a43b-8106daee86fa'));
-      expect(dto.nonce, equals('a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'));
+      expect(
+          dto.nonce,
+          equals(
+              'a1b2c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f90'));
       expect(dto.issuedAt.isUtc, isTrue);
       expect(dto.expiresAt.isUtc, isTrue);
       expect(dto.sessionId, equals('0192323e-6708-724a-a43b-8106daee86fb'));
@@ -38,14 +43,17 @@ void main() {
   });
 
   group('CampusNetworkService Proof Creation Tests', () {
-    test('Device key signs network presence challenge into valid proof structure', () async {
+    test(
+        'Device key signs network presence challenge into valid proof structure',
+        () async {
       final keyService = DeviceKeyService();
       await keyService.ensureKeyPair();
       await keyService.setDeviceId('0192323e-6708-724a-a43b-8106daee8601');
 
       final sig = await keyService.signNetworkPresenceChallenge(
         challengeId: '0192323e-6708-724a-a43b-8106daee8602',
-        nonce: 'nonce_hex_64_characters_long_0123456789abcdef0123456789abcdef0123',
+        nonce:
+            'nonce_hex_64_characters_long_0123456789abcdef0123456789abcdef0123',
         userId: '0192323e-6708-724a-a43b-8106daee8603',
         universityId: '0192323e-6708-724a-a43b-8106daee8604',
         deviceId: '0192323e-6708-724a-a43b-8106daee8601',
@@ -65,8 +73,10 @@ void main() {
       };
 
       expect(proof['version'], equals('NETWORK_PRESENCE_V1'));
-      expect(proof['challenge_id'], equals('0192323e-6708-724a-a43b-8106daee8602'));
-      expect(proof['trusted_device_id'], equals('0192323e-6708-724a-a43b-8106daee8601'));
+      expect(proof['challenge_id'],
+          equals('0192323e-6708-724a-a43b-8106daee8602'));
+      expect(proof['trusted_device_id'],
+          equals('0192323e-6708-724a-a43b-8106daee8601'));
       expect(proof['signature'], isNotEmpty);
     });
   });
