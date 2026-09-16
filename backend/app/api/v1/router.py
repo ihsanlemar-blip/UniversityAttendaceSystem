@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from backend.app.academic.router import router as academic_router
+from backend.app.attendance.operations_router import router as attendance_operations_router
 from backend.app.attendance.router import router as attendance_router
 from backend.app.attendance.router import students_router as student_attendance_router
 from backend.app.auth.router import router as auth_router
@@ -68,3 +69,6 @@ api_v1_router.include_router(devices_router)
 
 # Mount Milestone 14 Campus Presence & Anti-Cheat Hardening Sub-Router
 api_v1_router.include_router(security_router)
+
+# Mount Milestone 15 Attendance Operations, Corrections, Excuses & Leave Sub-Router
+api_v1_router.include_router(attendance_operations_router)

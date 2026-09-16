@@ -3,6 +3,11 @@
 from backend.app.models.academic_unit import AcademicUnit
 from backend.app.models.academic_year import AcademicYear
 from backend.app.models.attendance_checkpoint import AttendanceCheckpoint
+from backend.app.models.attendance_correction import (
+    AttendanceCorrectionRequest,
+    AttendanceExcuseRequest,
+    AttendanceLeaveRequest,
+)
 from backend.app.models.attendance_evidence import AttendanceEvidence
 from backend.app.models.attendance_policy import AttendancePolicy
 from backend.app.models.attendance_record import AttendanceRecord
@@ -50,7 +55,10 @@ __all__ = [
     "AcademicUnit",
     "AcademicYear",
     "AttendanceCheckpoint",
+    "AttendanceCorrectionRequest",
     "AttendanceEvidence",
+    "AttendanceExcuseRequest",
+    "AttendanceLeaveRequest",
     "AttendancePolicy",
     "AttendanceRecord",
     "AttendanceRevision",

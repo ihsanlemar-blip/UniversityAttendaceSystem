@@ -148,6 +148,13 @@ class PermissionCode(StrEnum):
     SECURITY_RISK_SIGNALS_READ = "security.risk_signals.read"
     SECURITY_RISK_SIGNALS_REVIEW = "security.risk_signals.review"
     SECURITY_RADIO_ANALYSIS_READ = "security.radio_analysis.read"
+    ATTENDANCE_CORRECTIONS_REQUEST = "attendance.corrections.request"
+    ATTENDANCE_CORRECTIONS_REVIEW = "attendance.corrections.review"
+    ATTENDANCE_CORRECTIONS_OVERRIDE = "attendance.corrections.override"
+    ATTENDANCE_EXCUSES_REQUEST = "attendance.excuses.request"
+    ATTENDANCE_EXCUSES_REVIEW = "attendance.excuses.review"
+    ATTENDANCE_LEAVE_REQUEST = "attendance.leave.request"
+    ATTENDANCE_LEAVE_REVIEW = "attendance.leave.review"
 
 
 class StudentStatus(StrEnum):
@@ -314,6 +321,21 @@ class AttendanceAuditEventType(StrEnum):
     OFFLINE_CONFLICT_RESOLVED = "OFFLINE_CONFLICT_RESOLVED"
     OFFLINE_PERMIT_ISSUED = "OFFLINE_PERMIT_ISSUED"
     OFFLINE_PERMIT_REVOKED = "OFFLINE_PERMIT_REVOKED"
+    CORRECTION_REQUESTED = "CORRECTION_REQUESTED"
+    CORRECTION_APPROVED = "CORRECTION_APPROVED"
+    CORRECTION_REJECTED = "CORRECTION_REJECTED"
+    CORRECTION_CANCELLED = "CORRECTION_CANCELLED"
+    EXCUSE_REQUESTED = "EXCUSE_REQUESTED"
+    EXCUSE_APPROVED = "EXCUSE_APPROVED"
+    EXCUSE_REJECTED = "EXCUSE_REJECTED"
+    EXCUSE_CANCELLED = "EXCUSE_CANCELLED"
+    LEAVE_REQUESTED = "LEAVE_REQUESTED"
+    LEAVE_APPROVED = "LEAVE_APPROVED"
+    LEAVE_REJECTED = "LEAVE_REJECTED"
+    LEAVE_CANCELLED = "LEAVE_CANCELLED"
+    ADMIN_OVERRIDE = "ADMIN_OVERRIDE"
+    EMERGENCY_OVERRIDE = "EMERGENCY_OVERRIDE"
+    REVERSAL = "REVERSAL"
 
 
 class OfflinePermitStatus(StrEnum):
@@ -498,3 +520,61 @@ class RiskSignalType(StrEnum):
     SESSION_CORRECTION_RATE_HIGH = "SESSION_CORRECTION_RATE_HIGH"
     SESSION_OUTSIDE_SCHEDULE_WINDOW = "SESSION_OUTSIDE_SCHEDULE_WINDOW"
     LECTURER_NETWORK_NOT_TRUSTED = "LECTURER_NETWORK_NOT_TRUSTED"
+
+
+class CorrectionRequestType(StrEnum):
+    """Categorized root reason for student attendance correction request."""
+
+    WRONG_ABSENT = "WRONG_ABSENT"
+    WRONG_LATE = "WRONG_LATE"
+    CHECKPOINT_NOT_RECORDED = "CHECKPOINT_NOT_RECORDED"
+    TECHNICAL_FAILURE = "TECHNICAL_FAILURE"
+    DEVICE_FAILURE = "DEVICE_FAILURE"
+    NETWORK_FAILURE = "NETWORK_FAILURE"
+    QR_FAILURE = "QR_FAILURE"
+    BLE_FAILURE = "BLE_FAILURE"
+    OFFLINE_SYNC_ISSUE = "OFFLINE_SYNC_ISSUE"
+    OTHER = "OTHER"
+
+
+class ExcuseCategory(StrEnum):
+    """Categorized reason for student session or occurrence absence excuse."""
+
+    MEDICAL = "MEDICAL"
+    OFFICIAL_UNIVERSITY_ACTIVITY = "OFFICIAL_UNIVERSITY_ACTIVITY"
+    FAMILY_EMERGENCY = "FAMILY_EMERGENCY"
+    TRANSPORT_DISRUPTION = "TRANSPORT_DISRUPTION"
+    TECHNICAL_SYSTEM_FAILURE = "TECHNICAL_SYSTEM_FAILURE"
+    OTHER = "OTHER"
+
+
+class CorrectionRequestStatus(StrEnum):
+    """Operational workflow lifecycle status for attendance correction requests."""
+
+    PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+    EXPIRED = "EXPIRED"
+    ESCALATED = "ESCALATED"
+
+
+class ExcuseRequestStatus(StrEnum):
+    """Operational workflow lifecycle status for absence excuse requests."""
+
+    PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"
+
+
+class LeaveRequestStatus(StrEnum):
+    """Operational workflow lifecycle status for pre-class leave requests."""
+
+    PENDING = "PENDING"
+    UNDER_REVIEW = "UNDER_REVIEW"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+    CANCELLED = "CANCELLED"

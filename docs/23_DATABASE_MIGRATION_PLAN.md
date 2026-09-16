@@ -64,11 +64,16 @@ To support real testability and adhere to modular milestones, the actual linear 
 │                                  challenges, risk signals)             │
 │      │                                                                 │
 │      ▼                                                                 │
+│  012_attendance_ops_corrections (Milestone 15 - corrections, excuses,  │
+│                                 leave requests, workflow foundation)   │
+│      │                                                                 │
+│      ▼                                                                 │
 │  [Subsequent Milestones - presence fraud, risk flags, reporting]       │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 011 are fully applied, verified reversible, and operational as of Milestone 14 (011_campus_presence_anti_cheat).*
+*Note: Migrations 001 through 012 are fully applied, verified reversible, and operational as of Milestone 15 Part 1 (012_attendance_ops_corrections).*
+
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 

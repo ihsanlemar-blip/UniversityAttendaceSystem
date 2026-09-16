@@ -94,7 +94,18 @@ SYSTEM_PERMISSIONS = [
         "Review, acknowledge, resolve, or dismiss anti-cheat risk signals",
     ),
     ("security.radio_analysis.read", "View classroom BLE radio environment diagnostics"),
+    ("attendance.corrections.request", "Submit student attendance correction request"),
+    ("attendance.corrections.review", "Review, approve, or reject attendance correction requests"),
+    (
+        "attendance.corrections.override",
+        "Privileged administrative override outside normal correction window",
+    ),
+    ("attendance.excuses.request", "Submit student attendance excuse request"),
+    ("attendance.excuses.review", "Review, approve, or reject attendance excuse requests"),
+    ("attendance.leave.request", "Submit student attendance leave request"),
+    ("attendance.leave.review", "Review, approve, or reject student attendance leave requests"),
 ]
+
 
 # Base role definitions
 SYSTEM_ROLES = [
@@ -258,7 +269,15 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "security.risk_signals.read",
             "security.risk_signals.review",
             "security.radio_analysis.read",
+            "attendance.corrections.request",
+            "attendance.corrections.review",
+            "attendance.corrections.override",
+            "attendance.excuses.request",
+            "attendance.excuses.review",
+            "attendance.leave.request",
+            "attendance.leave.review",
         ]
+
         for admin_p_code in uni_admin_perms:
             target_perm = perm_map.get(admin_p_code)
             if target_perm:
@@ -312,6 +331,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "security.risk_signals.read",
             "security.risk_signals.review",
             "security.radio_analysis.read",
+            "attendance.corrections.review",
+            "attendance.corrections.override",
+            "attendance.excuses.review",
+            "attendance.leave.review",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -368,6 +391,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "security.risk_signals.read",
             "security.risk_signals.review",
             "security.radio_analysis.read",
+            "attendance.corrections.review",
+            "attendance.corrections.override",
+            "attendance.excuses.review",
+            "attendance.leave.review",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -406,6 +433,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "devices.replacement_review",
             "devices.suspend",
             "devices.revoke",
+            "attendance.corrections.review",
+            "attendance.corrections.override",
+            "attendance.excuses.review",
+            "attendance.leave.review",
         ]
         for off_p_code in officer_perms:
             target_perm = perm_map.get(off_p_code)
@@ -444,6 +475,9 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance_records.read",
             "attendance_records.override",
             "attendance_audit.read",
+            "attendance.corrections.review",
+            "attendance.excuses.review",
+            "attendance.leave.review",
         ]
         for p_code in lecturer_perms:
             target_perm = perm_map.get(p_code)
@@ -471,7 +505,11 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "devices.self_read",
             "devices.self_register",
             "devices.replacement_request",
+            "attendance.corrections.request",
+            "attendance.excuses.request",
+            "attendance.leave.request",
         ]
+
         target_perm_ids = {perm_map[p].id for p in student_perms if p in perm_map}
         for p_code in student_perms:
             target_perm = perm_map.get(p_code)
