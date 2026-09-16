@@ -114,6 +114,28 @@ void main() {
       expect(sigBytes.length, equals(64));
     });
 
+    test('Signs campus network presence challenge payload', () async {
+      final service = DeviceKeyService();
+      await service.ensureKeyPair();
+
+      final sig = await service.signNetworkPresenceChallenge(
+        challengeId: '0192323e-6708-724a-a43b-8106daee86fa',
+        nonce: 'nonce_hex_value_1234567890abcdef',
+        userId: '0192323e-6708-724a-a43b-8106daee86fb',
+        universityId: '0192323e-6708-724a-a43b-8106daee86fc',
+        deviceId: '0192323e-6708-724a-a43b-8106daee86fd',
+        sessionId: '0192323e-6708-724a-a43b-8106daee86fe',
+        checkpointId: '0192323e-6708-724a-a43b-8106daee86ff',
+        networkZoneId: '0192323e-6708-724a-a43b-8106daee8600',
+        issuedIso: '2026-09-15T10:00:00.000000Z',
+        expiresIso: '2026-09-15T10:00:20.000000Z',
+      );
+
+      expect(sig, isNotEmpty);
+      final sigBytes = base64Decode(sig);
+      expect(sigBytes.length, equals(64));
+    });
+
     test('Device status and metadata persistence lifecycle', () async {
       final service = DeviceKeyService();
       expect(await service.getDeviceStatus(), equals('UNREGISTERED'));

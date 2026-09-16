@@ -10,6 +10,7 @@ from backend.app.models.attendance_revision import AttendanceRevision
 from backend.app.models.attendance_session import AttendanceSession
 from backend.app.models.base import Base, TimestampMixin, UUIDv7PrimaryKeyMixin
 from backend.app.models.building import Building
+from backend.app.models.campus_network import CampusNetworkChallenge, CampusNetworkZone
 from backend.app.models.class_occurrence import ClassOccurrence
 from backend.app.models.course import Course
 from backend.app.models.course_offering import CourseOffering
@@ -27,6 +28,7 @@ from backend.app.models.offline_attendance import (
 )
 from backend.app.models.permission import Permission
 from backend.app.models.refresh_session import RefreshSession
+from backend.app.models.risk_signal import AttendanceRiskSignal
 from backend.app.models.role import Role
 from backend.app.models.role_assignment import RoleAssignment
 from backend.app.models.role_permission import RolePermission
@@ -52,9 +54,12 @@ __all__ = [
     "AttendancePolicy",
     "AttendanceRecord",
     "AttendanceRevision",
+    "AttendanceRiskSignal",
     "AttendanceSession",
     "Base",
     "Building",
+    "CampusNetworkChallenge",
+    "CampusNetworkZone",
     "ClassOccurrence",
     "Course",
     "CourseOffering",

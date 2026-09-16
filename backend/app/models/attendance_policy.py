@@ -4,7 +4,7 @@ import datetime
 import uuid
 from typing import TYPE_CHECKING, Any
 
-from sqlalchemy import CheckConstraint, Date, ForeignKey, Index, Integer, Numeric, String
+from sqlalchemy import Boolean, CheckConstraint, Date, ForeignKey, Index, Integer, Numeric, String
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -146,6 +146,21 @@ class AttendancePolicy(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
     status: Mapped[str] = mapped_column(
         String(20),
         default=RecordStatus.ACTIVE.value,
+        nullable=False,
+    )
+    network_presence_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="DISABLED",
+        nullable=False,
+    )
+    lecturer_network_presence_mode: Mapped[str] = mapped_column(
+        String(20),
+        default="DISABLED",
+        nullable=False,
+    )
+    allow_university_wide_zones: Mapped[bool] = mapped_column(
+        Boolean,
+        default=True,
         nullable=False,
     )
     effective_from: Mapped[datetime.date | None] = mapped_column(

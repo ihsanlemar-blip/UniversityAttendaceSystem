@@ -61,6 +61,7 @@ class QrCheckInService {
   Future<QrCheckInResult> submitQrCheckIn({
     required String token,
     Map<String, dynamic>? deviceProof,
+    Map<String, dynamic>? networkProof,
     required String authToken,
   }) async {
     final uri = Uri.parse('$baseUrl/api/v1/attendance/qr/check-in');
@@ -73,6 +74,9 @@ class QrCheckInService {
     final Map<String, dynamic> body = {'token': token};
     if (deviceProof != null) {
       body['device_proof'] = deviceProof;
+    }
+    if (networkProof != null) {
+      body['network_proof'] = networkProof;
     }
     final payload = jsonEncode(body);
     request.write(payload);

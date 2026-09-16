@@ -9,10 +9,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from backend.app.core.constants import (
     AttendanceStatus,
     EvidenceSourceMode,
+    NetworkPresenceMode,
     PolicyScopeType,
     RecordStatus,
 )
 from backend.app.devices.schemas import DeviceProofSchema
+from backend.app.security.schemas import NetworkProofSchema
 
 # ==========================================
 # Attendance Policy Schemas
@@ -50,6 +52,11 @@ class AttendancePolicyCreateRequest(BaseModel):
     )
     effective_from: datetime.date | None = Field(default=None)
     effective_to: datetime.date | None = Field(default=None)
+    network_presence_mode: NetworkPresenceMode = Field(default=NetworkPresenceMode.DISABLED)
+    lecturer_network_presence_mode: NetworkPresenceMode = Field(
+        default=NetworkPresenceMode.DISABLED
+    )
+    allow_university_wide_zones: bool = Field(default=True)
 
 
 class AttendancePolicyUpdateRequest(BaseModel):
@@ -67,6 +74,9 @@ class AttendancePolicyUpdateRequest(BaseModel):
     status: RecordStatus | None = Field(default=None)
     effective_from: datetime.date | None = Field(default=None)
     effective_to: datetime.date | None = Field(default=None)
+    network_presence_mode: NetworkPresenceMode | None = Field(default=None)
+    lecturer_network_presence_mode: NetworkPresenceMode | None = Field(default=None)
+    allow_university_wide_zones: bool | None = Field(default=None)
 
 
 class AttendancePolicyResponse(BaseModel):
@@ -92,6 +102,9 @@ class AttendancePolicyResponse(BaseModel):
     status: str
     effective_from: datetime.date | None = None
     effective_to: datetime.date | None = None
+    network_presence_mode: str = "DISABLED"
+    lecturer_network_presence_mode: str = "DISABLED"
+    allow_university_wide_zones: bool = True
     created_at: datetime.datetime
     updated_at: datetime.datetime
 
@@ -232,6 +245,10 @@ class QrCheckInRequest(BaseModel):
         default=None,
         description="Cryptographic proof of possession from primary trusted device.",
     )
+    network_proof: NetworkProofSchema | None = Field(
+        default=None,
+        description="Cryptographic proof of campus network presence.",
+    )
 
 
 class QrCheckInResponse(BaseModel):
@@ -296,6 +313,10 @@ class PresenceCheckInRequest(BaseModel):
     device_proof: DeviceProofSchema | None = Field(
         default=None,
         description="Cryptographic proof of possession from primary trusted device.",
+    )
+    network_proof: NetworkProofSchema | None = Field(
+        default=None,
+        description="Cryptographic proof of campus network presence.",
     )
 
 

@@ -144,6 +144,10 @@ class PermissionCode(StrEnum):
     DEVICES_REPLACEMENT_REVIEW = "devices.replacement_review"
     DEVICES_SUSPEND = "devices.suspend"
     DEVICES_REVOKE = "devices.revoke"
+    SECURITY_NETWORK_ZONES_MANAGE = "security.network_zones.manage"
+    SECURITY_RISK_SIGNALS_READ = "security.risk_signals.read"
+    SECURITY_RISK_SIGNALS_REVIEW = "security.risk_signals.review"
+    SECURITY_RADIO_ANALYSIS_READ = "security.radio_analysis.read"
 
 
 class StudentStatus(StrEnum):
@@ -286,6 +290,7 @@ class EvidenceSourceMode(StrEnum):
     PHYSICAL_CARD_FALLBACK = "PHYSICAL_CARD_FALLBACK"
     ONLINE_DYNAMIC_QR = "ONLINE_DYNAMIC_QR"
     BLUETOOTH_BLE = "BLUETOOTH_BLE"
+    CAMPUS_NETWORK = "CAMPUS_NETWORK"
     OFFLINE_SYNC = "OFFLINE_SYNC"
 
 
@@ -417,3 +422,79 @@ class DeviceTrustEventType(StrEnum):
     DEVICE_REACTIVATED = "DEVICE_REACTIVATED"
     DEVICE_REVOKED = "DEVICE_REVOKED"
     DEVICE_MARKED_COMPROMISED = "DEVICE_MARKED_COMPROMISED"
+
+
+class NetworkPresenceMode(StrEnum):
+    """Attendance session campus network presence policy mode."""
+
+    DISABLED = "DISABLED"
+    OPTIONAL = "OPTIONAL"
+    REQUIRED = "REQUIRED"
+
+
+class NetworkZoneType(StrEnum):
+    """Campus network zone classification."""
+
+    CAMPUS_TRUSTED = "CAMPUS_TRUSTED"
+    REMOTE_VPN = "REMOTE_VPN"
+    ADMIN_NETWORK = "ADMIN_NETWORK"
+    OTHER = "OTHER"
+
+
+class NetworkZoneStatus(StrEnum):
+    """Campus network zone operational status."""
+
+    ACTIVE = "ACTIVE"
+    DISABLED = "DISABLED"
+
+
+class NetworkChallengeStatus(StrEnum):
+    """Campus network challenge verification state."""
+
+    ISSUED = "ISSUED"
+    CONSUMED = "CONSUMED"
+    EXPIRED = "EXPIRED"
+
+
+class RiskSignalStatus(StrEnum):
+    """Attendance risk signal review workflow status."""
+
+    OPEN = "OPEN"
+    ACKNOWLEDGED = "ACKNOWLEDGED"
+    RESOLVED = "RESOLVED"
+    DISMISSED = "DISMISSED"
+
+
+class RiskSeverity(StrEnum):
+    """Attendance risk signal severity classification."""
+
+    INFO = "INFO"
+    LOW = "LOW"
+    MEDIUM = "MEDIUM"
+    HIGH = "HIGH"
+
+
+class RiskSubjectType(StrEnum):
+    """Entity subject classification for attendance risk signal."""
+
+    STUDENT = "STUDENT"
+    LECTURER = "LECTURER"
+    SESSION = "SESSION"
+    DEVICE = "DEVICE"
+
+
+class RiskSignalType(StrEnum):
+    """Deterministic, factorized anti-cheat risk signal types."""
+
+    STUDENT_NETWORK_NOT_TRUSTED = "STUDENT_NETWORK_NOT_TRUSTED"
+    STUDENT_NETWORK_ZONE_MISMATCH = "STUDENT_NETWORK_ZONE_MISMATCH"
+    NETWORK_PROOF_REPLAY_ATTEMPT = "NETWORK_PROOF_REPLAY_ATTEMPT"
+    NETWORK_FORWARD_HEADER_SPOOF_ATTEMPT = "NETWORK_FORWARD_HEADER_SPOOF_ATTEMPT"
+    DEVICE_REPLACEMENT_FREQUENCY_HIGH = "DEVICE_REPLACEMENT_FREQUENCY_HIGH"
+    DEVICE_ACCOUNT_REUSE_ATTEMPT = "DEVICE_ACCOUNT_REUSE_ATTEMPT"
+    STUDENT_OVERLAPPING_ATTENDANCE = "STUDENT_OVERLAPPING_ATTENDANCE"
+    SESSION_MANUAL_ATTENDANCE_RATE_HIGH = "SESSION_MANUAL_ATTENDANCE_RATE_HIGH"
+    MASS_MANUAL_ATTENDANCE = "MASS_MANUAL_ATTENDANCE"
+    SESSION_CORRECTION_RATE_HIGH = "SESSION_CORRECTION_RATE_HIGH"
+    SESSION_OUTSIDE_SCHEDULE_WINDOW = "SESSION_OUTSIDE_SCHEDULE_WINDOW"
+    LECTURER_NETWORK_NOT_TRUSTED = "LECTURER_NETWORK_NOT_TRUSTED"

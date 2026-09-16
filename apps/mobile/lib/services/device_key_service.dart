@@ -272,6 +272,40 @@ class DeviceKeyService {
     return base64Encode(sig.bytes);
   }
 
+  /// Sign campus network presence challenge with the registered device Ed25519 key.
+  ///
+  /// Format matching Section 35:
+  /// NETWORK_PRESENCE_V1|{challengeId}|{nonce}|{userId}|{universityId}|{deviceId}|{sessionId}|{checkpointId}|{networkZoneId}|{issuedIso}|{expiresIso}
+  Future<String> signNetworkPresenceChallenge({
+    required String challengeId,
+    required String nonce,
+    required String userId,
+    required String universityId,
+    required String deviceId,
+    required String sessionId,
+    required String checkpointId,
+    required String networkZoneId,
+    required String issuedIso,
+    required String expiresIso,
+  }) async {
+    final keyPair = await getKeyPair();
+    if (keyPair == null) {
+      throw StateError(
+          'No local device keypair available for signing network challenge.');
+    }
+
+    final canonicalString =
+        'NETWORK_PRESENCE_V1|$challengeId|$nonce|$userId|$universityId|'
+        '$deviceId|$sessionId|$checkpointId|$networkZoneId|$issuedIso|$expiresIso';
+
+    final sig = await _algorithm.sign(
+      utf8.encode(canonicalString),
+      keyPair: keyPair,
+    );
+
+    return base64Encode(sig.bytes);
+  }
+
   /// Reset all stored keys and device metadata.
   Future<void> clearAll() async {
     await _storage.delete(key: DeviceStorageKeys.privateKeySeed);

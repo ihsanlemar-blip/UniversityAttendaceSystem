@@ -60,11 +60,15 @@ To support real testability and adhere to modular milestones, the actual linear 
 │                                 replacements, trust events)            │
 │      │                                                                 │
 │      ▼                                                                 │
+│  011_campus_presence_anti_cheat (Milestone 14 - network zones,         │
+│                                  challenges, risk signals)             │
+│      │                                                                 │
+│      ▼                                                                 │
 │  [Subsequent Milestones - presence fraud, risk flags, reporting]       │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 010 are fully applied, verified reversible, and operational as of Milestone 13 (010_device_registration_trust).*
+*Note: Migrations 001 through 011 are fully applied, verified reversible, and operational as of Milestone 14 (011_campus_presence_anti_cheat).*
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)
 

@@ -5,7 +5,8 @@ import hashlib
 import uuid
 from typing import Any
 
-from sqlalchemy import select
+from fastapi import Request
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -31,6 +32,7 @@ from backend.app.core.constants import (
     ClassOccurrenceStatus,
     EnrollmentStatus,
     EvidenceSourceMode,
+    NetworkPresenceMode,
     PolicyScopeType,
     RecordStatus,
 )
@@ -49,11 +51,16 @@ from backend.app.models.attendance_policy import (
 from backend.app.models.attendance_record import AttendanceRecord
 from backend.app.models.attendance_revision import AttendanceRevision
 from backend.app.models.attendance_session import AttendanceSession
+from backend.app.models.campus_network import CampusNetworkZone
 from backend.app.models.class_occurrence import ClassOccurrence
 from backend.app.models.course_offering import CourseOffering
 from backend.app.models.enrollment import Enrollment
 from backend.app.models.student import Student
 from backend.app.models.user import User
+from backend.app.security.network_service import CampusNetworkService
+from backend.app.security.resolver import ClientNetworkResolver
+from backend.app.security.risk_service import AntiCheatService
+from backend.app.security.schemas import NetworkProofSchema
 
 
 class AttendanceService:
@@ -96,6 +103,17 @@ class AttendanceService:
             effective_from=payload.effective_from,
             effective_to=payload.effective_to,
             status=RecordStatus.ACTIVE.value,
+            network_presence_mode=(
+                payload.network_presence_mode.value
+                if hasattr(payload.network_presence_mode, "value")
+                else str(payload.network_presence_mode)
+            ),
+            lecturer_network_presence_mode=(
+                payload.lecturer_network_presence_mode.value
+                if hasattr(payload.lecturer_network_presence_mode, "value")
+                else str(payload.lecturer_network_presence_mode)
+            ),
+            allow_university_wide_zones=payload.allow_university_wide_zones,
         )
         db.add(policy)
         await db.commit()
@@ -259,6 +277,10 @@ class AttendanceService:
             "presence_requirement_mode": "QR_ONLY",
             "ble_min_rssi": settings.ATTENDANCE_BLE_MIN_RSSI,
             "ble_rotation_seconds": settings.ATTENDANCE_BLE_ROTATION_SECONDS,
+            "network_presence_mode": "DISABLED",
+            "lecturer_network_presence_mode": "DISABLED",
+            "allow_university_wide_zones": True,
+            "network_proof_version": "NETWORK_PRESENCE_V1",
         }
         return None, fallback_snapshot
 
@@ -288,6 +310,18 @@ class AttendanceService:
             if ble_min_rssi is not None
             else settings.ATTENDANCE_BLE_MIN_RSSI,
             "ble_rotation_seconds": settings.ATTENDANCE_BLE_ROTATION_SECONDS,
+            "network_presence_mode": getattr(policy, "network_presence_mode", "DISABLED")
+            or "DISABLED",
+            "lecturer_network_presence_mode": getattr(
+                policy, "lecturer_network_presence_mode", "DISABLED"
+            )
+            or "DISABLED",
+            "allow_university_wide_zones": (
+                getattr(policy, "allow_university_wide_zones", True)
+                if getattr(policy, "allow_university_wide_zones", None) is not None
+                else True
+            ),
+            "network_proof_version": "NETWORK_PRESENCE_V1",
         }
 
     # =========================================================================
@@ -1103,6 +1137,8 @@ class AttendanceService:
         token: str,
         current_user: User,
         device_proof: DeviceProofSchema | None = None,
+        network_proof: NetworkProofSchema | None = None,
+        request: Request | None = None,
         current_time: datetime.datetime | None = None,
     ) -> QrCheckInResponse:
         """Verify dynamic presence QR token submitted by an enrolled student.
@@ -1114,6 +1150,7 @@ class AttendanceService:
         - INV-05: Exactly one checkpoint credit per student (idempotent duplicate response).
         - Shared classroom token: Multiple students can scan the same rotating classroom QR.
         - Milestone 13: Cryptographic primary device trust binding (INV-01/INV-02).
+        - Milestone 14: Campus network presence verification and anti-cheat signal generation.
         - Cryptographic separation & zero migration schema drift.
         """
         now = current_time or utc_now()
@@ -1189,7 +1226,127 @@ class AttendanceService:
                 "public_key_fingerprint": trusted_dev.public_key_fingerprint,
             }
 
-        # 4. Check if student already has verified evidence for this checkpoint (idempotency check)
+        # 4. Campus Network Presence Evaluation (Milestone 14)
+        net_mode = (
+            session.policy_snapshot.get("network_presence_mode", NetworkPresenceMode.DISABLED.value)
+            if session and session.policy_snapshot
+            else NetworkPresenceMode.DISABLED.value
+        )
+        network_meta: dict[str, Any] = {"network_presence_mode": net_mode}
+
+        if net_mode == NetworkPresenceMode.REQUIRED.value:
+            zc_stmt = select(func.count(CampusNetworkZone.id)).where(
+                CampusNetworkZone.university_id == current_user.university_id,
+                CampusNetworkZone.status == "ACTIVE",
+            )
+            zc_res = await db.execute(zc_stmt)
+            if (zc_res.scalar() or 0) == 0:
+                raise DomainException(
+                    code="NETWORK_POLICY_MISCONFIGURED",
+                    message=(
+                        "Policy requires campus network presence, but no active campus"
+                        " network zones are configured."
+                    ),
+                    status_code=400,
+                )
+
+            if not network_proof:
+                raise DomainException(
+                    code="NETWORK_PROOF_REQUIRED",
+                    message="Campus network presence proof is required for attendance.",
+                    status_code=403,
+                )
+
+            if request is not None:
+                challenge = await CampusNetworkService.verify_and_consume_network_proof(
+                    db=db,
+                    current_user=current_user,
+                    network_proof=network_proof,
+                    expected_session_id=session_id,
+                    expected_checkpoint_id=checkpoint_id,
+                    request=request,
+                    current_time=now,
+                )
+                network_meta = {
+                    "network_presence_mode": net_mode,
+                    "network_zone_id": str(challenge.network_zone_id)
+                    if challenge.network_zone_id
+                    else None,
+                    "network_challenge_id": str(challenge.id),
+                    "network_proof_version": network_proof.version,
+                    "trusted_network": True,
+                }
+        elif net_mode == NetworkPresenceMode.OPTIONAL.value:
+            if network_proof and request is not None:
+                try:
+                    challenge = await CampusNetworkService.verify_and_consume_network_proof(
+                        db=db,
+                        current_user=current_user,
+                        network_proof=network_proof,
+                        expected_session_id=session_id,
+                        expected_checkpoint_id=checkpoint_id,
+                        request=request,
+                        current_time=now,
+                    )
+                    network_meta = {
+                        "network_presence_mode": net_mode,
+                        "network_zone_id": str(challenge.network_zone_id)
+                        if challenge.network_zone_id
+                        else None,
+                        "network_challenge_id": str(challenge.id),
+                        "network_proof_version": network_proof.version,
+                        "trusted_network": True,
+                    }
+                except DomainException:
+                    effective_ip, _, _ = ClientNetworkResolver.extract_effective_client_ip(request)
+                    occ_id = session.class_occurrence_id if session else None
+                    dev_id = (
+                        uuid.UUID(device_meta["trusted_device_id"])
+                        if "trusted_device_id" in device_meta
+                        else None
+                    )
+                    await AntiCheatService.record_untrusted_network_signal(
+                        db=db,
+                        university_id=current_user.university_id,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        occurrence_id=occ_id,
+                        client_ip=effective_ip,
+                        trusted_device_id=dev_id,
+                    )
+                    network_meta = {"network_presence_mode": net_mode, "trusted_network": False}
+            elif request is not None:
+                effective_ip, _, _ = ClientNetworkResolver.extract_effective_client_ip(request)
+                zone = await ClientNetworkResolver.match_campus_network_zone(
+                    db=db,
+                    university_id=current_user.university_id,
+                    client_ip=effective_ip,
+                )
+                if not zone:
+                    occ_id = session.class_occurrence_id if session else None
+                    dev_id = (
+                        uuid.UUID(device_meta["trusted_device_id"])
+                        if "trusted_device_id" in device_meta
+                        else None
+                    )
+                    await AntiCheatService.record_untrusted_network_signal(
+                        db=db,
+                        university_id=current_user.university_id,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        occurrence_id=occ_id,
+                        client_ip=effective_ip,
+                        trusted_device_id=dev_id,
+                    )
+                    network_meta = {"network_presence_mode": net_mode, "trusted_network": False}
+                else:
+                    network_meta = {
+                        "network_presence_mode": net_mode,
+                        "network_zone_id": str(zone.id),
+                        "trusted_network": True,
+                    }
+
+        # 5. Check if student already has verified evidence for this checkpoint (idempotency check)
         ev_stmt = select(AttendanceEvidence).where(
             AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
             AttendanceEvidence.student_id == student.id,
@@ -1198,7 +1355,7 @@ class AttendanceService:
         existing_evidence = ev_res.scalar_one_or_none()
         already_credited = existing_evidence is not None
 
-        # 5. Hash token for audit trail & metadata storage
+        # 6. Hash token for audit trail & metadata storage
         token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
         evidence_metadata = {
             "token_hash": token_hash,
@@ -1206,6 +1363,7 @@ class AttendanceService:
             "jti": claims.get("jti"),
             "issued_at": claims.get("iat"),
             **device_meta,
+            **network_meta,
         }
 
         # 6. Record verified checkpoint credit via domain service
@@ -1358,6 +1516,8 @@ class AttendanceService:
         qr_token: str | None = None,
         ble_observation: BleObservationSchema | None = None,
         device_proof: DeviceProofSchema | None = None,
+        network_proof: NetworkProofSchema | None = None,
+        request: Request | None = None,
         current_time: datetime.datetime | None = None,
     ) -> PresenceCheckInResponse:
         """Verify unified multi-factor presence evidence (dynamic QR and/or BLE proximity).
@@ -1370,6 +1530,7 @@ class AttendanceService:
         - Multi-factor policy evaluation (QR_ONLY vs QR_AND_BLE).
         - RSSI threshold validation against session policy snapshot.
         - Milestone 13: Cryptographic primary device trust binding (INV-01/INV-02).
+        - Milestone 14: Campus network presence verification and anti-cheat signal generation.
         - Shared classroom broadcast: multiple enrolled students can submit the same broadcast.
         """
         now = current_time or utc_now()
@@ -1533,7 +1694,129 @@ class AttendanceService:
                 "public_key_fingerprint": trusted_dev.public_key_fingerprint,
             }
 
-        # 6. Idempotency Check (INV-05)
+        # 6. Campus Network Presence Evaluation (Milestone 14)
+        net_mode = (
+            session.policy_snapshot.get("network_presence_mode", NetworkPresenceMode.DISABLED.value)
+            if session and session.policy_snapshot
+            else NetworkPresenceMode.DISABLED.value
+        )
+        network_meta: dict[str, Any] = {"network_presence_mode": net_mode}
+
+        if net_mode == NetworkPresenceMode.REQUIRED.value:
+            zc_stmt = select(func.count(CampusNetworkZone.id)).where(
+                CampusNetworkZone.university_id == current_user.university_id,
+                CampusNetworkZone.status == "ACTIVE",
+            )
+            zc_res = await db.execute(zc_stmt)
+            if (zc_res.scalar() or 0) == 0:
+                raise DomainException(
+                    code="NETWORK_POLICY_MISCONFIGURED",
+                    message=(
+                        "Policy requires campus network presence, but no active campus"
+                        " network zones are configured."
+                    ),
+                    status_code=400,
+                )
+
+            if not network_proof:
+                raise DomainException(
+                    code="NETWORK_PROOF_REQUIRED",
+                    message="Campus network presence proof is required for attendance.",
+                    status_code=403,
+                )
+
+            if request is not None:
+                challenge = await CampusNetworkService.verify_and_consume_network_proof(
+                    db=db,
+                    current_user=current_user,
+                    network_proof=network_proof,
+                    expected_session_id=session_id,
+                    expected_checkpoint_id=checkpoint_id,
+                    request=request,
+                    current_time=now,
+                )
+                network_meta = {
+                    "network_presence_mode": net_mode,
+                    "network_zone_id": str(challenge.network_zone_id)
+                    if challenge.network_zone_id
+                    else None,
+                    "network_challenge_id": str(challenge.id),
+                    "network_proof_version": network_proof.version,
+                    "trusted_network": True,
+                }
+                verified_factors.append(EvidenceSourceMode.CAMPUS_NETWORK.value)
+        elif net_mode == NetworkPresenceMode.OPTIONAL.value:
+            if network_proof and request is not None:
+                try:
+                    challenge = await CampusNetworkService.verify_and_consume_network_proof(
+                        db=db,
+                        current_user=current_user,
+                        network_proof=network_proof,
+                        expected_session_id=session_id,
+                        expected_checkpoint_id=checkpoint_id,
+                        request=request,
+                        current_time=now,
+                    )
+                    network_meta = {
+                        "network_presence_mode": net_mode,
+                        "network_zone_id": str(challenge.network_zone_id)
+                        if challenge.network_zone_id
+                        else None,
+                        "network_challenge_id": str(challenge.id),
+                        "network_proof_version": network_proof.version,
+                        "trusted_network": True,
+                    }
+                    verified_factors.append(EvidenceSourceMode.CAMPUS_NETWORK.value)
+                except DomainException:
+                    effective_ip, _, _ = ClientNetworkResolver.extract_effective_client_ip(request)
+                    occ_id = session.class_occurrence_id if session else None
+                    dev_id = (
+                        uuid.UUID(device_meta["trusted_device_id"])
+                        if "trusted_device_id" in device_meta
+                        else None
+                    )
+                    await AntiCheatService.record_untrusted_network_signal(
+                        db=db,
+                        university_id=current_user.university_id,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        occurrence_id=occ_id,
+                        client_ip=effective_ip,
+                        trusted_device_id=dev_id,
+                    )
+                    network_meta = {"network_presence_mode": net_mode, "trusted_network": False}
+            elif request is not None:
+                effective_ip, _, _ = ClientNetworkResolver.extract_effective_client_ip(request)
+                zone = await ClientNetworkResolver.match_campus_network_zone(
+                    db=db,
+                    university_id=current_user.university_id,
+                    client_ip=effective_ip,
+                )
+                if not zone:
+                    occ_id = session.class_occurrence_id if session else None
+                    dev_id = (
+                        uuid.UUID(device_meta["trusted_device_id"])
+                        if "trusted_device_id" in device_meta
+                        else None
+                    )
+                    await AntiCheatService.record_untrusted_network_signal(
+                        db=db,
+                        university_id=current_user.university_id,
+                        user_id=current_user.id,
+                        session_id=session_id,
+                        occurrence_id=occ_id,
+                        client_ip=effective_ip,
+                        trusted_device_id=dev_id,
+                    )
+                    network_meta = {"network_presence_mode": net_mode, "trusted_network": False}
+                else:
+                    network_meta = {
+                        "network_presence_mode": net_mode,
+                        "network_zone_id": str(zone.id),
+                        "trusted_network": True,
+                    }
+
+        # 7. Idempotency Check (INV-05)
         ev_stmt = select(AttendanceEvidence).where(
             AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
             AttendanceEvidence.student_id == student.id,
@@ -1542,11 +1825,12 @@ class AttendanceService:
         existing_evidence = ev_res.scalar_one_or_none()
         already_credited = existing_evidence is not None
 
-        # 7. Build evidence metadata
+        # 8. Build evidence metadata
         evidence_metadata: dict[str, Any] = {
             "presence_mode": policy_mode,
             "factors": verified_factors,
             **device_meta,
+            **network_meta,
         }
         if qr_claims and qr_token:
             evidence_metadata["qr_token_hash"] = hashlib.sha256(

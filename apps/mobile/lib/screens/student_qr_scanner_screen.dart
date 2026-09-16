@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import '../core/offline/offline_storage.dart';
 import '../services/ble_scanner_service.dart';
+import '../services/campus_network_service.dart';
 import '../services/device_key_service.dart';
 import '../services/presence_checkin_service.dart';
 import '../services/qr_checkin_service.dart';
@@ -24,6 +26,7 @@ class StudentQrScannerScreen extends StatefulWidget {
   final PresenceCheckInService? presenceCheckInService;
   final BleScannerInterface? bleScanner;
   final DeviceKeyService? deviceKeyService;
+  final CampusNetworkService? campusNetworkService;
   final String authToken;
   final String? userId;
   final String? universityId;
@@ -38,6 +41,7 @@ class StudentQrScannerScreen extends StatefulWidget {
     this.presenceCheckInService,
     this.bleScanner,
     this.deviceKeyService,
+    this.campusNetworkService,
     required this.authToken,
     this.userId,
     this.universityId,
@@ -186,10 +190,37 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
         }
       }
 
+      // Build Network Proof (Milestone 14)
+      Map<String, dynamic>? networkProof;
+      if (widget.campusNetworkService != null &&
+          widget.userId != null &&
+          widget.universityId != null) {
+        String? checkpointId;
+        try {
+          final parts = trimmed.split('.');
+          if (parts.length == 3) {
+            final normalized = base64Url.normalize(parts[1]);
+            final payloadJson = utf8.decode(base64Url.decode(normalized));
+            final claims = jsonDecode(payloadJson) as Map<String, dynamic>;
+            checkpointId = claims['cid'] as String?;
+          }
+        } catch (_) {}
+
+        if (checkpointId != null) {
+          networkProof = await widget.campusNetworkService!.obtainNetworkProof(
+            checkpointId: checkpointId,
+            authToken: widget.authToken,
+            userId: widget.userId!,
+            universityId: widget.universityId!,
+          );
+        }
+      }
+
       final result = await _presenceService.submitPresenceCheckIn(
         qrToken: trimmed,
         bleObservation: _latestBleObservation ?? _bleScanner?.latestObservation,
         deviceProof: deviceProof,
+        networkProof: networkProof,
         authToken: widget.authToken,
       );
 

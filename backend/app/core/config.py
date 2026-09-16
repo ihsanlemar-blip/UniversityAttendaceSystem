@@ -182,10 +182,59 @@ class Settings(BaseSettings):
     )
 
     # =========================================================================
-    # 6. NETWORK Settings
+    # 6. NETWORK & Anti-Cheat Presence Settings (Milestone 14)
     # =========================================================================
     CAMPUS_TRUSTED_SUBNETS: str = Field(default="192.168.0.0/16,10.0.0.0/8")
     CAMPUS_NETWORK_CHECK_ENABLED: bool = Field(default=True)
+    TRUSTED_PROXY_CIDRS: str = Field(
+        default="127.0.0.1/32,::1/128",
+        description=(
+            "Comma-separated CIDRs of trusted reverse proxies allowed to set"
+            " forwarded client headers."
+        ),
+    )
+    ATTENDANCE_NETWORK_CHALLENGE_TTL_SECONDS: int = Field(
+        default=20,
+        description=(
+            "Lifetime of short-lived campus network presence challenge in seconds (default 20s)."
+        ),
+    )
+    ATTENDANCE_ANTI_CHEAT_ENABLED: bool = Field(
+        default=True,
+        description="Enable anti-cheat signal detection and audit logging.",
+    )
+    ANTI_CHEAT_REPLACEMENT_THRESHOLD_COUNT: int = Field(
+        default=2,
+        description=(
+            "Approved device replacements count in rolling window triggering high frequency signal."
+        ),
+    )
+    ANTI_CHEAT_REPLACEMENT_WINDOW_DAYS: int = Field(
+        default=30,
+        description="Rolling window days for device replacement frequency check.",
+    )
+    ANTI_CHEAT_MANUAL_RATE_THRESHOLD_PERCENT: float = Field(
+        default=30.0,
+        description=(
+            "Percentage of roster manually credited triggering manual attendance rate signal."
+        ),
+    )
+    ANTI_CHEAT_MASS_MANUAL_COUNT_THRESHOLD: int = Field(
+        default=15,
+        description=(
+            "Single-actor manual attendance count in session triggering mass manual signal."
+        ),
+    )
+    ANTI_CHEAT_CORRECTION_RATE_THRESHOLD_PERCENT: float = Field(
+        default=20.0,
+        description="Percentage of session records revised triggering high correction rate signal.",
+    )
+    ANTI_CHEAT_SCHEDULE_DEVIATION_MINUTES: int = Field(
+        default=60,
+        description=(
+            "Minutes deviation from scheduled occurrence start triggering schedule window signal."
+        ),
+    )
 
     # =========================================================================
     # 7. CLOUD SYNC & BACKUP Placeholders

@@ -51,6 +51,8 @@ apps/mobile/build/
 
 # Android build artifacts
 apps/mobile/android/.gradle/
+apps/mobile/android/.kotlin/
+.kotlin/
 apps/mobile/android/local.properties
 apps/mobile/android/app/build/
 *.keystore

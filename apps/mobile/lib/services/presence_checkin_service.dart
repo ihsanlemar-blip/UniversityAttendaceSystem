@@ -74,6 +74,7 @@ class PresenceCheckInService {
     String? qrToken,
     BleObservation? bleObservation,
     Map<String, dynamic>? deviceProof,
+    Map<String, dynamic>? networkProof,
     required String authToken,
   }) async {
     final uri = Uri.parse('$baseUrl/api/v1/attendance/presence/check-in');
@@ -92,6 +93,9 @@ class PresenceCheckInService {
     }
     if (deviceProof != null) {
       body['device_proof'] = deviceProof;
+    }
+    if (networkProof != null) {
+      body['network_proof'] = networkProof;
     }
 
     final payload = jsonEncode(body);

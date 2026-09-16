@@ -87,6 +87,13 @@ SYSTEM_PERMISSIONS = [
     ("devices.replacement_review", "Approve or reject student device replacement requests"),
     ("devices.suspend", "Suspend registered student devices"),
     ("devices.revoke", "Revoke or mark compromised student devices"),
+    ("security.network_zones.manage", "Create, update, and manage campus network zones"),
+    ("security.risk_signals.read", "View anti-cheat and security risk signals"),
+    (
+        "security.risk_signals.review",
+        "Review, acknowledge, resolve, or dismiss anti-cheat risk signals",
+    ),
+    ("security.radio_analysis.read", "View classroom BLE radio environment diagnostics"),
 ]
 
 # Base role definitions
@@ -243,6 +250,14 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance_records.read",
             "attendance_records.override",
             "attendance_audit.read",
+            "devices.read",
+            "devices.replacement_review",
+            "devices.suspend",
+            "devices.revoke",
+            "security.network_zones.manage",
+            "security.risk_signals.read",
+            "security.risk_signals.review",
+            "security.radio_analysis.read",
         ]
         for admin_p_code in uni_admin_perms:
             target_perm = perm_map.get(admin_p_code)
@@ -294,6 +309,9 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "devices.replacement_review",
             "devices.suspend",
             "devices.revoke",
+            "security.risk_signals.read",
+            "security.risk_signals.review",
+            "security.radio_analysis.read",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -347,6 +365,9 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "devices.replacement_review",
             "devices.suspend",
             "devices.revoke",
+            "security.risk_signals.read",
+            "security.risk_signals.review",
+            "security.radio_analysis.read",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -492,6 +513,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance_records.read",
             "attendance_audit.read",
             "devices.read",
+            "security.risk_signals.read",
+            "security.radio_analysis.read",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)

@@ -77,16 +77,16 @@ jobs:
         shard:
           - name: "Backend Shard 1 (Platform & RBAC)"
             id: 1
-            tests: "backend/tests/test_api_v1.py backend/tests/test_auth.py backend/tests/test_bootstrap.py backend/tests/test_celery.py backend/tests/test_config.py backend/tests/test_database.py backend/tests/test_errors.py backend/tests/test_health.py backend/tests/test_middleware.py backend/tests/test_passwords.py backend/tests/test_rbac.py backend/tests/test_redis.py backend/tests/test_tokens.py backend/tests/test_types.py backend/tests/test_users.py"
-          - name: "Backend Shard 2 (Academic Domain)"
+            tests: "backend/tests/test_api_v1.py backend/tests/test_auth.py backend/tests/test_bootstrap.py backend/tests/test_celery.py backend/tests/test_config.py backend/tests/test_database.py backend/tests/test_errors.py backend/tests/test_health.py backend/tests/test_middleware.py backend/tests/test_passwords.py backend/tests/test_rbac.py backend/tests/test_redis.py backend/tests/test_tokens.py backend/tests/test_types.py backend/tests/test_users.py backend/tests/test_network_resolver.py"
+          - name: "Backend Shard 2 (Academic Domain & Security)"
             id: 2
-            tests: "backend/tests/test_academic_calendar.py backend/tests/test_academic_rbac.py backend/tests/test_academic_units.py backend/tests/test_courses.py backend/tests/test_curriculum_rbac.py backend/tests/test_offerings.py backend/tests/test_people.py backend/tests/test_sections.py"
-          - name: "Backend Shard 3 (Facilities & Scheduling)"
+            tests: "backend/tests/test_academic_calendar.py backend/tests/test_academic_rbac.py backend/tests/test_academic_units.py backend/tests/test_courses.py backend/tests/test_curriculum_rbac.py backend/tests/test_offerings.py backend/tests/test_people.py backend/tests/test_sections.py backend/tests/test_campus_network_zones.py backend/tests/test_radio_analysis.py backend/tests/test_risk_signals.py"
+          - name: "Backend Shard 3 (Facilities, Device Trust & Network)"
             id: 3
-            tests: "backend/tests/test_facilities.py backend/tests/test_timetables.py backend/tests/test_occurrences.py backend/tests/test_scheduling_rbac.py backend/tests/test_device_crypto.py backend/tests/test_device_registration.py backend/tests/test_device_replacement.py backend/tests/test_device_rbac.py"
-          - name: "Backend Shard 4 (Attendance & Presence)"
+            tests: "backend/tests/test_facilities.py backend/tests/test_timetables.py backend/tests/test_occurrences.py backend/tests/test_scheduling_rbac.py backend/tests/test_device_crypto.py backend/tests/test_device_registration.py backend/tests/test_device_replacement.py backend/tests/test_device_rbac.py backend/tests/test_network_presence.py backend/tests/test_security_rbac.py"
+          - name: "Backend Shard 4 (Attendance, Presence & Anti-Cheat)"
             id: 4
-            tests: "backend/tests/test_attendance_policy.py backend/tests/test_attendance_sessions.py backend/tests/test_attendance_checkpoints.py backend/tests/test_attendance_evaluation.py backend/tests/test_attendance_overrides_and_audit.py backend/tests/test_attendance_rbac.py backend/tests/test_qr_tokens.py backend/tests/test_qr_service.py backend/tests/test_qr_rbac.py backend/tests/test_ble_tokens.py backend/tests/test_ble_service.py backend/tests/test_ble_rbac.py backend/tests/test_offline_crypto.py backend/tests/test_offline_service.py backend/tests/test_offline_reconciliation.py backend/tests/test_offline_rbac.py backend/tests/test_attendance_device_trust.py backend/tests/test_offline_device_trust.py"
+            tests: "backend/tests/test_attendance_policy.py backend/tests/test_attendance_sessions.py backend/tests/test_attendance_checkpoints.py backend/tests/test_attendance_evaluation.py backend/tests/test_attendance_overrides_and_audit.py backend/tests/test_attendance_rbac.py backend/tests/test_qr_tokens.py backend/tests/test_qr_service.py backend/tests/test_qr_rbac.py backend/tests/test_ble_tokens.py backend/tests/test_ble_service.py backend/tests/test_ble_rbac.py backend/tests/test_offline_crypto.py backend/tests/test_offline_service.py backend/tests/test_offline_reconciliation.py backend/tests/test_offline_rbac.py backend/tests/test_attendance_device_trust.py backend/tests/test_offline_device_trust.py backend/tests/test_attendance_network_integration.py"
     services:
       postgres:
         image: postgres:16-alpine

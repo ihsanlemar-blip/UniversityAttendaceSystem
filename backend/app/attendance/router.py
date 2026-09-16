@@ -3,7 +3,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query, Response, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
@@ -47,6 +47,8 @@ from backend.app.models.student import Student
 from backend.app.models.user import User
 from backend.app.rbac.dependencies import require_permission
 from backend.app.rbac.service import RbacService
+from backend.app.security.network_service import CampusNetworkService
+from backend.app.security.schemas import NetworkChallengeRequest, NetworkChallengeResponse
 
 router = APIRouter(prefix="/attendance", tags=["Attendance Core Engine"])
 students_router = APIRouter(prefix="/students", tags=["Student Attendance Self-Service"])
@@ -703,10 +705,11 @@ async def get_checkpoint_ble_advertisement(
 @router.post(
     "/presence/check-in",
     response_model=StandardResponse[PresenceCheckInResponse],
-    summary="Unified student presence check-in (dynamic QR + BLE proximity)",
+    summary="Unified student presence check-in (dynamic QR + BLE proximity + campus network)",
 )
 async def student_presence_checkin(
     payload: PresenceCheckInRequest,
+    request: Request,
     current_user: Annotated[
         User, Depends(require_permission("attendance.self_read", allow_scoped=True))
     ],
@@ -714,7 +717,7 @@ async def student_presence_checkin(
 ) -> StandardResponse[PresenceCheckInResponse]:
     """Self-service unified presence check-in for enrolled students.
 
-    Supports single-factor (QR_ONLY) and dual-factor (QR_AND_BLE) presence evaluation.
+    Supports single-factor (QR_ONLY), dual-factor (QR_AND_BLE), and campus network presence.
     Student identity is derived strictly from the authenticated user context (INV-01).
     """
     result = await AttendanceService.verify_presence_checkin(
@@ -723,6 +726,8 @@ async def student_presence_checkin(
         qr_token=payload.qr_token,
         ble_observation=payload.ble_observation,
         device_proof=payload.device_proof,
+        network_proof=payload.network_proof,
+        request=request,
     )
     factors_str = ", ".join(result.verified_factors)
     msg = (
@@ -743,6 +748,7 @@ async def student_presence_checkin(
 )
 async def student_qr_checkin(
     payload: QrCheckInRequest,
+    request: Request,
     current_user: Annotated[
         User, Depends(require_permission("attendance.self_read", allow_scoped=True))
     ],
@@ -757,6 +763,8 @@ async def student_qr_checkin(
         token=payload.token,
         current_user=current_user,
         device_proof=payload.device_proof,
+        network_proof=payload.network_proof,
+        request=request,
     )
     msg = (
         f"Checkpoint '{result.checkpoint_type}' already credited."
@@ -766,6 +774,33 @@ async def student_qr_checkin(
     return StandardResponse(
         data=result,
         meta={"message": msg},
+    )
+
+
+@router.post(
+    "/network-presence/challenge",
+    response_model=StandardResponse[NetworkChallengeResponse],
+    status_code=status.HTTP_201_CREATED,
+    summary="Request a short-lived campus network presence challenge",
+)
+async def request_network_presence_challenge(
+    payload: NetworkChallengeRequest,
+    request: Request,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance.self_read", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[NetworkChallengeResponse]:
+    """Issue short-lived network challenge bound to student, device, and zone (20s TTL)."""
+    challenge = await CampusNetworkService.issue_network_challenge(
+        db=db,
+        current_user=current_user,
+        checkpoint_id=payload.checkpoint_id,
+        request=request,
+    )
+    return StandardResponse(
+        data=challenge,
+        meta={"message": "Campus network presence challenge issued."},
     )
 
 
