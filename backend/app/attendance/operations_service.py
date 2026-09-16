@@ -10,18 +10,25 @@ Enforces:
 import datetime
 import uuid
 
-from sqlalchemy import desc, or_, select
+from sqlalchemy import desc, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
+from sqlalchemy.orm import joinedload, selectinload
 
 from backend.app.attendance.operations_schemas import (
     AdminOverrideRequest,
+    BulkItemResult,
+    BulkReviewRequest,
+    BulkReviewResponse,
     CorrectionRequestCreate,
     CorrectionRequestReview,
     ExcuseRequestCreate,
     ExcuseRequestReview,
     LeaveRequestCreate,
     LeaveRequestReview,
+    ManualReviewConfirmRequest,
+    ManualReviewItemResponse,
+    OperationsCountsResponse,
+    RecordEligibilityResponse,
     RecordTimelineResponse,
     RevisionItemResponse,
     RevisionReversalRequest,
@@ -52,6 +59,7 @@ from backend.app.models.attendance_record import AttendanceRecord
 from backend.app.models.attendance_revision import AttendanceRevision
 from backend.app.models.attendance_session import AttendanceSession
 from backend.app.models.class_occurrence import ClassOccurrence
+from backend.app.models.course_offering import CourseOffering
 from backend.app.models.lecturer import Lecturer
 from backend.app.models.lecturer_assignment import LecturerAssignment
 from backend.app.models.student import Student
@@ -302,6 +310,7 @@ class AttendanceOperationsService:
         user: User,
         request_id: uuid.UUID,
         dto: CorrectionRequestReview,
+        auto_commit: bool = True,
     ) -> AttendanceCorrectionRequest:
         """Review, approve, or reject an attendance correction request with row-level locking."""
         if dto.status not in (CorrectionRequestStatus.APPROVED, CorrectionRequestStatus.REJECTED):
@@ -428,8 +437,11 @@ class AttendanceOperationsService:
             )
             db.add(revision)
 
-        await db.commit()
-        await db.refresh(req)
+        if auto_commit:
+            await db.commit()
+            await db.refresh(req)
+        else:
+            await db.flush()
         return req
 
     # =========================================================================
@@ -654,6 +666,7 @@ class AttendanceOperationsService:
         user: User,
         request_id: uuid.UUID,
         dto: ExcuseRequestReview,
+        auto_commit: bool = True,
     ) -> AttendanceExcuseRequest:
         """Review, approve, or reject an absence excuse request."""
         stmt = (
@@ -732,8 +745,11 @@ class AttendanceOperationsService:
         else:
             req.status = ExcuseRequestStatus.REJECTED.value
 
-        await db.commit()
-        await db.refresh(req)
+        if auto_commit:
+            await db.commit()
+            await db.refresh(req)
+        else:
+            await db.flush()
         return req
 
     # =========================================================================
@@ -789,6 +805,7 @@ class AttendanceOperationsService:
         user: User,
         request_id: uuid.UUID,
         dto: LeaveRequestReview,
+        auto_commit: bool = True,
     ) -> AttendanceLeaveRequest:
         """Review, approve, or reject pre-class leave request (LEAVE grants 0 credit)."""
         stmt = (
@@ -863,8 +880,11 @@ class AttendanceOperationsService:
         else:
             req.status = LeaveRequestStatus.REJECTED.value
 
-        await db.commit()
-        await db.refresh(req)
+        if auto_commit:
+            await db.commit()
+            await db.refresh(req)
+        else:
+            await db.flush()
         return req
 
     # =========================================================================
@@ -931,3 +951,372 @@ class AttendanceOperationsService:
         stmt = stmt.order_by(desc(AttendanceCorrectionRequest.created_at))
         res = await db.execute(stmt)
         return list(res.scalars().all())
+
+    @staticmethod
+    async def get_excuse_queue(
+        db: AsyncSession,
+        user: User,
+        status_filter: ExcuseRequestStatus | None = None,
+    ) -> list[AttendanceExcuseRequest]:
+        """Fetch queue of excuse requests reviewable by the user."""
+        stmt = select(AttendanceExcuseRequest).where(
+            AttendanceExcuseRequest.university_id == user.university_id
+        )
+        if status_filter:
+            stmt = stmt.where(AttendanceExcuseRequest.status == status_filter.value)
+        stmt = stmt.order_by(desc(AttendanceExcuseRequest.created_at))
+        res = await db.execute(stmt)
+        return list(res.scalars().all())
+
+    @staticmethod
+    async def get_student_excuses(
+        db: AsyncSession,
+        user: User,
+    ) -> list[AttendanceExcuseRequest]:
+        """Fetch all excuse requests submitted by the student."""
+        student = await AttendanceOperationsService.get_student_for_user(db, user.id)
+        stmt = (
+            select(AttendanceExcuseRequest)
+            .where(AttendanceExcuseRequest.student_id == student.id)
+            .order_by(desc(AttendanceExcuseRequest.created_at))
+        )
+        res = await db.execute(stmt)
+        return list(res.scalars().all())
+
+    @staticmethod
+    async def get_leave_queue(
+        db: AsyncSession,
+        user: User,
+        status_filter: LeaveRequestStatus | None = None,
+    ) -> list[AttendanceLeaveRequest]:
+        """Fetch queue of leave requests reviewable by the user."""
+        stmt = select(AttendanceLeaveRequest).where(
+            AttendanceLeaveRequest.university_id == user.university_id
+        )
+        if status_filter:
+            stmt = stmt.where(AttendanceLeaveRequest.status == status_filter.value)
+        stmt = stmt.order_by(desc(AttendanceLeaveRequest.created_at))
+        res = await db.execute(stmt)
+        return list(res.scalars().all())
+
+    @staticmethod
+    async def get_student_leaves(
+        db: AsyncSession,
+        user: User,
+    ) -> list[AttendanceLeaveRequest]:
+        """Fetch all pre-class leave requests submitted by the student."""
+        student = await AttendanceOperationsService.get_student_for_user(db, user.id)
+        stmt = (
+            select(AttendanceLeaveRequest)
+            .where(AttendanceLeaveRequest.student_id == student.id)
+            .order_by(desc(AttendanceLeaveRequest.created_at))
+        )
+        res = await db.execute(stmt)
+        return list(res.scalars().all())
+
+    @staticmethod
+    async def bulk_review(
+        db: AsyncSession,
+        user: User,
+        dto: BulkReviewRequest,
+    ) -> BulkReviewResponse:
+        """Safely process a batch of review decisions with itemized isolation."""
+        succeeded = 0
+        failed = 0
+        results: list[BulkItemResult] = []
+
+        for item_id in dto.request_ids:
+            try:
+                async with db.begin_nested():
+                    if dto.request_type == "correction":
+                        await AttendanceOperationsService.review_correction_request(
+                            db,
+                            user,
+                            item_id,
+                            CorrectionRequestReview(
+                                status=CorrectionRequestStatus(dto.status),
+                                approved_status=dto.approved_status,
+                                review_note=dto.review_note,
+                            ),
+                            auto_commit=False,
+                        )
+                    elif dto.request_type == "excuse":
+                        await AttendanceOperationsService.review_excuse_request(
+                            db,
+                            user,
+                            item_id,
+                            ExcuseRequestReview(
+                                status=ExcuseRequestStatus(dto.status),
+                                review_note=dto.review_note,
+                            ),
+                            auto_commit=False,
+                        )
+                    elif dto.request_type == "leave":
+                        await AttendanceOperationsService.review_leave_request(
+                            db,
+                            user,
+                            item_id,
+                            LeaveRequestReview(
+                                status=LeaveRequestStatus(dto.status),
+                                review_note=dto.review_note,
+                            ),
+                            auto_commit=False,
+                        )
+                    else:
+                        raise ValidationException(f"Unsupported request type: {dto.request_type}")
+                succeeded += 1
+                results.append(BulkItemResult(id=item_id, success=True, status=dto.status))
+            except Exception as e:
+                failed += 1
+                results.append(BulkItemResult(id=item_id, success=False, error=str(e)))
+
+        await db.commit()
+        return BulkReviewResponse(
+            total=len(dto.request_ids),
+            succeeded=succeeded,
+            failed=failed,
+            results=results,
+        )
+
+    @staticmethod
+    async def get_operations_counts(
+        db: AsyncSession,
+        user: User,
+    ) -> OperationsCountsResponse:
+        """Pending counts for attendance operations dashboard tabs."""
+        corr_stmt = select(func.count(AttendanceCorrectionRequest.id)).where(
+            AttendanceCorrectionRequest.university_id == user.university_id,
+            AttendanceCorrectionRequest.status == CorrectionRequestStatus.PENDING.value,
+        )
+        pending_corrections = (await db.execute(corr_stmt)).scalar() or 0
+
+        exc_stmt = select(func.count(AttendanceExcuseRequest.id)).where(
+            AttendanceExcuseRequest.university_id == user.university_id,
+            AttendanceExcuseRequest.status == ExcuseRequestStatus.PENDING.value,
+        )
+        pending_excuses = (await db.execute(exc_stmt)).scalar() or 0
+
+        leave_stmt = select(func.count(AttendanceLeaveRequest.id)).where(
+            AttendanceLeaveRequest.university_id == user.university_id,
+            AttendanceLeaveRequest.status == LeaveRequestStatus.PENDING.value,
+        )
+        pending_leaves = (await db.execute(leave_stmt)).scalar() or 0
+
+        man_stmt = (
+            select(func.count(AttendanceRecord.id))
+            .join(AttendanceSession, AttendanceRecord.attendance_session_id == AttendanceSession.id)
+            .where(
+                AttendanceSession.university_id == user.university_id,
+                AttendanceRecord.is_manual == True,  # noqa: E712
+            )
+        )
+        manual_reviews = (await db.execute(man_stmt)).scalar() or 0
+
+        return OperationsCountsResponse(
+            pending_corrections=pending_corrections,
+            pending_excuses=pending_excuses,
+            pending_leaves=pending_leaves,
+            manual_reviews=manual_reviews,
+        )
+
+    @staticmethod
+    async def check_record_eligibility(
+        db: AsyncSession,
+        user: User,
+        record_id: uuid.UUID,
+    ) -> RecordEligibilityResponse:
+        """Verify if a student/record is eligible to request an attendance correction."""
+        stmt = (
+            select(AttendanceRecord)
+            .options(
+                selectinload(AttendanceRecord.session).selectinload(
+                    AttendanceSession.class_occurrence
+                )
+            )
+            .where(AttendanceRecord.id == record_id)
+        )
+        res = await db.execute(stmt)
+        record = res.scalar_one_or_none()
+        if not record:
+            raise NotFoundException("AttendanceRecord", record_id)
+
+        session = record.session
+        occurrence = session.class_occurrence if session else None
+
+        is_within_window, deadline = AttendanceOperationsService.check_correction_window(
+            session, occurrence
+        )
+
+        corr_stmt = select(AttendanceCorrectionRequest).where(
+            AttendanceCorrectionRequest.attendance_record_id == record.id,
+            AttendanceCorrectionRequest.status.in_(
+                [
+                    CorrectionRequestStatus.PENDING.value,
+                    CorrectionRequestStatus.UNDER_REVIEW.value,
+                ]
+            ),
+        )
+        has_open_correction = (await db.execute(corr_stmt)).scalar_one_or_none() is not None
+
+        exc_stmt = select(AttendanceExcuseRequest).where(
+            AttendanceExcuseRequest.attendance_record_id == record.id,
+            AttendanceExcuseRequest.status.in_(
+                [
+                    ExcuseRequestStatus.PENDING.value,
+                    ExcuseRequestStatus.UNDER_REVIEW.value,
+                ]
+            ),
+        )
+        has_open_excuse = (await db.execute(exc_stmt)).scalar_one_or_none() is not None
+
+        eligible = is_within_window and not has_open_correction
+        reason = None
+        if not is_within_window:
+            reason = f"Correction window expired at {deadline.isoformat()} UTC."
+        elif has_open_correction:
+            reason = "An open correction request is already pending for this record."
+
+        return RecordEligibilityResponse(
+            record_id=record.id,
+            eligible_for_correction=eligible,
+            correction_ineligibility_reason=reason,
+            correction_window_deadline_utc=deadline,
+            has_open_correction=has_open_correction,
+            has_open_excuse=has_open_excuse,
+            current_status=record.status,
+            current_credit=float(record.attendance_credit),
+        )
+
+    @staticmethod
+    async def get_manual_reviews_queue(
+        db: AsyncSession,
+        user: User,
+        limit: int = 50,
+    ) -> list[ManualReviewItemResponse]:
+        """Fetch records requiring manual attention or overrides."""
+        uni_id = user.university_id
+        stmt = (
+            select(AttendanceRecord)
+            .join(AttendanceSession, AttendanceRecord.attendance_session_id == AttendanceSession.id)
+            .options(
+                joinedload(AttendanceRecord.student).joinedload(Student.user),
+                joinedload(AttendanceRecord.session)
+                .joinedload(AttendanceSession.class_occurrence)
+                .joinedload(ClassOccurrence.course_offering)
+                .joinedload(CourseOffering.course),
+            )
+            .where(
+                AttendanceSession.university_id == uni_id,
+                AttendanceRecord.is_manual == True,  # noqa: E712
+            )
+            .order_by(desc(AttendanceRecord.updated_at))
+            .limit(limit)
+        )
+        res = await db.execute(stmt)
+        records = list(res.unique().scalars().all())
+
+        items: list[ManualReviewItemResponse] = []
+        for rec in records:
+            student = rec.student
+            stu_user = student.user if student else None
+            stu_name = (
+                stu_user.username if stu_user else (student.student_number if student else None)
+            )
+            stu_num = student.student_number if student else None
+
+            session = rec.session
+            occ = session.class_occurrence if session else None
+            offering = occ.course_offering if occ else None
+            course = offering.course if offering else None
+            c_code = course.code if course else None
+            c_title = course.name if course else None
+
+            items.append(
+                ManualReviewItemResponse(
+                    record_id=rec.id,
+                    session_id=rec.attendance_session_id,
+                    student_id=rec.student_id,
+                    student_name=stu_name,
+                    student_number=stu_num,
+                    course_code=c_code,
+                    course_title=c_title,
+                    status=rec.status,
+                    attendance_credit=float(rec.attendance_credit),
+                    verification_method="MANUAL" if rec.is_manual else None,
+                    is_flagged=rec.is_manual,
+                    flag_reasons=[rec.manual_reason] if rec.manual_reason else [],
+                    is_manual=rec.is_manual,
+                    created_at=rec.created_at,
+                )
+            )
+        return items
+
+    @staticmethod
+    async def confirm_manual_review(
+        db: AsyncSession,
+        user: User,
+        record_id: uuid.UUID,
+        dto: ManualReviewConfirmRequest,
+    ) -> AttendanceRecord:
+        """Confirm or adjust a record under manual review, appending an audit revision."""
+        rec_stmt = (
+            select(AttendanceRecord).where(AttendanceRecord.id == record_id).with_for_update()
+        )
+        rec_res = await db.execute(rec_stmt)
+        record = rec_res.scalar_one_or_none()
+        if not record:
+            raise NotFoundException("AttendanceRecord", record_id)
+
+        session = await db.get(AttendanceSession, record.attendance_session_id)
+        if not session:
+            raise NotFoundException("AttendanceSession", record.attendance_session_id)
+
+        await AttendanceOperationsService.verify_reviewer_scope(db, user, session)
+
+        now = utc_now()
+        prev_status = record.status
+        prev_credit = float(record.attendance_credit)
+
+        policy_snapshot = session.policy_snapshot or {}
+        status_credit_map = policy_snapshot.get("status_credit", DEFAULT_STATUS_CREDIT)
+
+        if dto.target_credit is not None:
+            calculated_credit = dto.target_credit
+        elif dto.target_status.value in status_credit_map:
+            calculated_credit = float(status_credit_map[dto.target_status.value])
+        elif dto.target_status == AttendanceStatus.PRESENT:
+            calculated_credit = 1.0
+        elif dto.target_status == AttendanceStatus.LATE:
+            calculated_credit = 0.5
+        elif dto.target_status == AttendanceStatus.EXCUSED:
+            calculated_credit = float(policy_snapshot.get("excused_credit", 0.0))
+        elif dto.target_status == AttendanceStatus.LEAVE:
+            calculated_credit = 0.0
+        else:
+            calculated_credit = 0.0
+
+        record.status = dto.target_status.value
+        record.attendance_credit = calculated_credit
+        record.is_manual = True
+        record.manual_reason = f"Manual review confirmed: {dto.reason.strip()}"
+        record.version_no += 1
+        record.finalized_at_utc = now
+
+        revision = AttendanceRevision(
+            attendance_session_id=session.id,
+            attendance_record_id=record.id,
+            actor_user_id=user.id,
+            event_type=AttendanceAuditEventType.ADMIN_OVERRIDE.value,
+            previous_status=prev_status,
+            new_status=dto.target_status.value,
+            previous_credit=prev_credit,
+            new_credit=calculated_credit,
+            reason=f"Manual review confirmed: {dto.reason.strip()}",
+            metadata_json={"reviewer_user_id": str(user.id)},
+            occurred_at_utc=now,
+        )
+        db.add(revision)
+
+        await db.commit()
+        await db.refresh(record)
+        return record

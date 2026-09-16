@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/api_client.dart';
+import 'screens/student_attendance_history_screen.dart';
 import 'screens/student_device_security_screen.dart';
 import 'screens/student_qr_scanner_screen.dart';
+import 'services/attendance_operations_service.dart';
 import 'services/campus_network_service.dart';
 import 'services/device_key_service.dart';
 import 'services/qr_checkin_service.dart';
+
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -278,6 +281,41 @@ class _HomeScreenState extends State<HomeScreen> {
                         universityId: '0192323e-6708-724a-a43b-8106daee86fa',
                         enableManualTokenEntry: true,
                         onCompleted: () => Navigator.pop(context),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Attendance Operations & Corrections Launcher
+            Card(
+              elevation: 1,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.amber,
+                  child: Icon(Icons.history_edu, color: Colors.white),
+                ),
+                title: const Text('Attendance History & Requests'),
+                subtitle: const Text(
+                  'Record audit timeline, corrections, absence excuses, and leave',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => StudentAttendanceHistoryScreen(
+                        operationsService: AttendanceOperationsService(
+                          baseUrl: _apiClient.baseUrl,
+                        ),
+                        authToken: 'demo_dev_token',
+                        studentId: '0192323e-6708-724a-a43b-8106daee86fa',
                       ),
                     ),
                   );

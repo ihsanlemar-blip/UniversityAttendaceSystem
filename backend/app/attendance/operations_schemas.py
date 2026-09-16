@@ -183,3 +183,82 @@ class RecordTimelineResponse(BaseModel):
     is_manual: bool
     manual_reason: str | None = None
     revisions: list[RevisionItemResponse]
+
+
+class BulkItemResult(BaseModel):
+    """Result of an individual item within a bulk review operation."""
+
+    id: uuid.UUID
+    success: bool
+    status: str | None = None
+    error: str | None = None
+
+
+class BulkReviewRequest(BaseModel):
+    """Payload for safe batch review of attendance operations."""
+
+    request_type: str = Field(..., description="Target queue: 'correction', 'excuse', or 'leave'")
+    request_ids: list[uuid.UUID] = Field(..., min_length=1, max_length=100)
+    status: str = Field(..., description="Target outcome: 'APPROVED' or 'REJECTED'")
+    review_note: str = Field(..., min_length=3, max_length=500)
+    approved_status: AttendanceStatus | None = Field(
+        None, description="Optional target status for approved corrections"
+    )
+
+
+class BulkReviewResponse(BaseModel):
+    """Summary of batch review outcome with individual item results."""
+
+    total: int
+    succeeded: int
+    failed: int
+    results: list[BulkItemResult]
+
+
+class OperationsCountsResponse(BaseModel):
+    """Pending counts for attendance operations dashboard tabs."""
+
+    pending_corrections: int
+    pending_excuses: int
+    pending_leaves: int
+    manual_reviews: int
+
+
+class RecordEligibilityResponse(BaseModel):
+    """Student eligibility check for requesting correction or excuse on a record."""
+
+    record_id: uuid.UUID
+    eligible_for_correction: bool
+    correction_ineligibility_reason: str | None = None
+    correction_window_deadline_utc: datetime.datetime | None = None
+    has_open_correction: bool
+    has_open_excuse: bool
+    current_status: str
+    current_credit: float
+
+
+class ManualReviewItemResponse(BaseModel):
+    """Item in the manual / anomaly review queue."""
+
+    record_id: uuid.UUID
+    session_id: uuid.UUID
+    student_id: uuid.UUID
+    student_name: str | None = None
+    student_number: str | None = None
+    course_code: str | None = None
+    course_title: str | None = None
+    status: str
+    attendance_credit: float
+    verification_method: str | None = None
+    is_flagged: bool = False
+    flag_reasons: list[str] = []
+    is_manual: bool = False
+    created_at: datetime.datetime
+
+
+class ManualReviewConfirmRequest(BaseModel):
+    """Payload to confirm or adjust a manual / anomaly attendance record."""
+
+    target_status: AttendanceStatus
+    target_credit: float | None = Field(None, ge=0.0, le=1.0)
+    reason: str = Field(..., min_length=3, max_length=500)

@@ -8,6 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.attendance.operations_schemas import (
     AdminOverrideRequest,
+    BulkReviewRequest,
+    BulkReviewResponse,
     CorrectionRequestCreate,
     CorrectionRequestResponse,
     CorrectionRequestReview,
@@ -17,13 +19,22 @@ from backend.app.attendance.operations_schemas import (
     LeaveRequestCreate,
     LeaveRequestResponse,
     LeaveRequestReview,
+    ManualReviewConfirmRequest,
+    ManualReviewItemResponse,
+    OperationsCountsResponse,
+    RecordEligibilityResponse,
     RecordTimelineResponse,
     RevisionReversalRequest,
 )
 from backend.app.attendance.operations_service import AttendanceOperationsService
 from backend.app.attendance.schemas import AttendanceRecordResponse
 from backend.app.common.schemas import StandardResponse
-from backend.app.core.constants import CorrectionRequestStatus, PermissionCode
+from backend.app.core.constants import (
+    CorrectionRequestStatus,
+    ExcuseRequestStatus,
+    LeaveRequestStatus,
+    PermissionCode,
+)
 from backend.app.core.database import get_db_session
 from backend.app.models.user import User
 from backend.app.rbac.dependencies import require_permission
@@ -303,4 +314,200 @@ async def get_record_timeline(
     timeline = await AttendanceOperationsService.get_record_timeline(db, record_id)
     return StandardResponse(
         data=timeline,
+    )
+
+
+# =============================================================================
+# 7. Operational Dashboard Counts & Eligibility
+# =============================================================================
+
+
+@router.get(
+    "/counts",
+    response_model=StandardResponse[OperationsCountsResponse],
+    summary="Get Operations Review Pending Counts",
+    description="Returns pending counts for review queues and manual review records.",
+)
+async def get_operations_counts(
+    user: Annotated[
+        User, Depends(require_permission(PermissionCode.ATTENDANCE_CORRECTIONS_REVIEW))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[OperationsCountsResponse]:
+    counts = await AttendanceOperationsService.get_operations_counts(db, user)
+    return StandardResponse(data=counts)
+
+
+@router.get(
+    "/records/{record_id}/eligibility",
+    response_model=StandardResponse[RecordEligibilityResponse],
+    summary="Check Student Record Eligibility for Operations",
+    description=(
+        "Checks whether a student record is within the allowed correction "
+        "window and has no pending requests."
+    ),
+)
+async def check_record_eligibility(
+    record_id: uuid.UUID,
+    user: Annotated[
+        User, Depends(require_permission(PermissionCode.ATTENDANCE_CORRECTIONS_REQUEST))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[RecordEligibilityResponse]:
+    eligibility = await AttendanceOperationsService.check_record_eligibility(db, user, record_id)
+    return StandardResponse(data=eligibility)
+
+
+# =============================================================================
+# 8. Excuse & Leave Review Queues & Student Views
+# =============================================================================
+
+
+@router.get(
+    "/excuses/queue",
+    response_model=StandardResponse[list[ExcuseRequestResponse]],
+    summary="List Excuse Review Queue",
+    description="Fetches reviewable absence excuse requests for authorized reviewers.",
+)
+async def get_excuse_queue(
+    user: Annotated[User, Depends(require_permission(PermissionCode.ATTENDANCE_EXCUSES_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    status_filter: Annotated[
+        ExcuseRequestStatus | None,
+        Query(description="Filter by status (e.g. PENDING)"),
+    ] = None,
+) -> StandardResponse[list[ExcuseRequestResponse]]:
+    requests = await AttendanceOperationsService.get_excuse_queue(db, user, status_filter)
+    return StandardResponse(
+        data=[ExcuseRequestResponse.model_validate(r) for r in requests],
+    )
+
+
+@router.get(
+    "/excuses/my",
+    response_model=StandardResponse[list[ExcuseRequestResponse]],
+    summary="List Current Student's Absence Excuses",
+    description="Returns all absence excuse requests submitted by the authenticated student.",
+)
+async def list_my_excuse_requests(
+    user: Annotated[User, Depends(require_permission(PermissionCode.ATTENDANCE_EXCUSES_REQUEST))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[list[ExcuseRequestResponse]]:
+    requests = await AttendanceOperationsService.get_student_excuses(db, user)
+    return StandardResponse(
+        data=[ExcuseRequestResponse.model_validate(r) for r in requests],
+    )
+
+
+@router.get(
+    "/leave/queue",
+    response_model=StandardResponse[list[LeaveRequestResponse]],
+    summary="List Pre-Class Leave Review Queue",
+    description="Fetches reviewable pre-class leave requests for authorized reviewers.",
+)
+async def get_leave_queue(
+    user: Annotated[User, Depends(require_permission(PermissionCode.ATTENDANCE_LEAVE_REVIEW))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    status_filter: Annotated[
+        LeaveRequestStatus | None,
+        Query(description="Filter by status (e.g. PENDING)"),
+    ] = None,
+) -> StandardResponse[list[LeaveRequestResponse]]:
+    requests = await AttendanceOperationsService.get_leave_queue(db, user, status_filter)
+    return StandardResponse(
+        data=[LeaveRequestResponse.model_validate(r) for r in requests],
+    )
+
+
+@router.get(
+    "/leave/my",
+    response_model=StandardResponse[list[LeaveRequestResponse]],
+    summary="List Current Student's Pre-Class Leave Requests",
+    description="Returns all pre-class leave requests submitted by the authenticated student.",
+)
+async def list_my_leave_requests(
+    user: Annotated[User, Depends(require_permission(PermissionCode.ATTENDANCE_LEAVE_REQUEST))],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[list[LeaveRequestResponse]]:
+    requests = await AttendanceOperationsService.get_student_leaves(db, user)
+    return StandardResponse(
+        data=[LeaveRequestResponse.model_validate(r) for r in requests],
+    )
+
+
+# =============================================================================
+# 9. Batch / Safe Bulk Operations
+# =============================================================================
+
+
+@router.post(
+    "/bulk-review",
+    response_model=StandardResponse[BulkReviewResponse],
+    summary="Bulk Review Attendance Operations",
+    description=(
+        "Atomically and safely review multiple correction, excuse, or "
+        "leave requests with per-item isolation."
+    ),
+)
+async def bulk_review(
+    dto: BulkReviewRequest,
+    user: Annotated[
+        User, Depends(require_permission(PermissionCode.ATTENDANCE_CORRECTIONS_REVIEW))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[BulkReviewResponse]:
+    result = await AttendanceOperationsService.bulk_review(db, user, dto)
+    return StandardResponse(
+        data=result,
+        meta={
+            "message": (
+                f"Bulk review completed: {result.succeeded} succeeded, {result.failed} failed."
+            )
+        },
+    )
+
+
+# =============================================================================
+# 10. Manual / Anomaly Review Queue
+# =============================================================================
+
+
+@router.get(
+    "/manual-reviews",
+    response_model=StandardResponse[list[ManualReviewItemResponse]],
+    summary="List Manual Review Queue",
+    description="Fetches attendance records requiring manual lecturer or administrator attention.",
+)
+async def get_manual_reviews_queue(
+    user: Annotated[
+        User, Depends(require_permission(PermissionCode.ATTENDANCE_CORRECTIONS_REVIEW))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> StandardResponse[list[ManualReviewItemResponse]]:
+    records = await AttendanceOperationsService.get_manual_reviews_queue(db, user, limit)
+    return StandardResponse(data=records)
+
+
+@router.post(
+    "/manual-reviews/{record_id}/confirm",
+    response_model=StandardResponse[AttendanceRecordResponse],
+    summary="Confirm or Adjust Manual Review Record",
+    description=(
+        "Confirms or adjusts a record from the manual review queue "
+        "with an immutable audit revision."
+    ),
+)
+async def confirm_manual_review(
+    record_id: uuid.UUID,
+    dto: ManualReviewConfirmRequest,
+    user: Annotated[
+        User, Depends(require_permission(PermissionCode.ATTENDANCE_CORRECTIONS_REVIEW))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[AttendanceRecordResponse]:
+    record = await AttendanceOperationsService.confirm_manual_review(db, user, record_id, dto)
+    return StandardResponse(
+        data=AttendanceRecordResponse.model_validate(record),
+        meta={"message": "Manual review resolved successfully."},
     )
