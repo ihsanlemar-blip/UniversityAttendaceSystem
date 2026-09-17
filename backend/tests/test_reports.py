@@ -219,3 +219,37 @@ async def test_lecturer_operational_report(
     assert "sessions_conducted" in data
     assert data["sessions_scheduled"] >= 0
     assert data["sessions_conducted"] >= 0
+
+
+@pytest.mark.asyncio
+async def test_dashboard_summary_endpoint(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+) -> None:
+    """Test that GET dashboard summary returns authoritative aggregated counts."""
+    admin_headers = get_admin_headers(client, test_admin_user, test_university)
+
+    res = client.get(
+        "/api/v1/reports/attendance/dashboard/summary",
+        headers=admin_headers,
+    )
+    assert res.status_code == 200
+    data = res.json()["data"]
+
+    assert "total_students" in data
+    assert "total_lecturers" in data
+    assert "total_course_offerings" in data
+    assert "today_occurrences_count" in data
+    assert "active_attendance_sessions_count" in data
+    assert "pending_corrections_count" in data
+    assert "pending_excuses_count" in data
+    assert "pending_leaves_count" in data
+    assert "open_risk_signals_count" in data
+    assert "pending_devices_count" in data
+    assert "generated_at_utc" in data
+
+    assert isinstance(data["total_students"], int)
+    assert isinstance(data["total_lecturers"], int)
+    assert isinstance(data["total_course_offerings"], int)
+    assert data["total_students"] >= 0

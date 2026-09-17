@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import React from 'react';
+import './globals.css';
+import { AuthProvider } from '@/context/auth-context';
 
 export const metadata: Metadata = {
   title: 'Digital Student Attendance System',
@@ -13,8 +15,8 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" dir="ltr">
-      <body style={{ fontFamily: 'system-ui, -apple-system, sans-serif', margin: 0, padding: 0 }}>
-        {children}
+      <body className="min-h-screen bg-slate-50 text-slate-900 antialiased">
+        <AuthProvider>{children}</AuthProvider>
       </body>
     </html>
   );

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'core/api_client.dart';
 import 'screens/student_attendance_history_screen.dart';
 import 'screens/student_device_security_screen.dart';
+import 'screens/student_home_screen.dart';
 import 'screens/student_qr_scanner_screen.dart';
 import 'services/attendance_operations_service.dart';
 import 'services/campus_network_service.dart';
@@ -208,6 +209,46 @@ class _HomeScreenState extends State<HomeScreen> {
               'Student Attendance Services',
               style: theme.textTheme.titleMedium?.copyWith(
                 fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Student Home Screen Launcher
+            Card(
+              elevation: 2,
+              color: Colors.indigo.shade50,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.indigo.shade200),
+              ),
+              child: ListTile(
+                leading: const CircleAvatar(
+                  backgroundColor: Colors.indigo,
+                  child: Icon(Icons.dashboard, color: Colors.white),
+                ),
+                title: const Text(
+                  'Student Home Dashboard',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: const Text(
+                  'Attendance standing card (75% threshold), course breakdown & quick actions',
+                  style: TextStyle(fontSize: 12),
+                ),
+                trailing: const Icon(Icons.chevron_right, color: Colors.indigo),
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (ctx) => StudentHomeScreen(
+                        apiClient: _apiClient,
+                        authToken: 'demo_dev_token',
+                        studentId: '0192323e-6708-724a-a43b-8106daee86fa',
+                        userId: '0192323e-6708-724a-a43b-8106daee86fb',
+                        universityId: '0192323e-6708-724a-a43b-8106daee86fa',
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
             const SizedBox(height: 12),

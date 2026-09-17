@@ -816,3 +816,106 @@ class ReportingService:
             "revision_count": revision_count,
             "generated_at_utc": utc_now(),
         }
+
+    @classmethod
+    async def get_dashboard_summary(
+        cls,
+        db: AsyncSession,
+        university_id: uuid.UUID,
+    ) -> dict[str, Any]:
+        """Generate authoritative operational counts for the administrative dashboard."""
+        from sqlalchemy import func
+
+        from backend.app.models.attendance_correction import (
+            AttendanceCorrectionRequest,
+            AttendanceExcuseRequest,
+            AttendanceLeaveRequest,
+        )
+        from backend.app.models.attendance_session import AttendanceSession
+        from backend.app.models.class_occurrence import ClassOccurrence
+        from backend.app.models.course_offering import CourseOffering
+        from backend.app.models.lecturer import Lecturer
+        from backend.app.models.risk_signal import AttendanceRiskSignal
+        from backend.app.models.student import Student
+        from backend.app.models.trusted_device import TrustedDevice
+
+        now = utc_now()
+        today = now.date()
+
+        # Total students
+        stu_q = select(func.count(Student.id)).where(Student.university_id == university_id)
+        total_students = (await db.execute(stu_q)).scalar() or 0
+
+        # Total lecturers
+        lec_q = select(func.count(Lecturer.id)).where(Lecturer.university_id == university_id)
+        total_lecturers = (await db.execute(lec_q)).scalar() or 0
+
+        # Total active course offerings
+        off_q = select(func.count(CourseOffering.id)).where(
+            CourseOffering.university_id == university_id,
+            CourseOffering.status == "ACTIVE",
+        )
+        total_offerings = (await db.execute(off_q)).scalar() or 0
+
+        # Today's occurrences
+        occ_q = select(func.count(ClassOccurrence.id)).where(
+            ClassOccurrence.university_id == university_id,
+            ClassOccurrence.local_date == today,
+        )
+        today_occurrences = (await db.execute(occ_q)).scalar() or 0
+
+        # Active attendance sessions (OPEN or PAUSED)
+        sess_q = select(func.count(AttendanceSession.id)).where(
+            AttendanceSession.university_id == university_id,
+            AttendanceSession.status.in_(["OPEN", "PAUSED"]),
+        )
+        active_sessions = (await db.execute(sess_q)).scalar() or 0
+
+        # Pending corrections
+        corr_q = select(func.count(AttendanceCorrectionRequest.id)).where(
+            AttendanceCorrectionRequest.university_id == university_id,
+            AttendanceCorrectionRequest.status == "PENDING",
+        )
+        pending_corrections = (await db.execute(corr_q)).scalar() or 0
+
+        # Pending excuses
+        exc_q = select(func.count(AttendanceExcuseRequest.id)).where(
+            AttendanceExcuseRequest.university_id == university_id,
+            AttendanceExcuseRequest.status == "PENDING",
+        )
+        pending_excuses = (await db.execute(exc_q)).scalar() or 0
+
+        # Pending leaves
+        leave_q = select(func.count(AttendanceLeaveRequest.id)).where(
+            AttendanceLeaveRequest.university_id == university_id,
+            AttendanceLeaveRequest.status == "PENDING",
+        )
+        pending_leaves = (await db.execute(leave_q)).scalar() or 0
+
+        # Open risk signals
+        risk_q = select(func.count(AttendanceRiskSignal.id)).where(
+            AttendanceRiskSignal.university_id == university_id,
+            AttendanceRiskSignal.status == "OPEN",
+        )
+        open_risk_signals = (await db.execute(risk_q)).scalar() or 0
+
+        # Pending devices
+        dev_q = select(func.count(TrustedDevice.id)).where(
+            TrustedDevice.university_id == university_id,
+            TrustedDevice.status.in_(["PENDING_REGISTRATION", "PENDING"]),
+        )
+        pending_devices = (await db.execute(dev_q)).scalar() or 0
+
+        return {
+            "total_students": total_students,
+            "total_lecturers": total_lecturers,
+            "total_course_offerings": total_offerings,
+            "today_occurrences_count": today_occurrences,
+            "active_attendance_sessions_count": active_sessions,
+            "pending_corrections_count": pending_corrections,
+            "pending_excuses_count": pending_excuses,
+            "pending_leaves_count": pending_leaves,
+            "open_risk_signals_count": open_risk_signals,
+            "pending_devices_count": pending_devices,
+            "generated_at_utc": now,
+        }

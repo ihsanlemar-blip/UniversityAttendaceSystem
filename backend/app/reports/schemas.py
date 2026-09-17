@@ -198,3 +198,21 @@ class LecturerOperationalReportResponse(BaseModel):
     offline_sessions_count: int
     revision_count: int
     generated_at_utc: datetime.datetime
+
+
+class DashboardSummaryResponse(BaseModel):
+    """Authoritative institutional counts for the administrative dashboard."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    total_students: int
+    total_lecturers: int
+    total_course_offerings: int
+    today_occurrences_count: int
+    active_attendance_sessions_count: int
+    pending_corrections_count: int
+    pending_excuses_count: int
+    pending_leaves_count: int
+    open_risk_signals_count: int
+    pending_devices_count: int
+    generated_at_utc: datetime.datetime

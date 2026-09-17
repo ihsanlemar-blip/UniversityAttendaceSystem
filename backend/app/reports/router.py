@@ -20,6 +20,7 @@ from backend.app.rbac.dependencies import require_permission
 from backend.app.reports.exports import ExportService
 from backend.app.reports.schemas import (
     CourseRosterReportResponse,
+    DashboardSummaryResponse,
     DepartmentAggregateReportResponse,
     FacultyAggregateReportResponse,
     LecturerOperationalReportResponse,
@@ -468,3 +469,23 @@ async def get_lecturer_report(
         semester_id=semester_id,
     )
     return StandardResponse(data=LecturerOperationalReportResponse(**report))
+
+
+@router.get(
+    "/dashboard/summary",
+    response_model=StandardResponse[DashboardSummaryResponse],
+    summary="Get administrative dashboard summary counts",
+)
+async def get_dashboard_summary(
+    current_user: Annotated[
+        User,
+        Depends(require_permission(PermissionCode.REPORTS_ATTENDANCE_READ, allow_scoped=True)),
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[DashboardSummaryResponse]:
+    """Return aggregated operational and domain counts for the administrative dashboard."""
+    summary = await ReportingService.get_dashboard_summary(
+        db=db,
+        university_id=current_user.university_id,
+    )
+    return StandardResponse(data=DashboardSummaryResponse.model_validate(summary))

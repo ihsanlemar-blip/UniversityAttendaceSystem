@@ -1,82 +1,189 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { ShieldCheck, ArrowRight, BookOpen, Clock, Users, Building } from 'lucide-react';
+import { useAuth } from '@/context/auth-context';
+import { Button, ConnectivityIndicator } from '@/components/ui';
 
 interface HealthStatus {
   status: string;
   service: string;
+  version?: string;
 }
 
 export default function HomePage() {
-  const [backendStatus, setBackendStatus] = useState<string>('checking...');
-  const [isOnline, setIsOnline] = useState<boolean | null>(null);
+  const { user, isLoading } = useAuth();
+  const router = useRouter();
+
+  const [health, setHealth] = useState<HealthStatus | null>(null);
+  const [isLive, setIsLive] = useState<boolean | null>(null);
 
   useEffect(() => {
-    const checkBackend = async () => {
+    if (!isLoading && user) {
+      if (user.must_change_password) {
+        router.push('/change-password');
+      } else if (user.roles.includes('LECTURER')) {
+        router.push('/lecturer');
+      } else {
+        router.push('/admin');
+      }
+    }
+  }, [user, isLoading, router]);
+
+  useEffect(() => {
+    const checkLive = async () => {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000/api/v1';
-        // In local development, check /health/live on the API server host
         const healthUrl = apiUrl.replace(/\/api\/v1\/?$/, '/health/live');
         const res = await fetch(healthUrl, { cache: 'no-store' });
         if (res.ok) {
           const data: HealthStatus = await res.json();
-          setBackendStatus(`Connected (${data.service} v${(data as { version?: string }).version || '0.1.0'})`);
-          setIsOnline(true);
+          setHealth(data);
+          setIsLive(true);
         } else {
-          setBackendStatus(`HTTP ${res.status}`);
-          setIsOnline(false);
+          setIsLive(false);
         }
       } catch {
-        setBackendStatus('Backend Unreachable');
-        setIsOnline(false);
+        setIsLive(false);
       }
     };
-
-    checkBackend();
+    checkLive();
   }, []);
 
   return (
-    <main style={{ padding: '3rem', maxWidth: '800px', margin: '0 auto', textAlign: 'center' }}>
-      <h1>Digital Student Attendance System</h1>
-      <p style={{ color: '#666', fontSize: '1.2rem', marginTop: '1rem' }}>
-        University Academic Attendance & Session Governance Portal
-      </p>
+    <div className="min-h-screen flex flex-col justify-between bg-slate-50">
+      {/* Top Navbar */}
+      <header className="border-b border-slate-200 bg-white sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-sky-900 flex items-center justify-center text-white shadow-sm">
+              <ShieldCheck className="w-5 h-5 text-sky-400" />
+            </div>
+            <div>
+              <span className="font-bold text-slate-900 text-sm tracking-tight block">
+                Digital Attendance System
+              </span>
+              <span className="text-[11px] text-slate-500 block">
+                Academic Operations & Session Governance
+              </span>
+            </div>
+          </div>
 
-      <div style={{
-        marginTop: '2rem',
-        padding: '1.5rem',
-        backgroundColor: '#f4f4f5',
-        borderRadius: '8px',
-        border: '1px solid #e4e4e7',
-        textAlign: 'left'
-      }}>
-        <h3 style={{ margin: '0 0 0.5rem 0' }}>Platform Status: Milestone 4 Core Foundation</h3>
-        <p style={{ margin: '0 0 1rem 0', color: '#52525b', fontSize: '0.95rem' }}>
-          Core FastAPI platform, PostgreSQL async engine, Redis cache, and Celery worker established.
+          <div className="flex items-center gap-4">
+            <ConnectivityIndicator />
+            <Link href="/login">
+              <Button variant="primary" size="sm">
+                Sign In
+                <ArrowRight className="w-3.5 h-3.5 ml-1" />
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 lg:py-20 flex-1 flex flex-col items-center justify-center text-center">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-sky-50 border border-sky-200 text-sky-700 text-xs font-medium mb-6">
+          <span className="w-2 h-2 rounded-full bg-sky-500 animate-pulse" />
+          Enterprise University Academic Infrastructure
+        </div>
+
+        <h1 className="text-3xl sm:text-5xl font-extrabold text-slate-900 tracking-tight max-w-3xl leading-tight">
+          Authoritative Attendance Verification & Governance
+        </h1>
+        <p className="mt-4 text-base sm:text-lg text-slate-600 max-w-2xl leading-relaxed">
+          High-assurance academic session tracking with cryptographic rotating tokens, campus network fencing, and transparent administrative audit trails.
         </p>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '0.9rem',
-          padding: '8px 12px',
-          backgroundColor: '#fff',
-          borderRadius: '6px',
-          border: '1px solid #e4e4e7',
-          width: 'fit-content'
-        }}>
-          <span style={{
-            display: 'inline-block',
-            width: '10px',
-            height: '10px',
-            borderRadius: '50%',
-            backgroundColor: isOnline === true ? '#22c55e' : isOnline === false ? '#ef4444' : '#eab308'
-          }} />
-          <span style={{ fontWeight: 500 }}>Backend Status:</span>
-          <span style={{ color: '#52525b' }}>{backendStatus}</span>
+        <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
+          <Link href="/login">
+            <Button variant="primary" size="lg" className="w-full sm:w-auto shadow-md">
+              Enter Academic Portal
+              <ArrowRight className="w-4 h-4 ml-2" />
+            </Button>
+          </Link>
+          <Link href="/admin">
+            <Button variant="outline" size="lg" className="w-full sm:w-auto bg-white">
+              Administrative Console
+            </Button>
+          </Link>
         </div>
-      </div>
-    </main>
+
+        {/* Feature Highlights Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 w-full max-w-5xl text-left">
+          <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="w-10 h-10 rounded-lg bg-sky-50 text-sky-700 flex items-center justify-center mb-3">
+              <Clock className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-1">Rotating Tokens</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Dynamic cryptographic QR codes rotating every 20-30 seconds prevent replay fraud and proxy check-ins.
+            </p>
+          </div>
+
+          <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center mb-3">
+              <Building className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-1">Campus-Fenced Trust</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Strict network zone validation ensures attendance claims originate from designated physical classrooms.
+            </p>
+          </div>
+
+          <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="w-10 h-10 rounded-lg bg-indigo-50 text-indigo-700 flex items-center justify-center mb-3">
+              <Users className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-1">Multi-Role Governance</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Dedicated interfaces tailored for faculty instructors, students, department heads, and compliance auditors.
+            </p>
+          </div>
+
+          <div className="p-5 bg-white border border-slate-200 rounded-xl shadow-xs">
+            <div className="w-10 h-10 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center mb-3">
+              <BookOpen className="w-5 h-5" />
+            </div>
+            <h3 className="text-sm font-semibold text-slate-900 mb-1">Immutable Audit Trail</h3>
+            <p className="text-xs text-slate-500 leading-relaxed">
+              Every status revision, excuse approval, and manual override maintains an unalterable historical ledger.
+            </p>
+          </div>
+        </div>
+
+        {/* System Health Status Pill */}
+        <div className="mt-12 inline-flex items-center gap-2 px-4 py-2 bg-white border border-slate-200 rounded-xl shadow-xs text-xs">
+          <span
+            className={`w-2.5 h-2.5 rounded-full ${
+              isLive === true ? 'bg-emerald-500' : isLive === false ? 'bg-rose-500' : 'bg-amber-400'
+            }`}
+          />
+          <span className="font-medium text-slate-700">Platform Health:</span>
+          <span className="text-slate-500">
+            {isLive === true
+              ? `Connected (${health?.service || 'API'} v${health?.version || '1.0.0'})`
+              : isLive === false
+              ? 'Backend Offline'
+              : 'Verifying connection...'}
+          </span>
+        </div>
+      </main>
+
+      {/* Footer */}
+      <footer className="border-t border-slate-200 bg-white py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-slate-500">
+          <div>
+            © {new Date().getFullYear()} Digital Student Attendance System. Institutional Core Engine.
+          </div>
+          <div className="flex gap-6">
+            <span>Server Clock: Authoritative UTC</span>
+            <span>Security Standard: Defense-in-Depth</span>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }
