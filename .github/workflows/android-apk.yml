@@ -11,6 +11,9 @@ on:
         options:
           - arm64
           - universal
+  push:
+    branches:
+      - feature/cloud-android-apk-build
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -18,7 +21,7 @@ concurrency:
 
 jobs:
   build-apk:
-    name: Build Android Debug APK (${{ github.event.inputs.apk_type }})
+    name: Build Android Debug APK
     runs-on: ubuntu-latest
 
     defaults:
@@ -102,12 +105,16 @@ jobs:
       # ============================================================================
       - name: Build Debug APK
         run: |
-          if [ "${{ github.event.inputs.apk_type }}" = "arm64" ]; then
-            echo "Compiling arm64 Debug APK..."
-            flutter build apk --debug --target-platform android-arm64
-          else
+          APK_TYPE="${{ github.event.inputs.apk_type }}"
+          if [ -z "$APK_TYPE" ]; then
+            APK_TYPE="arm64"
+          fi
+          if [ "$APK_TYPE" = "universal" ]; then
             echo "Compiling Universal Debug APK..."
             flutter build apk --debug
+          else
+            echo "Compiling arm64 Debug APK..."
+            flutter build apk --debug --target-platform android-arm64
           fi
 
       # ============================================================================
@@ -124,6 +131,9 @@ jobs:
 
           SHORT_SHA=$(git rev-parse --short HEAD)
           APK_TYPE="${{ github.event.inputs.apk_type }}"
+          if [ -z "$APK_TYPE" ]; then
+            APK_TYPE="arm64"
+          fi
           TARGET_NAME="UniversityAttendance-debug-${APK_TYPE}-${SHORT_SHA}.apk"
           ARTIFACT_NAME="university-attendance-debug-${APK_TYPE}-${SHORT_SHA}"
           STAGING_DIR="build/staged-apk"
@@ -139,6 +149,7 @@ jobs:
           cd - > /dev/null
 
           echo "short_sha=$SHORT_SHA" >> $GITHUB_OUTPUT
+          echo "apk_type=$APK_TYPE" >> $GITHUB_OUTPUT
           echo "apk_filename=$TARGET_NAME" >> $GITHUB_OUTPUT
           echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
           echo "apk_hash=$APK_HASH" >> $GITHUB_OUTPUT
@@ -165,6 +176,7 @@ jobs:
         if: always()
         run: |
           FLUTTER_VERSION_SUMMARY=$(flutter --version | head -n 1)
+          APK_TYPE="${{ steps.stage.outputs.apk_type || github.event.inputs.apk_type || 'arm64' }}"
           cat << 'EOF' > summary.md
           ## 📱 Android Debug APK Build Summary
 
@@ -179,7 +191,7 @@ jobs:
           | **Branch / Ref** | \`${{ github.ref_name }}\` |
           | **Flutter Version** | \`${FLUTTER_VERSION_SUMMARY}\` |
           | **Build Type** | Debug (Development & Physical Device Testing) |
-          | **Architecture** | \`${{ github.event.inputs.apk_type }}\` |
+          | **Architecture** | \`${APK_TYPE}\` |
           | **APK Filename** | \`${{ steps.stage.outputs.apk_filename }}\` |
           | **APK Size** | \`${{ steps.stage.outputs.apk_size }}\` |
           | **SHA-256 Checksum** | \`${{ steps.stage.outputs.apk_hash }}\` |
@@ -199,7 +211,7 @@ jobs:
           | **Commit SHA** | \`${{ github.sha }}\` |
           | **Branch / Ref** | \`${{ github.ref_name }}\` |
           | **Flutter Version** | \`${FLUTTER_VERSION_SUMMARY}\` |
-          | **Architecture** | \`${{ github.event.inputs.apk_type }}\` |
+          | **Architecture** | \`${APK_TYPE}\` |
 
           > [!WARNING]
           > The build or test verification failed. No valid APK artifact was generated.
