@@ -176,7 +176,9 @@ class ReportingService:
         above_count = 0
         near_count = 0
         below_count = 0
+        not_applicable_count = 0
         total_pct_sum = 0.0
+        students_with_eligible_sessions = 0
 
         for enr in enrollments:
             student = enr.student
@@ -223,18 +225,20 @@ class ReportingService:
             if eligible_sessions > 0:
                 calc_pct = round((total_credit / eligible_sessions) * 100.0, 1)
                 pct = min(100.0, max(0.0, calc_pct))
-            else:
-                pct = 100.0
+                total_pct_sum += pct
+                students_with_eligible_sessions += 1
+                th_status = cls.evaluate_threshold(pct, threshold_pct, cls.DEFAULT_MARGIN)
 
-            total_pct_sum += pct
-            th_status = cls.evaluate_threshold(pct, threshold_pct, cls.DEFAULT_MARGIN)
-
-            if th_status == ThresholdStatus.ABOVE_THRESHOLD:
-                above_count += 1
-            elif th_status == ThresholdStatus.NEAR_THRESHOLD:
-                near_count += 1
+                if th_status == ThresholdStatus.ABOVE_THRESHOLD:
+                    above_count += 1
+                elif th_status == ThresholdStatus.NEAR_THRESHOLD:
+                    near_count += 1
+                else:
+                    below_count += 1
             else:
-                below_count += 1
+                pct = None
+                th_status = ThresholdStatus.NOT_APPLICABLE
+                not_applicable_count += 1
 
             item = {
                 "student_id": enr.student_id,
@@ -261,7 +265,11 @@ class ReportingService:
                 filtered_items = [i for i in roster_items if i["threshold_status"] == tf_upper]
 
         total_enrolled = len(enrollments)
-        avg_pct = round(total_pct_sum / total_enrolled, 1) if total_enrolled > 0 else 100.0
+        avg_pct = (
+            round(total_pct_sum / students_with_eligible_sessions, 1)
+            if students_with_eligible_sessions > 0
+            else None
+        )
 
         # Pagination
         total_items = len(filtered_items)
@@ -283,6 +291,7 @@ class ReportingService:
             "above_threshold_count": above_count,
             "near_threshold_count": near_count,
             "below_threshold_count": below_count,
+            "not_applicable_count": not_applicable_count,
             "generated_at_utc": utc_now(),
             "roster": paginated_roster,
             "page": page,
@@ -335,6 +344,7 @@ class ReportingService:
         course_items: list[dict[str, Any]] = []
         total_pct_sum = 0.0
         below_count = 0
+        evaluated_course_count = 0
 
         for enr in enrollments:
             offering = enr.course_offering
@@ -404,13 +414,14 @@ class ReportingService:
             if eligible_sessions > 0:
                 calc_pct = round((total_credit / eligible_sessions) * 100.0, 1)
                 pct = min(100.0, max(0.0, calc_pct))
+                total_pct_sum += pct
+                evaluated_course_count += 1
+                th_status = cls.evaluate_threshold(pct, threshold_pct, cls.DEFAULT_MARGIN)
+                if th_status == ThresholdStatus.BELOW_THRESHOLD:
+                    below_count += 1
             else:
-                pct = 100.0
-
-            total_pct_sum += pct
-            th_status = cls.evaluate_threshold(pct, threshold_pct, cls.DEFAULT_MARGIN)
-            if th_status == ThresholdStatus.BELOW_THRESHOLD:
-                below_count += 1
+                pct = None
+                th_status = ThresholdStatus.NOT_APPLICABLE
 
             course_items.append(
                 {
@@ -435,7 +446,7 @@ class ReportingService:
             )
 
         overall_avg = (
-            round(total_pct_sum / len(course_items), 1) if len(course_items) > 0 else 100.0
+            round(total_pct_sum / evaluated_course_count, 1) if evaluated_course_count > 0 else None
         )
 
         return {
@@ -602,9 +613,11 @@ class ReportingService:
         total_enrolled = 0
         total_courses_set: set[uuid.UUID] = set()
         pct_sum = 0.0
+        enrolled_with_pct = 0
         dept_below_count = 0
         dept_near_count = 0
         dept_above_count = 0
+        dept_na_count = 0
 
         for off in offerings:
             if off.course_id:
@@ -620,11 +633,14 @@ class ReportingService:
             off_enrolled = report["total_enrolled"]
             total_enrolled += off_enrolled
             avg_pct = report["average_attendance_percentage"]
-            pct_sum += avg_pct * off_enrolled if off_enrolled > 0 else 0.0
+            if avg_pct is not None and off_enrolled > 0:
+                pct_sum += avg_pct * off_enrolled
+                enrolled_with_pct += off_enrolled
 
             dept_below_count += report["below_threshold_count"]
             dept_near_count += report["near_threshold_count"]
             dept_above_count += report["above_threshold_count"]
+            dept_na_count += report.get("not_applicable_count", 0)
 
             offering_summaries.append(
                 {
@@ -638,22 +654,11 @@ class ReportingService:
                     "average_attendance_percentage": avg_pct,
                     "below_threshold_count": report["below_threshold_count"],
                     "near_threshold_count": report["near_threshold_count"],
+                    "not_applicable_count": report.get("not_applicable_count", 0),
                 }
             )
 
-        dept_avg = (
-            round(pct_sum / total_enrolled, 1)
-            if total_enrolled > 0
-            else (
-                round(
-                    sum(o["average_attendance_percentage"] for o in offering_summaries)
-                    / len(offering_summaries),
-                    1,
-                )
-                if offering_summaries
-                else 100.0
-            )
-        )
+        dept_avg = round(pct_sum / enrolled_with_pct, 1) if enrolled_with_pct > 0 else None
 
         return {
             "academic_unit_id": unit.id,
@@ -666,6 +671,7 @@ class ReportingService:
             "below_threshold_count": dept_below_count,
             "near_threshold_count": dept_near_count,
             "above_threshold_count": dept_above_count,
+            "not_applicable_count": dept_na_count,
             "generated_at_utc": utc_now(),
             "offerings": offering_summaries,
         }
@@ -693,9 +699,11 @@ class ReportingService:
         dept_summaries: list[dict[str, Any]] = []
         total_students = 0
         total_pct_sum = 0.0
+        students_with_dept_pct = 0
         fac_below = 0
         fac_near = 0
         fac_above = 0
+        fac_na = 0
 
         for d in departments:
             d_rep = await cls.get_department_report(
@@ -706,25 +714,19 @@ class ReportingService:
             )
             d_students = d_rep["total_students_enrolled"]
             total_students += d_students
-            total_pct_sum += d_rep["department_average_percentage"] * d_students
+            d_pct = d_rep["department_average_percentage"]
+            if d_pct is not None and d_students > 0:
+                total_pct_sum += d_pct * d_students
+                students_with_dept_pct += d_students
 
             fac_below += d_rep["below_threshold_count"]
             fac_near += d_rep["near_threshold_count"]
             fac_above += d_rep["above_threshold_count"]
+            fac_na += d_rep.get("not_applicable_count", 0)
             dept_summaries.append(d_rep)
 
         fac_avg = (
-            round(total_pct_sum / total_students, 1)
-            if total_students > 0
-            else (
-                round(
-                    sum(d["department_average_percentage"] for d in dept_summaries)
-                    / len(dept_summaries),
-                    1,
-                )
-                if dept_summaries
-                else 100.0
-            )
+            round(total_pct_sum / students_with_dept_pct, 1) if students_with_dept_pct > 0 else None
         )
 
         return {
@@ -737,6 +739,7 @@ class ReportingService:
             "below_threshold_count": fac_below,
             "near_threshold_count": fac_near,
             "above_threshold_count": fac_above,
+            "not_applicable_count": fac_na,
             "generated_at_utc": utc_now(),
             "departments": dept_summaries,
         }

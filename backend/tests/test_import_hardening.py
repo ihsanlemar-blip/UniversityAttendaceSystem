@@ -229,3 +229,111 @@ def test_large_import_performance_3000_students() -> None:
     ]
     # In-memory CSV parse of 3,000 rows must complete well within 2 seconds
     assert duration < 2.0, f"Parsing took {duration:.2f}s, expected < 2.0s"
+
+
+@pytest.mark.asyncio
+async def test_import_and_reporting_comprehensive_benchmarks(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """SECTION 18: End-to-end performance benchmarks across parsing, validation, staging, commit,
+    bulk enrollments, and representative attendance report queries on real PostgreSQL.
+    """
+    admin_headers = get_admin_headers(client, test_admin_user, test_university)
+    prefix = uuid.uuid4().hex[:6]
+
+    # 1. Benchmark: 3,000-Row Student CSV Parsing
+    lines_3k = ["student_number,first_name,last_name,email,admission_date"]
+    for i in range(1, 3001):
+        lines_3k.append(
+            f"STU-B3K-{prefix}-{i:05d},احمد_{i},محمدی_{i},b3k_{prefix}_{i}@kabul.edu.af,2026-03-21"
+        )
+    csv_bytes_3k = "\n".join(lines_3k).encode()
+
+    t0 = time.perf_counter()
+    parsed_3k = parse_import_file(
+        "students_3k.csv", csv_bytes_3k, max_bytes=10 * 1024 * 1024, max_rows=5000
+    )
+    t_parse_3k = time.perf_counter() - t0
+    assert len(parsed_3k.rows) == 3000
+    assert t_parse_3k < 2.0, f"3,000 parse took {t_parse_3k:.4f}s (budget: < 2.0s)"
+
+    # 2. Benchmark: 100-Row Student Validation & Staging/Preview
+    lines_100 = ["student_number,first_name,last_name,email"]
+    for i in range(1, 101):
+        lines_100.append(
+            f"STU-B100-{prefix}-{i:04d},Student_{i},Family_{i},b100_{prefix}_{i}@kabul.edu.af"
+        )
+    csv_bytes_100 = "\n".join(lines_100).encode()
+
+    t1 = time.perf_counter()
+    preview_res = client.post(
+        "/api/v1/imports/preview",
+        headers=admin_headers,
+        data={"import_type": "STUDENTS"},
+        files={"file": ("students_100.csv", io.BytesIO(csv_bytes_100), "text/csv")},
+    )
+    t_stage_100 = time.perf_counter() - t1
+    assert preview_res.status_code == 201
+    job_id = preview_res.json()["data"]["job"]["id"]
+    assert preview_res.json()["data"]["job"]["valid_count"] == 100
+    assert t_stage_100 < 8.0, f"100 validation & staging took {t_stage_100:.4f}s (budget: < 8.0s)"
+
+    # 3. Benchmark: 100-Row Production Commit (User creation + Argon2 hashing + Student + Role)
+    t2 = time.perf_counter()
+    commit_res = client.post(f"/api/v1/imports/{job_id}/commit", headers=admin_headers, json={})
+    t_commit_100 = time.perf_counter() - t2
+    assert commit_res.status_code == 200
+    assert commit_res.json()["data"]["commit_count"] == 100
+    assert t_commit_100 < 12.0, f"100 commit took {t_commit_100:.4f}s (budget: < 12.0s)"
+
+    # 4. Benchmark: Bulk Enrollment Ingestion (100 Enrollments Stage + Commit)
+    from backend.tests.test_enrollment_import import create_offering_and_student
+
+    c_code, sem_code, sec_code, _, offering_id, _ = create_offering_and_student(
+        client, admin_headers
+    )
+
+    enr_lines = ["student_number,course_code,semester_code,section_code"]
+    for i in range(1, 101):
+        enr_lines.append(f"STU-B100-{prefix}-{i:04d},{c_code},{sem_code},{sec_code}")
+    csv_bytes_enr = "\n".join(enr_lines).encode()
+
+    t3 = time.perf_counter()
+    enr_prev = client.post(
+        "/api/v1/imports/preview",
+        headers=admin_headers,
+        data={"import_type": "ENROLLMENTS"},
+        files={"file": ("enrollments_100.csv", io.BytesIO(csv_bytes_enr), "text/csv")},
+    )
+    assert enr_prev.status_code == 201
+    enr_job_id = enr_prev.json()["data"]["job"]["id"]
+    enr_commit = client.post(f"/api/v1/imports/{enr_job_id}/commit", headers=admin_headers, json={})
+    t_enr_100 = time.perf_counter() - t3
+    assert enr_commit.status_code == 200
+    assert enr_commit.json()["data"]["commit_count"] == 100
+    assert t_enr_100 < 10.0, f"100 enrollments took {t_enr_100:.4f}s (budget: < 10.0s)"
+
+    # 5. Benchmark: Representative Attendance Report Query (100-Student Roster)
+    t4 = time.perf_counter()
+    rep_res = client.get(
+        f"/api/v1/reports/attendance/course-offerings/{offering_id}?page=1&page_size=100",
+        headers=admin_headers,
+    )
+    t_rep_query = time.perf_counter() - t4
+    assert rep_res.status_code == 200
+    assert rep_res.json()["data"]["total_enrolled"] == 100
+    assert t_rep_query < 1.0, f"Roster query took {t_rep_query:.4f}s (budget: < 1.0s)"
+
+    print(
+        f"\n=======================================================\n"
+        f"MILESTONE 16 PERFORMANCE BENCHMARK EVIDENCE:\n"
+        f"  1. 3,000-Row Student CSV Parsing:              {t_parse_3k:.4f}s  (Budget: < 2.0s)\n"
+        f"  2. 100-Row Validation & Staging (Preview):     {t_stage_100:.4f}s  (Budget: < 8.0s)\n"
+        f"  3. 100-Row Production Commit (DB + Argon2):    {t_commit_100:.4f}s  (Budget: < 12.0s)\n"
+        f"  4. 100-Row Bulk Enrollment (Stage + Commit):   {t_enr_100:.4f}s  (Budget: < 10.0s)\n"
+        f"  5. 100-Student Course Roster Report Query:     {t_rep_query:.4f}s  (Budget: < 1.0s)\n"
+        f"======================================================="
+    )

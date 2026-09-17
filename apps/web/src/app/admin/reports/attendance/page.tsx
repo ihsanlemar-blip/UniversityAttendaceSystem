@@ -16,6 +16,7 @@ import {
   Building2,
   GraduationCap,
   Users,
+  HelpCircle,
 } from 'lucide-react';
 
 interface CourseRosterItem {
@@ -24,14 +25,14 @@ interface CourseRosterItem {
   student_name: string;
   eligible_sessions: number;
   attendance_credit: number;
-  attendance_percentage: number;
+  attendance_percentage: number | null;
   present_count: number;
   late_count: number;
   absent_count: number;
   excused_count: number;
   leave_count: number;
   has_revision: boolean;
-  threshold_status: 'ABOVE_THRESHOLD' | 'NEAR_THRESHOLD' | 'BELOW_THRESHOLD';
+  threshold_status: 'ABOVE_THRESHOLD' | 'NEAR_THRESHOLD' | 'BELOW_THRESHOLD' | 'NOT_APPLICABLE';
 }
 
 interface CourseRosterReport {
@@ -44,10 +45,11 @@ interface CourseRosterReport {
   threshold_percentage: number;
   near_threshold_margin: number;
   total_enrolled: number;
-  average_attendance_percentage: number;
+  average_attendance_percentage: number | null;
   above_threshold_count: number;
   near_threshold_count: number;
   below_threshold_count: number;
+  not_applicable_count?: number;
   roster: CourseRosterItem[];
   page: number;
   page_size: number;
@@ -61,10 +63,11 @@ interface DepartmentReport {
   total_courses: number;
   total_offerings: number;
   total_students_enrolled: number;
-  department_average_percentage: number;
+  department_average_percentage: number | null;
   below_threshold_count: number;
   near_threshold_count: number;
   above_threshold_count: number;
+  not_applicable_count?: number;
   offerings: {
     course_offering_id: string;
     course_code: string;
@@ -73,9 +76,10 @@ interface DepartmentReport {
     section_code?: string | null;
     enrolled_count: number;
     conducted_sessions_count: number;
-    average_attendance_percentage: number;
+    average_attendance_percentage: number | null;
     below_threshold_count: number;
     near_threshold_count: number;
+    not_applicable_count?: number;
   }[];
 }
 
@@ -343,6 +347,7 @@ export default function AttendanceReportsDashboardPage() {
                     <option value="ABOVE_THRESHOLD">Above Threshold (≥ 75%)</option>
                     <option value="NEAR_THRESHOLD">Near Threshold (70% - 74.9%)</option>
                     <option value="BELOW_THRESHOLD">Below Threshold (&lt; 70%)</option>
+                    <option value="NOT_APPLICABLE">Not Applicable (0 Sessions)</option>
                   </select>
                 </div>
 
@@ -403,7 +408,9 @@ export default function AttendanceReportsDashboardPage() {
                   </div>
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3">
                     <span className="text-xs text-indigo-700 font-medium">Class Average %</span>
-                    <p className="text-xl font-bold text-indigo-900 mt-0.5">{rosterReport.average_attendance_percentage.toFixed(1)}%</p>
+                    <p className="text-xl font-bold text-indigo-900 mt-0.5">
+                      {rosterReport.average_attendance_percentage != null ? `${rosterReport.average_attendance_percentage.toFixed(1)}%` : 'N/A'}
+                    </p>
                   </div>
                   <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
                     <span className="text-xs text-emerald-700 font-medium">Above Threshold (≥{rosterReport.threshold_percentage}%)</span>
@@ -450,7 +457,7 @@ export default function AttendanceReportsDashboardPage() {
                             <td className="p-3 font-mono">{s.eligible_sessions}</td>
                             <td className="p-3 font-mono font-semibold">{s.attendance_credit.toFixed(1)}</td>
                             <td className="p-3 font-mono font-bold text-slate-900">
-                              {s.attendance_percentage.toFixed(1)}%
+                              {s.attendance_percentage != null ? `${s.attendance_percentage.toFixed(1)}%` : 'N/A'}
                             </td>
                             <td className="p-3">
                               {s.threshold_status === 'ABOVE_THRESHOLD' ? (
@@ -462,6 +469,11 @@ export default function AttendanceReportsDashboardPage() {
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-amber-100 text-amber-800">
                                   <AlertTriangle className="h-3 w-3" />
                                   Near Threshold
+                                </span>
+                              ) : s.threshold_status === 'NOT_APPLICABLE' ? (
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-700">
+                                  <HelpCircle className="h-3 w-3" />
+                                  N/A (0 Sessions)
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-rose-100 text-rose-800">
@@ -561,7 +573,9 @@ export default function AttendanceReportsDashboardPage() {
                   <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-3.5">
                     <span className="text-xs text-indigo-700 font-medium">Department Average %</span>
                     <p className="text-2xl font-bold text-indigo-900 mt-1">
-                      {departmentReport.department_average_percentage.toFixed(1)}%
+                      {departmentReport.department_average_percentage != null
+                        ? `${departmentReport.department_average_percentage.toFixed(1)}%`
+                        : 'N/A'}
                     </p>
                   </div>
                   <div className="bg-slate-50 border border-slate-200 rounded-lg p-3.5">
@@ -603,7 +617,9 @@ export default function AttendanceReportsDashboardPage() {
                           <td className="p-3 font-mono">{off.enrolled_count}</td>
                           <td className="p-3 font-mono">{off.conducted_sessions_count}</td>
                           <td className="p-3 font-mono font-bold text-indigo-900">
-                            {off.average_attendance_percentage.toFixed(1)}%
+                            {off.average_attendance_percentage != null
+                              ? `${off.average_attendance_percentage.toFixed(1)}%`
+                              : 'N/A'}
                           </td>
                           <td className="p-3 font-mono text-rose-700 font-semibold">{off.below_threshold_count}</td>
                           <td className="p-3 font-mono text-amber-700 font-semibold">{off.near_threshold_count}</td>

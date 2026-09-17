@@ -317,3 +317,58 @@ async def test_student_import_cancellation(
 
     commit_res = client.post(f"/api/v1/imports/{job_id}/commit", headers=headers, json={})
     assert commit_res.status_code == 409
+
+
+@pytest.mark.asyncio
+async def test_imported_students_receive_unique_random_passwords(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+    db_session: AsyncSession,
+) -> None:
+    """Verify imported users receive unique random temporary credentials, not a shared default."""
+    headers = get_admin_headers(client, test_admin_user, test_university)
+    prefix = uuid.uuid4().hex[:6]
+    snum1 = f"STU-SEC-1-{prefix}"
+    snum2 = f"STU-SEC-2-{prefix}"
+
+    csv_content = (
+        f"student_number,first_name,last_name\n{snum1},Ahmad,Karimi\n{snum2},Bilal,Noori\n"
+    ).encode()
+
+    res = client.post(
+        "/api/v1/imports/preview",
+        headers=headers,
+        data={"import_type": "STUDENTS"},
+        files={"file": ("sec_test.csv", io.BytesIO(csv_content), "text/csv")},
+    )
+    assert res.status_code == 201
+    job_id = res.json()["data"]["job"]["id"]
+
+    commit_res = client.post(f"/api/v1/imports/{job_id}/commit", headers=headers, json={})
+    assert commit_res.status_code == 200
+
+    s1 = (
+        await db_session.execute(
+            select(Student).where(
+                Student.university_id == test_university.id,
+                Student.student_number == snum1,
+            )
+        )
+    ).scalar_one()
+    s2 = (
+        await db_session.execute(
+            select(Student).where(
+                Student.university_id == test_university.id,
+                Student.student_number == snum2,
+            )
+        )
+    ).scalar_one()
+
+    u1 = await db_session.get(User, s1.user_id)
+    u2 = await db_session.get(User, s2.user_id)
+    assert u1 is not None and u2 is not None
+    assert u1.must_change_password is True
+    assert u2.must_change_password is True
+    # Invariant: Password hashes must be distinct (not shared institutional default)
+    assert u1.password_hash != u2.password_hash

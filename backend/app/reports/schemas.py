@@ -21,7 +21,7 @@ class StudentCourseAttendanceItem(BaseModel):
     total_sessions_conducted: int
     eligible_sessions: int
     attendance_credit: float
-    attendance_percentage: float
+    attendance_percentage: float | None = None
     present_count: int
     late_count: int
     absent_count: int
@@ -42,7 +42,7 @@ class StudentAttendanceSummaryResponse(BaseModel):
     student_name: str
     generated_at_utc: datetime.datetime
     courses: list[StudentCourseAttendanceItem]
-    overall_average_percentage: float
+    overall_average_percentage: float | None = None
     below_threshold_count: int
 
 
@@ -56,7 +56,7 @@ class CourseRosterReportItem(BaseModel):
     student_name: str
     eligible_sessions: int
     attendance_credit: float
-    attendance_percentage: float
+    attendance_percentage: float | None = None
     present_count: int
     late_count: int
     absent_count: int
@@ -80,10 +80,11 @@ class CourseRosterReportResponse(BaseModel):
     threshold_percentage: float
     near_threshold_margin: float
     total_enrolled: int
-    average_attendance_percentage: float
+    average_attendance_percentage: float | None = None
     above_threshold_count: int
     near_threshold_count: int
     below_threshold_count: int
+    not_applicable_count: int = 0
     generated_at_utc: datetime.datetime
     roster: list[CourseRosterReportItem]
     page: int
@@ -138,9 +139,10 @@ class DepartmentOfferingSummaryItem(BaseModel):
     section_code: str | None = None
     enrolled_count: int
     conducted_sessions_count: int
-    average_attendance_percentage: float
+    average_attendance_percentage: float | None = None
     below_threshold_count: int
     near_threshold_count: int
+    not_applicable_count: int = 0
 
 
 class DepartmentAggregateReportResponse(BaseModel):
@@ -154,10 +156,11 @@ class DepartmentAggregateReportResponse(BaseModel):
     total_courses: int
     total_offerings: int
     total_students_enrolled: int
-    department_average_percentage: float
+    department_average_percentage: float | None = None
     below_threshold_count: int
     near_threshold_count: int
     above_threshold_count: int
+    not_applicable_count: int = 0
     generated_at_utc: datetime.datetime
     offerings: list[DepartmentOfferingSummaryItem]
 
@@ -172,10 +175,11 @@ class FacultyAggregateReportResponse(BaseModel):
     academic_unit_name: str
     total_departments: int
     total_students: int
-    faculty_average_percentage: float
+    faculty_average_percentage: float | None = None
     below_threshold_count: int
     near_threshold_count: int
     above_threshold_count: int
+    not_applicable_count: int = 0
     generated_at_utc: datetime.datetime
     departments: list[DepartmentAggregateReportResponse]
 

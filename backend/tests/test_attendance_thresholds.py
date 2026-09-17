@@ -162,7 +162,7 @@ async def test_zero_denominator_report_safety(
     assert off_res.status_code == 201
     offering_id = off_res.json()["data"]["id"]
 
-    # 2. Roster report on empty offering
+    # 2. Roster report on empty offering with no sessions conducted
     roster_res = client.get(
         f"/api/v1/reports/attendance/course-offerings/{offering_id}",
         headers=admin_headers,
@@ -171,4 +171,41 @@ async def test_zero_denominator_report_safety(
     data = roster_res.json()["data"]
     assert data["total_enrolled"] == 0
     assert data["total_sessions_conducted"] == 0
-    assert data["average_attendance_percentage"] == 100.0
+    assert data["average_attendance_percentage"] is None
+    assert data["not_applicable_count"] == 0
+
+    # 3. Enroll a student in this offering (0 sessions conducted)
+    from backend.tests.test_attendance_corrections import create_student_with_role
+
+    student_id, _, _ = create_student_with_role(
+        client, admin_headers, offering_id, test_university.id, "zero"
+    )
+
+    # 4. Invariant: Student with 0 eligible sessions must be NOT_APPLICABLE with null percentage
+    roster_res2 = client.get(
+        f"/api/v1/reports/attendance/course-offerings/{offering_id}",
+        headers=admin_headers,
+    )
+    assert roster_res2.status_code == 200
+    data2 = roster_res2.json()["data"]
+    assert data2["total_enrolled"] == 1
+    assert data2["average_attendance_percentage"] is None
+    assert data2["above_threshold_count"] == 0
+    assert data2["not_applicable_count"] == 1
+
+    item = data2["roster"][0]
+    assert item["eligible_sessions"] == 0
+    assert item["attendance_percentage"] is None
+    assert item["threshold_status"] == ThresholdStatus.NOT_APPLICABLE.value
+
+    # 5. Multi-course Student Summary also evaluates to null overall average and NOT_APPLICABLE
+    student_rep = client.get(
+        f"/api/v1/reports/attendance/student/{student_id}",
+        headers=admin_headers,
+    )
+    assert student_rep.status_code == 200
+    s_data = student_rep.json()["data"]
+    assert s_data["overall_average_percentage"] is None
+    assert s_data["courses"][0]["eligible_sessions"] == 0
+    assert s_data["courses"][0]["attendance_percentage"] is None
+    assert s_data["courses"][0]["threshold_status"] == ThresholdStatus.NOT_APPLICABLE.value

@@ -1,6 +1,7 @@
 """Student import domain processor."""
 
 import datetime
+import secrets
 import uuid
 from typing import Any
 
@@ -364,7 +365,7 @@ class StudentImportProcessor(BaseImportProcessor):
         user = (await db.execute(u_stmt)).scalar_one_or_none()
 
         if not user:
-            temp_password = "TempPassword@2026"
+            temp_password = f"Tmp!{secrets.token_urlsafe(16)}"
             user = User(
                 university_id=university_id,
                 username=username,

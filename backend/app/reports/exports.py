@@ -48,7 +48,8 @@ class ExportService:
         writer.writerow(["Semester", sanitize_cell_value(report.get("semester_code"))])
         writer.writerow(["Section", sanitize_cell_value(report.get("section_code") or "All")])
         writer.writerow(["Total Sessions", report.get("total_sessions_conducted", 0)])
-        avg_pct = f"{report.get('average_attendance_percentage', 0.0):.1f}%"
+        avg_raw = report.get("average_attendance_percentage")
+        avg_pct = f"{avg_raw:.1f}%" if avg_raw is not None else "N/A"
         writer.writerow(["Average Attendance %", avg_pct])
         writer.writerow(["Threshold %", f"{report.get('threshold_percentage', 75.0):.1f}%"])
         writer.writerow(["Generated At (UTC)", str(report.get("generated_at_utc", ""))])
@@ -72,13 +73,15 @@ class ExportService:
         writer.writerow(columns)
 
         for item in report.get("roster", []):
+            pct_raw = item.get("attendance_percentage")
+            pct_str = f"{pct_raw:.1f}%" if pct_raw is not None else "N/A"
             writer.writerow(
                 [
                     sanitize_cell_value(item.get("student_number")),
                     sanitize_cell_value(item.get("student_name")),
                     item.get("eligible_sessions", 0),
                     f"{item.get('attendance_credit', 0.0):.2f}",
-                    f"{item.get('attendance_percentage', 0.0):.1f}%",
+                    pct_str,
                     item.get("present_count", 0),
                     item.get("late_count", 0),
                     item.get("absent_count", 0),
@@ -112,7 +115,8 @@ class ExportService:
         ws.append(["Course Name", sanitize_cell_value(report.get("course_name"))])
         ws.append(["Semester", sanitize_cell_value(report.get("semester_code"))])
         ws.append(["Total Sessions", report.get("total_sessions_conducted", 0)])
-        avg_pct = f"{report.get('average_attendance_percentage', 0.0):.1f}%"
+        avg_raw = report.get("average_attendance_percentage")
+        avg_pct = f"{avg_raw:.1f}%" if avg_raw is not None else "N/A"
         ws.append(["Average Attendance", avg_pct])
         ws.append(["Threshold %", f"{report.get('threshold_percentage', 75.0):.1f}%"])
         ws.append([])
@@ -140,13 +144,15 @@ class ExportService:
             cell.alignment = Alignment(horizontal="center", vertical="center")
 
         for item in report.get("roster", []):
+            pct_raw = item.get("attendance_percentage")
+            pct_str = f"{pct_raw:.1f}%" if pct_raw is not None else "N/A"
             ws.append(
                 [
                     sanitize_cell_value(item.get("student_number")),
                     sanitize_cell_value(item.get("student_name")),
                     item.get("eligible_sessions", 0),
                     item.get("attendance_credit", 0.0),
-                    f"{item.get('attendance_percentage', 0.0):.1f}%",
+                    pct_str,
                     item.get("present_count", 0),
                     item.get("late_count", 0),
                     item.get("absent_count", 0),
@@ -265,7 +271,8 @@ class ExportService:
         writer.writerow(["Department Name", sanitize_cell_value(report.get("academic_unit_name"))])
         writer.writerow(["Total Offerings", report.get("total_offerings", 0)])
         writer.writerow(["Total Enrolled Students", report.get("total_students_enrolled", 0)])
-        dept_avg = f"{report.get('department_average_percentage', 0.0):.1f}%"
+        dept_raw = report.get("department_average_percentage")
+        dept_avg = f"{dept_raw:.1f}%" if dept_raw is not None else "N/A"
         writer.writerow(["Department Average %", dept_avg])
         writer.writerow(["Below Threshold Count", report.get("below_threshold_count", 0)])
         writer.writerow(["Near Threshold Count", report.get("near_threshold_count", 0)])
@@ -286,6 +293,8 @@ class ExportService:
             ]
         )
         for off in report.get("offerings", []):
+            avg_raw = off.get("average_attendance_percentage")
+            avg_str = f"{avg_raw:.1f}%" if avg_raw is not None else "N/A"
             writer.writerow(
                 [
                     sanitize_cell_value(off.get("course_code")),
@@ -294,7 +303,7 @@ class ExportService:
                     sanitize_cell_value(off.get("section_code") or "None"),
                     off.get("enrolled_count", 0),
                     off.get("conducted_sessions_count", 0),
-                    f"{off.get('average_attendance_percentage', 0.0):.1f}%",
+                    avg_str,
                     off.get("below_threshold_count", 0),
                     off.get("near_threshold_count", 0),
                 ]
@@ -318,7 +327,9 @@ class ExportService:
         ws["A1"].font = Font(name="Calibri", size=14, bold=True)
         dept_lbl = f"{report.get('academic_unit_code')} - {report.get('academic_unit_name')}"
         ws.append(["Department", dept_lbl])
-        ws.append(["Average %", f"{report.get('department_average_percentage', 0.0):.1f}%"])
+        dept_raw = report.get("department_average_percentage")
+        dept_avg = f"{dept_raw:.1f}%" if dept_raw is not None else "N/A"
+        ws.append(["Average %", dept_avg])
         ws.append([])
 
         headers = [
@@ -340,6 +351,8 @@ class ExportService:
             c.fill = header_fill
 
         for off in report.get("offerings", []):
+            avg_raw = off.get("average_attendance_percentage")
+            avg_str = f"{avg_raw:.1f}%" if avg_raw is not None else "N/A"
             ws.append(
                 [
                     sanitize_cell_value(off.get("course_code")),
@@ -348,7 +361,7 @@ class ExportService:
                     sanitize_cell_value(off.get("section_code") or "None"),
                     off.get("enrolled_count", 0),
                     off.get("conducted_sessions_count", 0),
-                    f"{off.get('average_attendance_percentage', 0.0):.1f}%",
+                    avg_str,
                     off.get("below_threshold_count", 0),
                     off.get("near_threshold_count", 0),
                 ]
