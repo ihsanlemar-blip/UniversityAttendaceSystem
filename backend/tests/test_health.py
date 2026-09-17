@@ -51,3 +51,15 @@ async def test_readiness_probe_degraded() -> None:
         assert payload["status"] == "unhealthy"
         assert payload["dependencies"]["database"] == "unreachable"
         assert payload["dependencies"]["redis"] == "healthy"
+
+
+def test_metrics_probe() -> None:
+    """Verify that /health/metrics and /metrics return HTTP 200 with uptime and pool stats."""
+    for endpoint in ("/health/metrics", "/metrics"):
+        response = client.get(endpoint)
+        assert response.status_code == 200
+        payload = response.json()
+        assert payload["status"] == "ok"
+        assert payload["uptime_seconds"] >= 0
+        assert "db_pool" in payload
+        assert "size" in payload["db_pool"]

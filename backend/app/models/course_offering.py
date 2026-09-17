@@ -33,6 +33,11 @@ class CourseOffering(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
             unique=True,
             postgresql_where=text("section_id IS NULL"),
         ),
+        Index(
+            "ix_course_offerings_semester_status",
+            "semester_id",
+            "status",
+        ),
     )
 
     university_id: Mapped[uuid.UUID] = mapped_column(

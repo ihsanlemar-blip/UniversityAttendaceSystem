@@ -1,0 +1,188 @@
+﻿version: "3.8"
+
+networks:
+  internal_net:
+    driver: bridge
+    internal: true
+  public_net:
+    driver: bridge
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  caddy_data:
+    driver: local
+  caddy_config:
+    driver: local
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: attendance_postgres_prod
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${DATABASE_USER:-attendance_user}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: ${DATABASE_NAME:-attendance_db}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-attendance_user} -d ${DATABASE_NAME:-attendance_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  redis:
+    image: redis:7-alpine
+    container_name: attendance_redis_prod
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "noeviction"]
+    volumes:
+      - redis_data:/data
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  backend:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend.prod
+    container_name: attendance_backend_prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - public_net
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health/live"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 2G
+        reservations:
+          cpus: "0.5"
+          memory: 512M
+
+  celery_worker:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend.prod
+    container_name: attendance_celery_worker_prod
+    restart: unless-stopped
+    command: ["celery", "-A", "backend.app.core.celery", "worker", "--loglevel=info", "--concurrency=4"]
+    env_file:
+      - .env.production
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_net
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+
+  celery_beat:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.backend.prod
+    container_name: attendance_celery_beat_prod
+    restart: unless-stopped
+    command: ["celery", "-A", "backend.app.core.celery", "beat", "--loglevel=info"]
+    env_file:
+      - .env.production
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - internal_net
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  web:
+    build:
+      context: .
+      dockerfile: infra/docker/Dockerfile.web.prod
+    container_name: attendance_web_prod
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - internal_net
+      - public_net
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1G
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: attendance_caddy_prod
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./deploy/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - public_net
+    depends_on:
+      - backend
+      - web
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M

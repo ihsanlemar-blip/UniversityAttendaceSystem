@@ -887,7 +887,18 @@ audit_events(target_type, target_id, created_at)
 outbox_events(published_at, created_at)
 ```
 
-Actual indexes must be validated using query plans and load testing.
+Milestone 18 High-Volume Composite Performance Indexes (Migration `014_perf_hardening`):
+
+```text
+class_occurrences(lecturer_id, local_date, status)             [ix_class_occurrences_lecturer_date_status]
+class_occurrences(university_id, status, scheduled_start_utc)   [ix_class_occurrences_uni_status_start]
+attendance_records(student_id, created_at)                     [ix_attendance_records_student_created]
+attendance_evidence(attendance_checkpoint_id, source_mode)     [ix_attendance_evidence_checkpoint_source]
+enrollments(student_id, status)                                [ix_enrollments_student_status]
+course_offerings(semester_id, status)                          [ix_course_offerings_semester_status]
+```
+
+Actual indexes are validated using query plans, workload profiling (`backend/scripts/profile_workloads.py`), and concurrency burst testing (`backend/tests/test_performance_burst.py`).
 
 ---
 

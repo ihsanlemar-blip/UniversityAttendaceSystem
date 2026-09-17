@@ -63,6 +63,18 @@ class ClassOccurrence(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
             "university_id",
             "local_date",
         ),
+        Index(
+            "ix_class_occurrences_lecturer_date_status",
+            "lecturer_id",
+            "local_date",
+            "status",
+        ),
+        Index(
+            "ix_class_occurrences_uni_status_start",
+            "university_id",
+            "status",
+            "scheduled_start_utc",
+        ),
     )
 
     university_id: Mapped[uuid.UUID] = mapped_column(

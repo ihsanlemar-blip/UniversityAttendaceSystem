@@ -50,6 +50,11 @@ class AttendanceRecord(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
             "student_id",
             "status",
         ),
+        Index(
+            "ix_attendance_records_student_created",
+            "student_id",
+            "created_at",
+        ),
     )
 
     attendance_session_id: Mapped[uuid.UUID] = mapped_column(

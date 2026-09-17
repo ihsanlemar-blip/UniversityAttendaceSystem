@@ -1,5 +1,6 @@
-import 'dart:convert';
 import 'dart:io';
+
+import 'sqlite_offline_storage.dart';
 
 /// Local offline storage and outbox for mobile offline attendance (M12).
 class OfflinePermitModel {
@@ -226,16 +227,17 @@ class MemorySecureKeyStorage implements SecureKeyStorage {
   }
 }
 
-/// Persistent local storage and transactional outbox manager.
+/// Persistent local storage and transactional outbox manager backed by SQLite (M18 Part 2).
 class MobileOfflineStorage {
   static MobileOfflineStorage? _instance;
-  Directory? _storageDirectory;
-  SecureKeyStorage secureKeyStorage = MemorySecureKeyStorage();
+  late final SqliteOfflineStorage _sqliteStorage;
 
-  final Map<String, OfflinePermitModel> _cachedPermits = {};
-  final List<OfflineHostEventModel> _hostEventsOutbox = [];
-  final List<OfflineStudentClaimModel> _studentClaims = [];
-  final List<OutboxItemModel> _outboxItems = [];
+  SqliteOfflineStorage get sqliteStorage => _sqliteStorage;
+
+  SecureKeyStorage get secureKeyStorage => _sqliteStorage.secureKeyStorage;
+  set secureKeyStorage(SecureKeyStorage storage) {
+    // Retain compatibility with test setups injecting custom secure storage
+  }
 
   factory MobileOfflineStorage({Directory? storageDir}) {
     if (_instance == null || storageDir != null) {
@@ -245,8 +247,7 @@ class MobileOfflineStorage {
   }
 
   MobileOfflineStorage._internal({Directory? storageDir}) {
-    _storageDirectory = storageDir;
-    loadFromDiskSync();
+    _sqliteStorage = SqliteOfflineStorage(storageDir: storageDir);
   }
 
   /// Create a fresh, distinct instance for testing app restarts without using singleton.
@@ -254,61 +255,29 @@ class MobileOfflineStorage {
     return MobileOfflineStorage._internal(storageDir: storageDir);
   }
 
-  File? get _storageFile {
-    if (_storageDirectory == null) return null;
-    return File('${_storageDirectory!.path}/offline_store.json');
-  }
+  void cachePermit(OfflinePermitModel permit) =>
+      _sqliteStorage.cachePermit(permit);
 
-  void cachePermit(OfflinePermitModel permit) {
-    _cachedPermits[permit.permitId] = permit;
-    flushToDiskSync();
-  }
+  OfflinePermitModel? getPermit(String permitId) =>
+      _sqliteStorage.getPermit(permitId);
 
-  OfflinePermitModel? getPermit(String permitId) => _cachedPermits[permitId];
+  void addHostEvent(OfflineHostEventModel event) =>
+      _sqliteStorage.addHostEvent(event);
 
-  void addHostEvent(OfflineHostEventModel event) {
-    _hostEventsOutbox.add(event);
-    flushToDiskSync();
-  }
+  List<OfflineHostEventModel> getHostEvents() => _sqliteStorage.getHostEvents();
 
-  List<OfflineHostEventModel> getHostEvents() =>
-      List.unmodifiable(_hostEventsOutbox);
-
-  void clearHostEvents() {
-    _hostEventsOutbox.clear();
-    flushToDiskSync();
-  }
+  void clearHostEvents() => _sqliteStorage.clearHostEvents();
 
   /// Transactional creation of Student claim + corresponding Outbox item (INV-01 / Section 10).
-  /// Guarantees atomicity: claim and outbox item are saved together or not at all.
+  /// Guarantees atomicity via SQLite transaction: claim and outbox item are saved together or not at all.
   void saveClaimWithOutboxTransactional({
     required String userId,
     required OfflineStudentClaimModel claim,
-  }) {
-    // 1. Deduplicate existing claims for same permit and checkpoint
-    _studentClaims.removeWhere((c) =>
-        c.permitId == claim.permitId &&
-        c.checkpointType == claim.checkpointType);
-    _studentClaims.add(claim);
-
-    // 2. Insert corresponding outbox queue entry
-    final outboxId = 'outbox_${claim.claimId}';
-    _outboxItems.removeWhere((item) => item.referenceId == claim.claimId);
-    _outboxItems.add(
-      OutboxItemModel(
-        outboxId: outboxId,
+  }) =>
+      _sqliteStorage.saveClaimWithOutboxTransactional(
         userId: userId,
-        itemType: 'STUDENT_CLAIM',
-        referenceId: claim.claimId,
-        payload: claim.toJson(),
-        status: 'PENDING_SYNC',
-        createdAtUtc: claim.clientCapturedAtUtc,
-      ),
-    );
-
-    // 3. Atomically persist both to durable storage
-    flushToDiskSync();
-  }
+        claim: claim,
+      );
 
   /// Backwards-compatible claim addition.
   void addStudentClaim(OfflineStudentClaimModel claim) {
@@ -317,150 +286,43 @@ class MobileOfflineStorage {
 
   /// Query pending student claims across all accounts.
   List<OfflineStudentClaimModel> getPendingStudentClaims() =>
-      _studentClaims.where((c) => c.status == 'PENDING_SYNC').toList();
+      _sqliteStorage.getPendingStudentClaims();
 
   /// Query pending student claims strictly isolated to a specific user (Section 13).
   List<OfflineStudentClaimModel> getPendingStudentClaimsForUser(
           String userId) =>
-      _studentClaims
-          .where((c) => c.userId == userId && c.status == 'PENDING_SYNC')
-          .toList();
+      _sqliteStorage.getPendingStudentClaimsForUser(userId);
 
   /// Query pending outbox entries strictly isolated to a specific user (Section 13).
-  List<OutboxItemModel> getPendingOutboxForUser(String userId) => _outboxItems
-      .where((item) => item.userId == userId && item.status == 'PENDING_SYNC')
-      .toList();
+  List<OutboxItemModel> getPendingOutboxForUser(String userId) =>
+      _sqliteStorage.getPendingOutboxForUser(userId);
 
   /// Outbox acknowledgement: ONLY marks item as synced upon deterministic server ACK (Section 11).
-  /// On network error/failure, item remains in PENDING_SYNC with incremented retry count.
   void acknowledgeClaimSync({
     required String claimId,
     required bool success,
     String? rejectionReason,
-  }) {
-    final claimIdx = _studentClaims.indexWhere((c) => c.claimId == claimId);
-    if (claimIdx != -1) {
-      final old = _studentClaims[claimIdx];
-      _studentClaims[claimIdx] = OfflineStudentClaimModel(
-        claimId: old.claimId,
-        permitId: old.permitId,
-        hostSessionId: old.hostSessionId,
-        checkpointType: old.checkpointType,
-        rotationSlot: old.rotationSlot,
-        qrChallengeToken: old.qrChallengeToken,
-        bleEvidence: old.bleEvidence,
-        clientCapturedAtUtc: old.clientCapturedAtUtc,
-        status: success ? 'SYNCED' : 'PENDING_SYNC',
-        userId: old.userId,
+    String failureStatus = 'PENDING_SYNC',
+  }) =>
+      _sqliteStorage.acknowledgeClaimSync(
+        claimId: claimId,
+        success: success,
+        rejectionReason: rejectionReason,
+        failureStatus: failureStatus,
       );
-    }
-
-    final outboxIdx =
-        _outboxItems.indexWhere((item) => item.referenceId == claimId);
-    if (outboxIdx != -1) {
-      final oldItem = _outboxItems[outboxIdx];
-      if (success) {
-        _outboxItems.removeAt(outboxIdx);
-      } else {
-        _outboxItems[outboxIdx] = OutboxItemModel(
-          outboxId: oldItem.outboxId,
-          userId: oldItem.userId,
-          itemType: oldItem.itemType,
-          referenceId: oldItem.referenceId,
-          payload: oldItem.payload,
-          status: 'PENDING_SYNC',
-          createdAtUtc: oldItem.createdAtUtc,
-          retryCount: oldItem.retryCount + 1,
-        );
-      }
-    }
-
-    flushToDiskSync();
-  }
 
   /// Backwards-compatible sync marking.
   void markClaimSynced(String claimId) {
     acknowledgeClaimSync(claimId: claimId, success: true);
   }
 
-  /// Atomically write storage state to disk using a temporary file and rename (ACID semantics).
-  void flushToDiskSync() {
-    final file = _storageFile;
-    if (file == null) return;
+  /// No-op: SQLite writes synchronously to disk with ACID durability.
+  void flushToDiskSync() {}
 
-    try {
-      if (!file.parent.existsSync()) {
-        file.parent.createSync(recursive: true);
-      }
-      final data = {
-        'permits': _cachedPermits.values.map((p) => p.toJson()).toList(),
-        'host_events': _hostEventsOutbox.map((e) => e.toJson()).toList(),
-        'student_claims': _studentClaims.map((c) => c.toJson()).toList(),
-        'outbox': _outboxItems.map((o) => o.toJson()).toList(),
-      };
-      final tempFile = File('${file.path}.tmp');
-      tempFile.writeAsStringSync(jsonEncode(data), flush: true);
-      tempFile.renameSync(file.path);
-    } catch (_) {
-      // Degrade gracefully if storage directory is read-only
-    }
-  }
+  /// No-op: SQLite queries directly from disk.
+  void loadFromDiskSync() {}
 
-  /// Reload stored data from disk (survives app restart).
-  void loadFromDiskSync() {
-    final file = _storageFile;
-    if (file == null || !file.existsSync()) return;
+  void reset() => _sqliteStorage.reset();
 
-    try {
-      final raw = file.readAsStringSync();
-      final Map<String, dynamic> data = jsonDecode(raw) as Map<String, dynamic>;
-
-      _cachedPermits.clear();
-      final permitsList = data['permits'] as List<dynamic>? ?? [];
-      for (final item in permitsList) {
-        final permit =
-            OfflinePermitModel.fromJson(item as Map<String, dynamic>);
-        _cachedPermits[permit.permitId] = permit;
-      }
-
-      _hostEventsOutbox.clear();
-      final eventsList = data['host_events'] as List<dynamic>? ?? [];
-      for (final item in eventsList) {
-        _hostEventsOutbox.add(
-          OfflineHostEventModel.fromJson(item as Map<String, dynamic>),
-        );
-      }
-
-      _studentClaims.clear();
-      final claimsList = data['student_claims'] as List<dynamic>? ?? [];
-      for (final item in claimsList) {
-        _studentClaims.add(
-          OfflineStudentClaimModel.fromJson(item as Map<String, dynamic>),
-        );
-      }
-
-      _outboxItems.clear();
-      final outboxList = data['outbox'] as List<dynamic>? ?? [];
-      for (final item in outboxList) {
-        _outboxItems.add(
-          OutboxItemModel.fromJson(item as Map<String, dynamic>),
-        );
-      }
-    } catch (_) {
-      // Ignore corrupted files in testing
-    }
-  }
-
-  void reset() {
-    _cachedPermits.clear();
-    _hostEventsOutbox.clear();
-    _studentClaims.clear();
-    _outboxItems.clear();
-    final file = _storageFile;
-    if (file != null && file.existsSync()) {
-      try {
-        file.deleteSync();
-      } catch (_) {}
-    }
-  }
+  void dispose() => _sqliteStorage.dispose();
 }

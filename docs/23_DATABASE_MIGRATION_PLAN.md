@@ -212,6 +212,15 @@ The original 29-milestone conceptual dependency sequence was:
   - Columns: `import_type`, `commit_mode`, `status`, `filename`, `file_hash`, `file_size_bytes`, `row_count`, `valid_count`, `warning_count`, `error_count`, `commit_count`, `summary_json`, `raw_data_json`, `normalized_data_json`, `action`, `errors_json`, `warnings_json`, `resolved_entity_id`, `resolved_entity_type`.
   - Constraints & Indexes: Partial unique index `uq_single_active_committing_import` to prevent concurrent job commit collision, foreign key cascading deletion, composite tenant and status query indexes.
   - Dependencies: `001_foundation_university`, `004_identity_users`.
+- **`014_perf_hardening` (Applied Milestone 18)**:
+  - Indexes: Composite performance indexes for high-volume production query patterns:
+    - `ix_class_occurrences_lecturer_date_status` on `class_occurrences (lecturer_id, local_date, status)`
+    - `ix_class_occurrences_uni_status_start` on `class_occurrences (university_id, status, scheduled_start_utc)`
+    - `ix_attendance_records_student_created` on `attendance_records (student_id, created_at)`
+    - `ix_attendance_evidence_checkpoint_source` on `attendance_evidence (attendance_checkpoint_id, source_mode)`
+    - `ix_enrollments_student_status` on `enrollments (student_id, status)`
+    - `ix_course_offerings_semester_status` on `course_offerings (semester_id, status)`
+  - Dependencies: `013_imports_administration`.
 - **`023_corrections`**:
   - Tables: `corrections`
   - Foreign keys: `final_attendance_record_id`, `requested_by_user_id`, `reviewed_by_user_id`.

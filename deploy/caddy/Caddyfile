@@ -1,0 +1,69 @@
+﻿# Caddy 2 Production Reverse Proxy Configuration
+# Digital Student Attendance System
+
+{$DOMAIN:localhost} {
+    # Request body upload size limit (enforcing 15MB import limit)
+    request_body {
+        max_size 15MB
+    }
+
+    # Strict Production Security Headers
+    header {
+        # HTTP Strict Transport Security (HSTS)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # MIME type sniffing prevention
+        X-Content-Type-Options "nosniff"
+        # Clickjacking defense
+        X-Frame-Options "DENY"
+        # Referrer privacy
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Restrict browser APIs
+        Permissions-Policy "camera=(self), microphone=(), geolocation=(), bluetooth=(self)"
+        # Hide reverse proxy identity
+        -Server
+    }
+
+    # API and Health Probes -> FastAPI Backend
+    handle /api/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /health/* {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    handle /metrics {
+        reverse_proxy backend:8000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Web Client -> Next.js Standalone
+    handle {
+        reverse_proxy web:3000 {
+            header_up Host {host}
+            header_up X-Real-IP {remote_host}
+            header_up X-Forwarded-For {remote_host}
+            header_up X-Forwarded-Proto {scheme}
+        }
+    }
+
+    # Access and Error Logging
+    log {
+        output stdout
+        format json
+    }
+}

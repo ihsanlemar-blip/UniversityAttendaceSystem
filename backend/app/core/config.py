@@ -58,6 +58,8 @@ class Settings(BaseSettings):
     DATABASE_PASSWORD: str = Field(default="dev_insecure_password")
     DATABASE_POOL_SIZE: int = Field(default=20)
     DATABASE_MAX_OVERFLOW: int = Field(default=10)
+    DATABASE_POOL_TIMEOUT: int = Field(default=30)
+    DATABASE_POOL_RECYCLE: int = Field(default=1800)
     DATABASE_SSL_MODE: str = Field(default="disable")
 
     # Optional explicit override for database URL

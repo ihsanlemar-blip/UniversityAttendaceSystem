@@ -20,3 +20,11 @@ class ReadinessResponse(BaseModel):
     dependencies: dict[str, str] = Field(
         description="Individual status of required backing infrastructure"
     )
+
+
+class MetricsResponse(BaseModel):
+    """Observability metrics payload for system monitoring."""
+
+    status: str = Field(default="ok", description="Metrics status")
+    uptime_seconds: float = Field(description="Process uptime in seconds")
+    db_pool: dict[str, int] = Field(description="Database connection pool statistics")

@@ -42,6 +42,11 @@ class AttendanceEvidence(Base, UUIDv7PrimaryKeyMixin):
             "attendance_checkpoint_id",
             "student_id",
         ),
+        Index(
+            "ix_attendance_evidence_checkpoint_source",
+            "attendance_checkpoint_id",
+            "source_mode",
+        ),
     )
 
     attendance_checkpoint_id: Mapped[uuid.UUID] = mapped_column(

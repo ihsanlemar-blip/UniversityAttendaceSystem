@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import Request
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -927,6 +928,7 @@ class AttendanceService:
         if not cp:
             raise NotFoundException("AttendanceCheckpoint", checkpoint_type)
 
+        checkpoint_id = cp.id
         session = cp.session
 
         # 2. Check window and status
@@ -1032,9 +1034,23 @@ class AttendanceService:
             )
         )
 
-        await db.commit()
-        await db.refresh(evidence)
-        return evidence
+        try:
+            await db.commit()
+            await db.refresh(evidence)
+            return evidence
+        except IntegrityError:
+            await db.rollback()
+            # Concurrent race condition: another request already inserted
+            # evidence for this student & checkpoint (INV-05)
+            ev_stmt = select(AttendanceEvidence).where(
+                AttendanceEvidence.attendance_checkpoint_id == checkpoint_id,
+                AttendanceEvidence.student_id == student_id,
+            )
+            ev_res = await db.execute(ev_stmt)
+            existing = ev_res.scalar_one_or_none()
+            if existing:
+                return existing
+            raise
 
     # =========================================================================
     # 4.1 Dynamic QR Presence Token Operations (Milestone 10)

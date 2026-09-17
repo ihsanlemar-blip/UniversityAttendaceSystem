@@ -22,6 +22,7 @@ class Enrollment(Base, UUIDv7PrimaryKeyMixin, TimestampMixin):
             name="uq_enrollments_offering_student",
         ),
         Index("ix_enrollments_status", "status"),
+        Index("ix_enrollments_student_status", "student_id", "status"),
     )
 
     university_id: Mapped[uuid.UUID] = mapped_column(
