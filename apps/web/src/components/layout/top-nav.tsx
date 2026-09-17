@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Menu, Clock, Shield, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
 import { ConnectivityIndicator, Badge } from '@/components/ui';
+import { LanguageSelector } from './language-selector';
 
 export interface TopNavProps {
   onOpenMobileMenu: () => void;
@@ -53,6 +54,9 @@ export function TopNav({ onOpenMobileMenu }: TopNavProps) {
           <Clock className="w-3.5 h-3.5 text-slate-500" />
           <span>{utcTime || 'UTC --:--:--'}</span>
         </div>
+
+        {/* Language Selector */}
+        <LanguageSelector />
 
         {/* Connectivity Status */}
         <ConnectivityIndicator />

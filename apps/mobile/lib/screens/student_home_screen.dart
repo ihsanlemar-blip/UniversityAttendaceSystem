@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../core/api_client.dart';
+import '../core/i18n/app_language.dart';
+import '../core/i18n/app_strings.dart';
 import '../services/attendance_operations_service.dart';
 import '../services/campus_network_service.dart';
 import '../services/device_key_service.dart';
@@ -31,6 +33,7 @@ class StudentHomeScreen extends StatefulWidget {
   final String studentNumber;
   final double? initialPercentage;
   final String? initialStatus;
+  final AppLanguage initialLanguage;
 
   const StudentHomeScreen({
     super.key,
@@ -43,6 +46,7 @@ class StudentHomeScreen extends StatefulWidget {
     this.studentNumber = 'KBL-2023-CS-042',
     this.initialPercentage,
     this.initialStatus,
+    this.initialLanguage = AppLanguage.en,
   });
 
   @override
@@ -54,6 +58,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   bool _isLoading = false;
   double? _attendancePercentage;
   String _standingStatus = 'NOT_APPLICABLE';
+  late AppLanguage _language;
 
   final List<Map<String, dynamic>> _enrolledCourses = [
     {
@@ -93,10 +98,99 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   void initState() {
     super.initState();
+    _language = widget.initialLanguage;
     _attendancePercentage = widget.initialPercentage;
     _standingStatus = widget.initialStatus ??
         (_attendancePercentage != null ? 'GOOD_STANDING' : 'NOT_APPLICABLE');
     _checkConnectivity();
+  }
+
+  void _showLanguageSelector() {
+    showModalBottomSheet<void>(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext ctx) {
+        final strings = AppStrings.get(_language);
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  strings.t('select_language'),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1E293B),
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 16),
+                ...AppLanguage.values.map((lang) {
+                  final isSelected = lang == _language;
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Directionality(
+                      textDirection: lang.textDirection,
+                      child: ListTile(
+                        key: Key('lang_option_${lang.code}'),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          side: BorderSide(
+                            color: isSelected
+                                ? const Color(0xFF4F46E5)
+                                : const Color(0xFFE2E8F0),
+                            width: isSelected ? 2 : 1,
+                          ),
+                        ),
+                        tileColor: isSelected
+                            ? const Color(0xFFEEF2FF)
+                            : Colors.transparent,
+                        leading: Icon(
+                          Icons.translate,
+                          color: isSelected
+                              ? const Color(0xFF4F46E5)
+                              : const Color(0xFF64748B),
+                        ),
+                        title: Text(
+                          lang.displayName,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: isSelected
+                                ? FontWeight.bold
+                                : FontWeight.normal,
+                            color: isSelected
+                                ? const Color(0xFF312E81)
+                                : const Color(0xFF1E293B),
+                          ),
+                        ),
+                        trailing: isSelected
+                            ? const Icon(
+                                Icons.check_circle,
+                                color: Color(0xFF4F46E5),
+                              )
+                            : null,
+                        onTap: () {
+                          setState(() {
+                            _language = lang;
+                          });
+                          Navigator.of(ctx).pop();
+                        },
+                      ),
+                    ),
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Future<void> _checkConnectivity() async {
@@ -138,120 +232,134 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final strings = AppStrings.get(_language);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: const Text(
-          'University Attendance',
-          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-        ),
-        centerTitle: false,
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0.5,
-        actions: [
-          IconButton(
-            icon: _isLoading
-                ? const SizedBox(
-                    width: 18,
-                    height: 18,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh, size: 20),
-            tooltip: 'Refresh Status',
-            onPressed: _checkConnectivity,
+    return Directionality(
+      textDirection: _language.textDirection,
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: Text(
+            strings.t('app_title'),
+            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
-          const SizedBox(width: 8),
-        ],
-      ),
-      body: RefreshIndicator(
-        onRefresh: _checkConnectivity,
-        child: SingleChildScrollView(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Connectivity Status Banner
-              _buildConnectivityBanner(),
-              const SizedBox(height: 16),
+          centerTitle: false,
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          elevation: 0.5,
+          actions: [
+            IconButton(
+              key: const Key('language_toggle_btn'),
+              icon: const Icon(Icons.language, size: 20),
+              tooltip: 'Language / لسان / ژبه',
+              onPressed: _showLanguageSelector,
+            ),
+            IconButton(
+              icon: _isLoading
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.refresh, size: 20),
+              tooltip: strings.t('refresh'),
+              onPressed: _checkConnectivity,
+            ),
+            const SizedBox(width: 8),
+          ],
+        ),
+        body: RefreshIndicator(
+          onRefresh: _checkConnectivity,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                // Connectivity Status Banner
+                _buildConnectivityBanner(),
+                const SizedBox(height: 16),
 
-              // Student Identity Header Card
-              _buildStudentHeader(theme),
-              const SizedBox(height: 16),
+                // Student Identity Header Card
+                _buildStudentHeader(theme),
+                const SizedBox(height: 16),
 
-              // Overall Attendance Standing Card
-              _buildAttendanceStandingCard(theme),
-              const SizedBox(height: 20),
+                // Overall Attendance Standing Card
+                _buildAttendanceStandingCard(theme),
+                const SizedBox(height: 20),
 
-              // Quick Actions Section
-              Text(
-                'Quick Actions',
-                style: theme.textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: const Color(0xFF1E293B),
-                ),
-              ),
-              const SizedBox(height: 12),
-              _buildQuickActionGrid(),
-              const SizedBox(height: 24),
-
-              // Course Attendance Progress
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    'Enrolled Courses',
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: const Color(0xFF1E293B),
-                    ),
+                // Quick Actions Section
+                Text(
+                  'Quick Actions',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF1E293B),
                   ),
-                  Text(
-                    'Semester Fall 2026',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey.shade600,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 12),
-              _buildCourseProgressList(),
-              const SizedBox(height: 20),
-
-              // Invariant Compliance Card
-              Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF1F5F9),
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFFE2E8F0)),
                 ),
-                child: Row(
+                const SizedBox(height: 12),
+                _buildQuickActionGrid(),
+                const SizedBox(height: 24),
+
+                // Course Attendance Progress
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Icon(
-                      Icons.gavel,
-                      size: 18,
-                      color: Color(0xFF475569),
+                    Text(
+                      'Enrolled Courses',
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: const Color(0xFF1E293B),
+                      ),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        'University Attendance Invariant: Server UTC clock is authoritative. Client device clock cannot grant attendance credit.',
-                        style: TextStyle(
-                          fontSize: 11,
-                          color: Colors.grey.shade700,
-                          height: 1.3,
-                        ),
+                    Text(
+                      'Semester Fall 2026',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey.shade600,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                _buildCourseProgressList(),
+                const SizedBox(height: 20),
+
+                // Invariant Compliance Card
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(color: const Color(0xFFE2E8F0)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.gavel,
+                        size: 18,
+                        color: Color(0xFF475569),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          _language == AppLanguage.en
+                              ? 'University Attendance Invariant: Server UTC clock is authoritative. Client device clock cannot grant attendance credit.'
+                              : (_language == AppLanguage.fa
+                                  ? 'قاعده سیستم حاضری: ساعت رسمی سرور پوهنتون تنها مرجع معتبر است. ساعت دستگاه محصل نمی‌تواند اعتبار حاضری صادر کند.'
+                                  : 'د سیستم اساسي اصل: یوازې د پوهنتون د سرور رسمي وخت باوري دی. د محصل د ټیلیفون ساعت نشي کولی د حاضري اعتبار صادر کړي.'),
+                          style: TextStyle(
+                            fontSize: 11,
+                            color: Colors.grey.shade700,
+                            height: 1.3,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -394,22 +502,36 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       case AttendanceStandingStatus.goodStanding:
         statusColor = const Color(0xFF059669);
         statusBg = const Color(0xFFD1FAE5);
-        statusLabel = 'Good Standing (≥ 75%)';
+        statusLabel = _language == AppLanguage.en
+            ? 'Good Standing (≥ 75%)'
+            : (_language == AppLanguage.fa
+                ? 'وضعیت قناعت‌بخش (≥ ۷۵٪)'
+                : 'قناعت بخښونکی حالت (≥ ۷۵٪)');
         break;
       case AttendanceStandingStatus.warning:
         statusColor = const Color(0xFFD97706);
         statusBg = const Color(0xFFFEF3C7);
-        statusLabel = 'Warning Threshold';
+        statusLabel = _language == AppLanguage.en
+            ? 'Warning Threshold'
+            : (_language == AppLanguage.fa
+                ? 'اخطاریه محرومی'
+                : 'د محرومۍ خبرداری');
         break;
       case AttendanceStandingStatus.critical:
         statusColor = const Color(0xFFDC2626);
         statusBg = const Color(0xFFFEE2E2);
-        statusLabel = 'Critical / Debarred';
+        statusLabel = _language == AppLanguage.en
+            ? 'Critical / Debarred'
+            : (_language == AppLanguage.fa ? 'در معرض محرومی' : 'د محرومۍ خطر');
         break;
       case AttendanceStandingStatus.notApplicable:
         statusColor = const Color(0xFF64748B);
         statusBg = const Color(0xFFF1F5F9);
-        statusLabel = 'Not Applicable (No Eligible Sessions)';
+        statusLabel = _language == AppLanguage.en
+            ? 'Not Applicable (No Eligible Sessions)'
+            : (_language == AppLanguage.fa
+                ? 'غیرقابل تطبیق (بدون جلسات واجد شرایط)'
+                : 'د تطبیق وړ نه دی (د شرایطو وړ ناستې نشته)');
         break;
     }
 
@@ -507,6 +629,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
   }
 
   Widget _buildQuickActionGrid() {
+    final strings = AppStrings.get(_language);
     return GridView.count(
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
@@ -517,7 +640,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
       children: [
         _buildActionCard(
           icon: Icons.qr_code_scanner,
-          title: 'Scan QR Check-In',
+          title: strings.t('scan_qr_checkin'),
           subtitle: 'Dual-factor BLE & QR',
           color: const Color(0xFF0284C7),
           onTap: () {
@@ -544,7 +667,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         _buildActionCard(
           icon: Icons.security,
-          title: 'Device Trust',
+          title: strings.t('device_trust'),
           subtitle: 'Ed25519 Hardware Key',
           color: const Color(0xFF4F46E5),
           onTap: () {
@@ -563,7 +686,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         _buildActionCard(
           icon: Icons.history_edu,
-          title: 'Attendance Ledger',
+          title: strings.t('attendance_ledger'),
           subtitle: 'Corrections & Excuses',
           color: const Color(0xFFD97706),
           onTap: () {
@@ -583,7 +706,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         ),
         _buildActionCard(
           icon: Icons.sync,
-          title: 'Offline Sync Queue',
+          title: strings.t('offline_sync_queue'),
           subtitle: 'Reconcile Claims',
           color: const Color(0xFF059669),
           onTap: () {
@@ -698,12 +821,15 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
                             color: const Color(0xFFF1F5F9),
                             borderRadius: BorderRadius.circular(4),
                           ),
-                          child: Text(
-                            course['code'] as String,
-                            style: const TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.bold,
-                              color: Color(0xFF334155),
+                          child: Directionality(
+                            textDirection: TextDirection.ltr,
+                            child: Text(
+                              course['code'] as String,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF334155),
+                              ),
                             ),
                           ),
                         ),
@@ -755,7 +881,11 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
               ),
               const SizedBox(height: 6),
               Text(
-                '$conducted sessions conducted • $eligible eligible',
+                _language == AppLanguage.en
+                    ? '$conducted sessions conducted • $eligible eligible'
+                    : (_language == AppLanguage.fa
+                        ? '$conducted جلسه برگزار شده • $eligible واجد شرایط'
+                        : '$conducted ناستې ترسره شوې • $eligible د شرایطو وړ'),
                 style: const TextStyle(
                   fontSize: 10,
                   color: Color(0xFF64748B),

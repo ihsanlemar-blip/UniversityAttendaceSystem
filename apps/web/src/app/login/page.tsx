@@ -4,10 +4,13 @@ import React, { useState, useEffect, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldCheck, Lock, User, Eye, EyeOff, Building2 } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
-import { Button, Input, Alert, ConnectivityIndicator } from '@/components/ui';
+import { useLanguage } from '@/context/language-context';
+import { Button, Alert, ConnectivityIndicator } from '@/components/ui';
+import { LanguageSelector } from '@/components/layout/language-selector';
 
 export default function LoginPage() {
   const { user, login } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [username, setUsername] = useState('');
@@ -53,13 +56,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-between bg-slate-100/70 p-4 sm:p-6 lg:p-8">
-      {/* Top Bar with Campus Status */}
+      {/* Top Bar with Campus Status & Language Selector */}
       <header className="w-full max-w-6xl mx-auto flex items-center justify-between py-2">
         <div className="flex items-center gap-2 text-slate-800 font-semibold text-sm">
           <Building2 className="w-4 h-4 text-sky-600" />
-          <span>University Portal</span>
+          <span>{t('app.title')}</span>
         </div>
-        <ConnectivityIndicator />
+        <div className="flex items-center gap-3">
+          <LanguageSelector />
+          <ConnectivityIndicator />
+        </div>
       </header>
 
       {/* Main Login Card */}
@@ -70,17 +76,17 @@ export default function LoginPage() {
             <div className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center mx-auto mb-3 shadow-inner">
               <ShieldCheck className="w-7 h-7 text-sky-300" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Institutional Attendance</h1>
-            <p className="text-xs text-sky-200 mt-1 font-medium">Digital Verification & Governance System</p>
+            <h1 className="text-xl font-bold tracking-tight">{t('app.title')}</h1>
+            <p className="text-xs text-sky-200 mt-1 font-medium">{t('app.subtitle')}</p>
           </div>
 
           {/* Form Area */}
           <div className="p-6 sm:p-8">
             <h2 className="text-sm font-semibold uppercase tracking-wider text-slate-700 mb-1">
-              Sign In to Your Account
+              {t('auth.signIn')}
             </h2>
             <p className="text-xs text-slate-500 mb-6">
-              Enter your university credentials to access the administrative and faculty portal.
+              {t('auth.credentialsPrompt')}
             </p>
 
             {error && (
@@ -92,10 +98,10 @@ export default function LoginPage() {
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Username or Identifier
+                  {t('auth.username')}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-slate-400">
                     <User className="w-4 h-4" />
                   </span>
                   <input
@@ -105,17 +111,17 @@ export default function LoginPage() {
                     value={username}
                     onChange={(e) => setUsername(e.target.value)}
                     placeholder="e.g. admin, lecturer@uni.edu"
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+                    className="w-full ps-9 pe-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Password
+                  {t('auth.password')}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
@@ -125,12 +131,12 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••••••"
-                    className="w-full pl-9 pr-10 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
+                    className="w-full ps-9 pe-10 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-transparent transition-all"
                   />
                   <button
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
+                    className="absolute inset-y-0 end-0 pe-3 flex items-center text-slate-400 hover:text-slate-600 focus:outline-none"
                     aria-label={showPassword ? 'Hide password' : 'Show password'}
                   >
                     {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
@@ -146,7 +152,7 @@ export default function LoginPage() {
                   className="w-full"
                   isLoading={isLoading}
                 >
-                  Sign In
+                  {t('auth.signIn')}
                 </Button>
               </div>
             </form>

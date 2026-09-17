@@ -4,10 +4,13 @@ import React, { useState, useMemo, FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, Check, X, Lock, LogOut } from 'lucide-react';
 import { useAuth } from '@/context/auth-context';
+import { useLanguage } from '@/context/language-context';
 import { Button, Alert } from '@/components/ui';
+import { LanguageSelector } from '@/components/layout/language-selector';
 
 export default function ChangePasswordPage() {
   const { user, changePassword, logout } = useAuth();
+  const { t } = useLanguage();
   const router = useRouter();
 
   const [currentPassword, setCurrentPassword] = useState('');
@@ -72,6 +75,9 @@ export default function ChangePasswordPage() {
 
   return (
     <div className="min-h-screen flex flex-col justify-center items-center bg-slate-100/70 p-4 sm:p-6 lg:p-8">
+      <div className="w-full max-w-lg flex justify-end mb-3">
+        <LanguageSelector />
+      </div>
       <main className="w-full max-w-lg">
         <div className="bg-white border border-slate-200 rounded-2xl shadow-xl overflow-hidden">
           {/* Warning Header */}
@@ -79,9 +85,9 @@ export default function ChangePasswordPage() {
             <div className="w-12 h-12 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 flex items-center justify-center mx-auto mb-3">
               <ShieldAlert className="w-7 h-7 text-amber-100" />
             </div>
-            <h1 className="text-xl font-bold tracking-tight">Security Action Required</h1>
+            <h1 className="text-xl font-bold tracking-tight">{t('auth.changePassword')}</h1>
             <p className="text-xs text-amber-100 mt-1">
-              You must update your institutional password to continue accessing the system.
+              {t('auth.passwordRequirements')}
             </p>
           </div>
 
@@ -94,17 +100,17 @@ export default function ChangePasswordPage() {
 
             {success && (
               <Alert variant="success" className="mb-6">
-                Password changed successfully! Redirecting to your dashboard...
+                {t('auth.passwordChanged')}
               </Alert>
             )}
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Current Password
+                  {t('auth.password')}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
@@ -113,17 +119,17 @@ export default function ChangePasswordPage() {
                     value={currentPassword}
                     onChange={(e) => setCurrentPassword(e.target.value)}
                     placeholder="Enter current password"
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                    className="w-full ps-9 pe-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  New Password
+                  {t('auth.newPassword')}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
@@ -132,17 +138,17 @@ export default function ChangePasswordPage() {
                     value={newPassword}
                     onChange={(e) => setNewPassword(e.target.value)}
                     placeholder="Enter new strong password"
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                    className="w-full ps-9 pe-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1.5">
-                  Confirm New Password
+                  {t('auth.confirmPassword')}
                 </label>
                 <div className="relative">
-                  <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                  <span className="absolute inset-y-0 start-0 ps-3 flex items-center pointer-events-none text-slate-400">
                     <Lock className="w-4 h-4" />
                   </span>
                   <input
@@ -151,7 +157,7 @@ export default function ChangePasswordPage() {
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Confirm new strong password"
-                    className="w-full pl-9 pr-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
+                    className="w-full ps-9 pe-3 py-2.5 bg-white border border-slate-300 rounded-lg text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent transition-all"
                   />
                 </div>
               </div>
