@@ -387,7 +387,7 @@ class _StudentDeviceSecurityScreenState
             ),
             const SizedBox(height: 8),
             const Text(
-              'Ed25519 private key is held exclusively in this phone\'s hardware-backed keystore.',
+              'Ed25519 private key is held exclusively in this phone\'s OS-protected secure storage.',
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
           ],

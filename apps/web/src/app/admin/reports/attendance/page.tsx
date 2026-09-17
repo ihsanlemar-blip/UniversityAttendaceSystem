@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
 import {
   BarChart3,
   Download,
@@ -107,11 +108,23 @@ interface SessionReport {
   revision_count: number;
 }
 
-export default function AttendanceReportsDashboardPage() {
-  const [activeTab, setActiveTab] = useState<'roster' | 'department' | 'session'>('roster');
+function AttendanceReportsDashboardContent() {
+  const searchParams = useSearchParams();
+  const initialSessionId = searchParams.get('session_id') || '';
+  const initialOfferingId = searchParams.get('course_offering_id') || '';
+  const initialTabParam = searchParams.get('tab');
+  const initialTab: 'roster' | 'department' | 'session' = initialSessionId
+    ? 'session'
+    : initialOfferingId
+    ? 'roster'
+    : initialTabParam === 'session' || initialTabParam === 'department' || initialTabParam === 'roster'
+    ? initialTabParam
+    : 'roster';
+
+  const [activeTab, setActiveTab] = useState<'roster' | 'department' | 'session'>(initialTab);
 
   // Course Roster State
-  const [offeringId, setOfferingId] = useState<string>('');
+  const [offeringId, setOfferingId] = useState<string>(initialOfferingId);
   const [thresholdFilter, setThresholdFilter] = useState<string>('ALL');
   const [rosterReport, setRosterReport] = useState<CourseRosterReport | null>(null);
   const [isLoadingRoster, setIsLoadingRoster] = useState<boolean>(false);
@@ -122,7 +135,7 @@ export default function AttendanceReportsDashboardPage() {
   const [isLoadingDept, setIsLoadingDept] = useState<boolean>(false);
 
   // Session State
-  const [sessionId, setSessionId] = useState<string>('');
+  const [sessionId, setSessionId] = useState<string>(initialSessionId);
   const [sessionReport, setSessionReport] = useState<SessionReport | null>(null);
   const [isLoadingSession, setIsLoadingSession] = useState<boolean>(false);
 
@@ -137,6 +150,63 @@ export default function AttendanceReportsDashboardPage() {
       Accept: 'application/json',
     };
   }, []);
+
+  useEffect(() => {
+    let ignore = false;
+    if (initialSessionId) {
+      const fetchSession = async () => {
+        setIsLoadingSession(true);
+        try {
+          const res = await fetch(`${apiBaseUrl}/reports/attendance/sessions/${initialSessionId}`, {
+            headers: {
+              ...(typeof window !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('access_token'))
+                ? { Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('access_token')}` }
+                : {}),
+              Accept: 'application/json',
+            },
+          });
+          const json = await res.json();
+          if (!ignore && res.ok && json.data) {
+            setSessionReport(json.data);
+          }
+        } catch {
+          // ignore
+        } finally {
+          if (!ignore) setIsLoadingSession(false);
+        }
+      };
+      fetchSession();
+    } else if (initialOfferingId) {
+      const fetchRoster = async () => {
+        setIsLoadingRoster(true);
+        try {
+          const res = await fetch(
+            `${apiBaseUrl}/reports/attendance/course-offerings/${initialOfferingId}?page=1&page_size=100`,
+            {
+              headers: {
+                ...(typeof window !== 'undefined' && (localStorage.getItem('token') || localStorage.getItem('access_token'))
+                  ? { Authorization: `Bearer ${localStorage.getItem('token') || localStorage.getItem('access_token')}` }
+                  : {}),
+                Accept: 'application/json',
+              },
+            }
+          );
+          const json = await res.json();
+          if (!ignore && res.ok && json.data) {
+            setRosterReport(json.data);
+          }
+        } catch {
+          // ignore
+        } finally {
+          if (!ignore) setIsLoadingRoster(false);
+        }
+      };
+      fetchRoster();
+    }
+    return () => {
+      ignore = true;
+    };
+  }, [initialSessionId, initialOfferingId, apiBaseUrl]);
 
   const handleFetchRoster = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -746,5 +816,19 @@ export default function AttendanceReportsDashboardPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function AttendanceReportsDashboardPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-8">
+          <RefreshCw className="w-8 h-8 animate-spin text-indigo-600" />
+        </div>
+      }
+    >
+      <AttendanceReportsDashboardContent />
+    </Suspense>
   );
 }

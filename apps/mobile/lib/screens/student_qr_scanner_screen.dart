@@ -58,6 +58,7 @@ class StudentQrScannerScreen extends StatefulWidget {
 class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
   ScannerViewStatus _status = ScannerViewStatus.scanning;
   PresenceCheckInResult? _result;
+  String? _errorCode;
   String? _errorMessage;
   final TextEditingController _manualTokenController = TextEditingController();
   late final MobileScannerController _controller;
@@ -237,16 +238,19 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
     } on PresenceCheckInException catch (e) {
       setState(() {
         _status = ScannerViewStatus.error;
-        _errorMessage = '${e.code}: ${e.message}';
+        _errorCode = e.code;
+        _errorMessage = e.message;
       });
     } on QrCheckInException catch (e) {
       setState(() {
         _status = ScannerViewStatus.error;
-        _errorMessage = '${e.code}: ${e.message}';
+        _errorCode = e.code;
+        _errorMessage = e.message;
       });
     } catch (e) {
       setState(() {
         _status = ScannerViewStatus.error;
+        _errorCode = 'CONNECTION_FAILED';
         _errorMessage = 'Network connection failed. Please try again.';
       });
     }
@@ -256,6 +260,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
     setState(() {
       _status = ScannerViewStatus.scanning;
       _result = null;
+      _errorCode = null;
       _errorMessage = null;
       _manualTokenController.clear();
     });
@@ -449,12 +454,20 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
           children: [
             const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 16),
+            const Text(
+              'Attendance Confirmed',
+              style: TextStyle(
+                  color: Colors.greenAccent,
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 6),
             Text(
-              '${_result?.checkpointType} Checkpoint Credited!',
+              '${_result?.checkpointType} Checkpoint Credited',
               style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold),
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
             Text(
@@ -486,7 +499,7 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             ),
             const SizedBox(height: 8),
             const Text(
-              'You have already received credit for this checkpoint window.',
+              'You have already received credit for this checkpoint window. Duplicate credit is prevented (INV-05).',
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.white70, fontSize: 13),
             ),
@@ -508,17 +521,25 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
                 size: 80, color: Colors.amberAccent),
             const SizedBox(height: 16),
             const Text(
-              'Locally Recorded',
+              'Saved for Synchronization',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
             ),
+            const SizedBox(height: 4),
+            const Text(
+              '(Pending server reconciliation)',
+              style: TextStyle(
+                  color: Colors.amberAccent,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600),
+            ),
             const SizedBox(height: 8),
             const Padding(
               padding: EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Offline attendance evidence stored in outbox. Official credit will be confirmed after server synchronization.',
+                'Offline attendance evidence stored in secure local outbox. Official credit will be confirmed after server synchronization.',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.white70, fontSize: 13),
               ),
@@ -534,14 +555,71 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
         );
 
       case ScannerViewStatus.error:
+        IconData errorIcon = Icons.error_outline;
+        String errorTitle = 'Check-In Failed';
+        String errorDescription = _errorMessage ?? 'Verification failed.';
+
+        final codeUpper = _errorCode?.toUpperCase() ?? '';
+
+        if (codeUpper.contains('TOKEN_EXPIRED')) {
+          errorIcon = Icons.timer_off;
+          errorTitle = 'Token Expired';
+          errorDescription =
+              'The rotating QR code has expired. Please scan the current code displayed on the classroom screen.';
+        } else if (codeUpper.contains('CHECKPOINT_NOT_OPEN') ||
+            codeUpper.contains('CHECKPOINT_CLOSED')) {
+          errorIcon = Icons.lock_clock;
+          errorTitle = 'Checkpoint Not Open';
+          errorDescription =
+              'No attendance checkpoint is currently open for check-ins in this session.';
+        } else if (codeUpper.contains('SESSION_CLOSED')) {
+          errorIcon = Icons.event_busy;
+          errorTitle = 'Session Closed';
+          errorDescription =
+              'This attendance session is closed and no longer accepting check-ins.';
+        } else if (codeUpper.contains('DEVICE_NOT_REGISTERED')) {
+          errorIcon = Icons.phonelink_erase;
+          errorTitle = 'Device Not Registered';
+          errorDescription =
+              'This phone is not registered as your primary attendance device. Please activate it in Device Security settings.';
+        } else if (codeUpper.contains('DEVICE_SUSPENDED') ||
+            codeUpper.contains('DEVICE_REVOKED')) {
+          errorIcon = Icons.device_unknown;
+          errorTitle = 'Device Suspended';
+          errorDescription =
+              'This device has been suspended or revoked. Please contact institutional administration.';
+        } else if (codeUpper.contains('BLE_REQUIRED') ||
+            codeUpper.contains('BLE_NOT_DETECTED')) {
+          errorIcon = Icons.bluetooth_disabled;
+          errorTitle = 'Classroom BLE Required';
+          errorDescription =
+              'Classroom Bluetooth beacon was not detected. Ensure Bluetooth is enabled and you are physically inside the classroom.';
+        } else if (codeUpper.contains('NETWORK_REQUIRED') ||
+            codeUpper.contains('CAMPUS_NETWORK_NOT_DETECTED')) {
+          errorIcon = Icons.wifi_off;
+          errorTitle = 'Campus Wi-Fi Required';
+          errorDescription =
+              'Check-in requires connection to the authorized campus Wi-Fi network.';
+        } else if (codeUpper.contains('NOT_ENROLLED')) {
+          errorIcon = Icons.person_off;
+          errorTitle = 'Not Enrolled';
+          errorDescription = 'You are not enrolled in this course offering.';
+        } else if (codeUpper.contains('CONNECTION_FAILED') ||
+            codeUpper.contains('SERVER_UNREACHABLE')) {
+          errorIcon = Icons.cloud_off;
+          errorTitle = 'Server Unreachable';
+          errorDescription =
+              'Cannot reach attendance server. If the lecturer has started offline mode, scan the offline QR code.';
+        }
+
         return Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.error_outline, size: 80, color: Colors.redAccent),
+            Icon(errorIcon, size: 80, color: Colors.redAccent),
             const SizedBox(height: 16),
-            const Text(
-              'Check-In Failed',
-              style: TextStyle(
+            Text(
+              errorTitle,
+              style: const TextStyle(
                   color: Colors.redAccent,
                   fontSize: 18,
                   fontWeight: FontWeight.bold),
@@ -550,11 +628,21 @@ class _StudentQrScannerScreenState extends State<StudentQrScannerScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                _errorMessage ?? 'Verification failed.',
+                errorDescription,
                 textAlign: TextAlign.center,
                 style: const TextStyle(color: Colors.white70, fontSize: 13),
               ),
             ),
+            if (_errorCode != null) ...[
+              const SizedBox(height: 6),
+              Text(
+                'Code: $_errorCode',
+                style: const TextStyle(
+                    color: Colors.white38,
+                    fontSize: 11,
+                    fontFamily: 'monospace'),
+              ),
+            ],
             const SizedBox(height: 24),
             ElevatedButton.icon(
               onPressed: _resetScanner,

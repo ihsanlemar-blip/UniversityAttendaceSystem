@@ -352,6 +352,75 @@ async def get_attendance_session(
     )
 
 
+@router.get(
+    "/sessions/by-occurrence/{occurrence_id}",
+    response_model=StandardResponse[AttendanceSessionDetailResponse],
+    summary="Get attendance session by class occurrence ID",
+)
+async def get_session_by_occurrence(
+    occurrence_id: uuid.UUID,
+    current_user: Annotated[
+        User, Depends(require_permission("attendance_sessions.read", allow_scoped=True))
+    ],
+    db: Annotated[AsyncSession, Depends(get_db_session)],
+) -> StandardResponse[AttendanceSessionDetailResponse]:
+    """Retrieve attendance session anchored to a specific class occurrence."""
+    occ = await db.get(ClassOccurrence, occurrence_id)
+    if not occ or occ.university_id != current_user.university_id:
+        raise NotFoundException("ClassOccurrence", occurrence_id)
+
+    await _verify_occurrence_authority(
+        db=db,
+        current_user=current_user,
+        occurrence=occ,
+        permission_code="attendance_sessions.read",
+    )
+
+    session = await AttendanceService.get_session_by_occurrence(
+        db=db,
+        occurrence_id=occurrence_id,
+        university_id=current_user.university_id,
+    )
+    if not session:
+        raise NotFoundException("AttendanceSession for ClassOccurrence", occurrence_id)
+
+    records_stmt = select(AttendanceRecord).where(
+        AttendanceRecord.attendance_session_id == session.id
+    )
+    records_res = await db.execute(records_stmt)
+    records = records_res.scalars().all()
+
+    detail = AttendanceSessionDetailResponse(
+        id=session.id,
+        university_id=session.university_id,
+        class_occurrence_id=session.class_occurrence_id,
+        attendance_policy_id=session.attendance_policy_id,
+        policy_snapshot=session.policy_snapshot,
+        status=session.status,
+        host_type=session.host_type,
+        opened_at_utc=session.opened_at_utc,
+        paused_at_utc=session.paused_at_utc,
+        resumed_at_utc=session.resumed_at_utc,
+        closed_at_utc=session.closed_at_utc,
+        opened_by_user_id=session.opened_by_user_id,
+        closed_by_user_id=session.closed_by_user_id,
+        created_at=session.created_at,
+        updated_at=session.updated_at,
+        checkpoints=[AttendanceCheckpointResponse.model_validate(cp) for cp in session.checkpoints],
+        total_enrolled=len(records),
+        total_present=sum(1 for r in records if r.status == AttendanceStatus.PRESENT.value),
+        total_late=sum(1 for r in records if r.status == AttendanceStatus.LATE.value),
+        total_absent=sum(1 for r in records if r.status == AttendanceStatus.ABSENT.value),
+        total_excused=sum(1 for r in records if r.status == AttendanceStatus.EXCUSED.value),
+        total_leave=sum(1 for r in records if r.status == AttendanceStatus.LEAVE.value),
+        total_pending=sum(1 for r in records if r.status == AttendanceStatus.PENDING.value),
+    )
+    return StandardResponse(
+        data=detail,
+        meta={"message": "Attendance session details retrieved successfully."},
+    )
+
+
 @router.post(
     "/sessions/{session_id}/open",
     response_model=StandardResponse[AttendanceSessionResponse],

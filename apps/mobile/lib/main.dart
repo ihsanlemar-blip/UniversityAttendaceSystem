@@ -266,7 +266,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 title: const Text('Device Trust & Security'),
                 subtitle: const Text(
-                  'Hardware-backed Ed25519 identity & primary device trust',
+                  'OS-protected Ed25519 identity & primary device trust',
                   style: TextStyle(fontSize: 12),
                 ),
                 trailing: const Icon(Icons.chevron_right),

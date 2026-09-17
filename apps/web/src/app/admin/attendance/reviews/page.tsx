@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import {
   ClipboardCheck,
   FileQuestion,
@@ -18,6 +19,7 @@ import {
   Check,
   X,
   Smartphone,
+  BarChart3,
 } from 'lucide-react';
 
 interface CorrectionRequest {
@@ -1005,6 +1007,13 @@ export default function AttendanceOperationsConsolePage() {
                               >
                                 <History className="w-4 h-4 inline" />
                               </button>
+                              <Link
+                                href={`/admin/reports/attendance?tab=session&session_id=${corr.attendance_session_id}`}
+                                title="View Session Attendance Report"
+                                className="p-1 text-slate-400 hover:text-indigo-600 transition inline-flex items-center"
+                              >
+                                <BarChart3 className="w-4 h-4" />
+                              </Link>
                             </td>
                           </tr>
                         ))
@@ -1117,6 +1126,15 @@ export default function AttendanceOperationsConsolePage() {
                                 </>
                               ) : (
                                 <span className="text-xs text-slate-400 italic">Resolved</span>
+                              )}
+                              {exc.attendance_session_id && (
+                                <Link
+                                  href={`/admin/reports/attendance?tab=session&session_id=${exc.attendance_session_id}`}
+                                  title="View Session Attendance Report"
+                                  className="p-1 text-slate-400 hover:text-indigo-600 transition inline-flex items-center"
+                                >
+                                  <BarChart3 className="w-4 h-4" />
+                                </Link>
                               )}
                             </td>
                           </tr>
@@ -1240,7 +1258,7 @@ export default function AttendanceOperationsConsolePage() {
                         <th className="p-4">Student</th>
                         <th className="p-4">Course & Session</th>
                         <th className="p-4">Current Status & Credit</th>
-                        <th className="p-4">Anomaly / Reason</th>
+                        <th className="p-4">Verification Signal / Reason</th>
                         <th className="p-4">Method</th>
                         <th className="p-4 text-right">Actions</th>
                       </tr>
@@ -1313,6 +1331,13 @@ export default function AttendanceOperationsConsolePage() {
                               >
                                 <History className="w-4 h-4 inline" />
                               </button>
+                              <Link
+                                href={`/admin/reports/attendance?tab=session&session_id=${man.session_id}`}
+                                title="View Session Attendance Report"
+                                className="p-1 text-slate-400 hover:text-indigo-600 transition inline-flex items-center"
+                              >
+                                <BarChart3 className="w-4 h-4" />
+                              </Link>
                             </td>
                           </tr>
                         ))

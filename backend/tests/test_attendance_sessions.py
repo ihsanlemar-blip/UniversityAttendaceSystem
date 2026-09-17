@@ -191,3 +191,40 @@ def test_frozen_roster_snapshot(
     roster2_ids = {r["student_id"] for r in records_res2.json()["data"]}
     assert s3_id not in roster2_ids
     assert len(roster2_ids) == 2
+
+
+def test_get_session_by_occurrence_endpoint(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+) -> None:
+    """Verify GET /sessions/by-occurrence/{occurrence_id} returns session details or 404."""
+    headers = get_admin_headers(client, test_admin_user, test_university)
+    _, _, occurrence_id = setup_class_occurrence(client, headers)
+
+    # 1. Before session creation -> 404
+    not_found_res = client.get(
+        f"/api/v1/attendance/sessions/by-occurrence/{occurrence_id}",
+        headers=headers,
+    )
+    assert not_found_res.status_code == 404
+
+    # 2. Create session
+    create_res = client.post(
+        "/api/v1/attendance/sessions",
+        headers=headers,
+        json={"class_occurrence_id": occurrence_id, "activate_immediately": True},
+    )
+    assert create_res.status_code == 201
+    created_id = create_res.json()["data"]["id"]
+
+    # 3. After session creation -> 200 with session details
+    get_res = client.get(
+        f"/api/v1/attendance/sessions/by-occurrence/{occurrence_id}",
+        headers=headers,
+    )
+    assert get_res.status_code == 200
+    data = get_res.json()["data"]
+    assert data["id"] == created_id
+    assert data["class_occurrence_id"] == occurrence_id
+    assert data["status"] == "ACTIVE"
