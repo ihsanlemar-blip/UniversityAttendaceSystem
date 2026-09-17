@@ -68,11 +68,14 @@ To support real testability and adhere to modular milestones, the actual linear 
 │                                 leave requests, workflow foundation)   │
 │      │                                                                 │
 │      ▼                                                                 │
-│  [Subsequent Milestones - presence fraud, risk flags, reporting]       │
+│  013_imports_administration (Milestone 16 - import jobs & staged rows) │
+│      │                                                                 │
+│      ▼                                                                 │
+│  014_perf_hardening (Milestone 18 - composite performance indexes)     │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
-*Note: Migrations 001 through 012 are fully applied, verified reversible, and operational as of Milestone 15 Part 1 (012_attendance_ops_corrections).*
+*Note: Migrations 001 through 014 (head: 014_perf_hardening) are fully applied, verified reversible via alembic downgrade/upgrade, and operational as of Milestone 18.*
 
 
 ### 2.2 Original Conceptual Grouping (Milestone 3 Architecture Blueprint)

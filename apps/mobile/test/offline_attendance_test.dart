@@ -544,6 +544,130 @@ void main() {
       }
     });
 
+    test(
+        'Offline crash test: preserves pending claim across simulated process kill and restarts cleanly',
+        () {
+      final tempDir = Directory.systemTemp.createTempSync('sqlite_crash_test_');
+      try {
+        final claim = OfflineStudentClaimModel(
+          claimId: 'claim-crash-001',
+          permitId: 'permit-crash-001',
+          checkpointType: 'START',
+          rotationSlot: 5,
+          qrChallengeToken: 'token-crash-001',
+          clientCapturedAtUtc: DateTime.utc(2026, 9, 17, 10, 30, 0),
+          userId: 'student-crash-user',
+        );
+
+        // Step 1: Client writes claim transactionally to outbox and local store
+        final appInstance1 = SqliteOfflineStorage(storageDir: tempDir);
+        appInstance1.saveClaimWithOutboxTransactional(
+          userId: 'student-crash-user',
+          claim: claim,
+        );
+        expect(
+            appInstance1.getPendingOutboxForUser('student-crash-user').length,
+            equals(1));
+
+        // Step 2: Simulate immediate process termination / OS crash before sync
+        appInstance1.dispose();
+
+        // Step 3: Device reboots / app restarts and re-opens SQLite database
+        final appInstance2 = SqliteOfflineStorage(storageDir: tempDir);
+        try {
+          final pendingClaims =
+              appInstance2.getPendingStudentClaimsForUser('student-crash-user');
+          expect(pendingClaims.length, equals(1));
+          expect(pendingClaims.first.claimId, equals('claim-crash-001'));
+
+          final pendingOutbox =
+              appInstance2.getPendingOutboxForUser('student-crash-user');
+          expect(pendingOutbox.length, equals(1));
+          expect(pendingOutbox.first.referenceId, equals('claim-crash-001'));
+          expect(
+              pendingOutbox.first.status, equals(SyncState.pendingSyncLegacy));
+
+          // Step 4: Network connectivity restored, server acknowledges sync
+          appInstance2.acknowledgeClaimSync(
+            claimId: 'claim-crash-001',
+            success: true,
+          );
+
+          // Step 5: Verify zero data loss and state becomes SYNCED
+          expect(
+              appInstance2
+                  .getPendingOutboxForUser('student-crash-user')
+                  .isEmpty,
+              isTrue);
+          final rows = appInstance2.db.select(
+            'SELECT status FROM offline_student_claims WHERE claim_id = ?;',
+            ['claim-crash-001'],
+          );
+          expect(rows.first['status'], equals(SyncState.synced));
+        } finally {
+          appInstance2.dispose();
+        }
+      } finally {
+        if (tempDir.existsSync()) {
+          tempDir.deleteSync(recursive: true);
+        }
+      }
+    });
+
+    test(
+        'Offline response-loss test: client retries safely without duplicate credit or state corruption',
+        () {
+      final sqlite = SqliteOfflineStorage();
+      try {
+        final claim = OfflineStudentClaimModel(
+          claimId: 'claim-resploss-002',
+          permitId: 'permit-resploss-002',
+          checkpointType: 'START',
+          rotationSlot: 8,
+          qrChallengeToken: 'token-resploss-002',
+          clientCapturedAtUtc: DateTime.utc(2026, 9, 17, 11, 0, 0),
+          userId: 'student-resploss-user',
+        );
+
+        sqlite.saveClaimWithOutboxTransactional(
+          userId: 'student-resploss-user',
+          claim: claim,
+        );
+
+        // Client attempts sync; server receives and commits, but response dropped in transit
+        // Outbox is marked retryable due to network timeout
+        sqlite.acknowledgeClaimSync(
+          claimId: 'claim-resploss-002',
+          success: false,
+          failureStatus: SyncState.failedRetryable,
+          rejectionReason: 'Client network timeout waiting for ACK',
+        );
+
+        var outbox = sqlite.getPendingOutboxForUser('student-resploss-user');
+        expect(outbox.length, equals(1));
+        expect(outbox.first.status, equals(SyncState.failedRetryable));
+        expect(outbox.first.retryCount, equals(1));
+
+        // Client retries submission. Server returns idempotent ACK (or DUPLICATE_CHECKPOINT conflict handled)
+        sqlite.acknowledgeClaimSync(
+          claimId: 'claim-resploss-002',
+          success: true,
+        );
+
+        // Verify outbox completed and local state is SYNCED
+        outbox = sqlite.getPendingOutboxForUser('student-resploss-user');
+        expect(outbox.isEmpty, isTrue);
+
+        final claimRow = sqlite.db.select(
+          'SELECT status FROM offline_student_claims WHERE claim_id = ?;',
+          ['claim-resploss-002'],
+        );
+        expect(claimRow.first['status'], equals(SyncState.synced));
+      } finally {
+        sqlite.dispose();
+      }
+    });
+
     test('Cryptographic keys remain isolated from SQLite database', () {
       final sqlite = SqliteOfflineStorage();
       try {

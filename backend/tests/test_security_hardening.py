@@ -104,6 +104,84 @@ def test_production_insecure_signing_keys_fail_closed() -> None:
         )
     assert "A secure AUTH_SIGNING_KEY of at least 32 characters is required" in str(exc_info.value)
 
+    dev_qr_key = "dev-attendance-qr-signing-key-minimum-32-chars-for-testing-only"
+    dev_ble_key = "dev-attendance-ble-signing-key-minimum-32-chars-for-testing-only"
+
+    # Insecure QR key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            APP_ENV=Environment.PRODUCTION,
+            DEBUG=False,
+            DATABASE_PASSWORD="SuperSecureProdPassword123!@#",
+            AUTH_SIGNING_KEY="prod-auth-signing-key-minimum-32-chars-long-12345",
+            ATTENDANCE_QR_SIGNING_KEY=dev_qr_key,
+            CORS_ALLOWED_ORIGINS="https://attendance.university.edu",
+        )
+    assert "A secure ATTENDANCE_QR_SIGNING_KEY of at least 32 characters is required" in str(
+        exc_info.value
+    )
+
+    # Insecure BLE key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            APP_ENV=Environment.PRODUCTION,
+            DEBUG=False,
+            DATABASE_PASSWORD="SuperSecureProdPassword123!@#",
+            AUTH_SIGNING_KEY="prod-auth-signing-key-minimum-32-chars-long-12345",
+            ATTENDANCE_QR_SIGNING_KEY="prod-qr-signing-key-minimum-32-chars-long-12345",
+            ATTENDANCE_BLE_SIGNING_KEY=dev_ble_key,
+            CORS_ALLOWED_ORIGINS="https://attendance.university.edu",
+        )
+    assert "A secure ATTENDANCE_BLE_SIGNING_KEY of at least 32 characters is required" in str(
+        exc_info.value
+    )
+
+    # Insecure offline key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            APP_ENV=Environment.PRODUCTION,
+            DEBUG=False,
+            DATABASE_PASSWORD="SuperSecureProdPassword123!@#",
+            AUTH_SIGNING_KEY="prod-auth-signing-key-minimum-32-chars-long-12345",
+            ATTENDANCE_QR_SIGNING_KEY="prod-qr-signing-key-minimum-32-chars-long-12345",
+            ATTENDANCE_BLE_SIGNING_KEY="prod-ble-signing-key-minimum-32-chars-long-12345",
+            OFFLINE_PERMIT_SIGNING_PRIVATE_KEY="change_me_in_production",
+            CORS_ALLOWED_ORIGINS="https://attendance.university.edu",
+        )
+    assert "A secure OFFLINE_PERMIT_SIGNING_PRIVATE_KEY is required" in str(exc_info.value)
+
+
+def test_cryptographic_key_separation_enforced() -> None:
+    """Verify distinct signing keys are required for auth, QR, BLE, and offline permits."""
+    shared_key = "very-secure-shared-key-minimum-32-chars-long-abcdef12345"
+
+    # QR key equals AUTH key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            AUTH_SIGNING_KEY=shared_key,
+            ATTENDANCE_QR_SIGNING_KEY=shared_key,
+        )
+    assert "ATTENDANCE_QR_SIGNING_KEY must be distinct from AUTH_SIGNING_KEY" in str(exc_info.value)
+
+    # BLE key equals AUTH key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            AUTH_SIGNING_KEY=shared_key,
+            ATTENDANCE_QR_SIGNING_KEY="unique-qr-signing-key-minimum-32-chars-abcdef12345",
+            ATTENDANCE_BLE_SIGNING_KEY=shared_key,
+        )
+    assert "ATTENDANCE_BLE_SIGNING_KEY must be distinct" in str(exc_info.value)
+
+    # Offline key equals AUTH key
+    with pytest.raises(ValidationError) as exc_info:
+        Settings(
+            AUTH_SIGNING_KEY=shared_key,
+            ATTENDANCE_QR_SIGNING_KEY="unique-qr-signing-key-minimum-32-chars-abcdef12345",
+            ATTENDANCE_BLE_SIGNING_KEY="unique-ble-signing-key-minimum-32-chars-abcdef12345",
+            OFFLINE_PERMIT_SIGNING_PRIVATE_KEY=shared_key,
+        )
+    assert "OFFLINE_PERMIT_SIGNING_PRIVATE_KEY must be distinct" in str(exc_info.value)
+
 
 def test_docs_enabled_policy() -> None:
     """Verify OpenAPI docs default to False in production and True in development."""

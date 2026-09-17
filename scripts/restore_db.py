@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Cross-platform database restore script for PostgreSQL 16.
 
 Performs:
@@ -56,34 +56,53 @@ def restore_database():
     env = os.environ.copy()
     env["PGPASSWORD"] = args.db_pass
 
+    with gzip.open(args.backup_file, "rb") as gz:
+        uncompressed_sql = gz.read()
+
     if psql:
-        with gzip.open(args.backup_file, "rb") as gz:
-            cmd = [
-                psql,
-                "-h", args.db_host,
-                "-p", str(args.db_port),
-                "-U", args.db_user,
-                "-d", args.db_name,
-            ]
-            res = subprocess.run(cmd, stdin=gz, env=env, capture_output=True, text=True)
-            if res.returncode != 0:
-                print(f"[!] Restore failed: {res.stderr}", file=sys.stderr)
-                return 1
+        cmd = [
+            psql,
+            "-h", args.db_host,
+            "-p", str(args.db_port),
+            "-U", args.db_user,
+            "-d", args.db_name,
+        ]
+        res = subprocess.run(cmd, input=uncompressed_sql, env=env, capture_output=True)
+        if res.returncode != 0:
+            print(f"[!] Restore failed: {res.stderr.decode('utf-8', 'replace')}", file=sys.stderr)
+            return 1
     else:
-        # Fallback to docker
-        with gzip.open(args.backup_file, "rb") as gz:
-            docker_cmd = [
-                "docker", "exec", "-i", "attendance_postgres_prod",
-                "psql", "-U", args.db_user, "-d", args.db_name
-            ]
-            try:
-                res = subprocess.run(docker_cmd, stdin=gz, capture_output=True, text=True)
-                if res.returncode != 0:
-                    print(f"[!] Docker restore failed: {res.stderr}", file=sys.stderr)
-                    return 1
-            except Exception as e:
-                print(f"[!] Restore failed: {e}", file=sys.stderr)
+        # Fallback to candidate docker containers
+        candidate_containers = [
+            getattr(args, "container", None),
+            "attendance-postgres",
+            "attendance_postgres_prod",
+        ]
+        target_container = None
+        for c in candidate_containers:
+            if not c:
+                continue
+            check = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", c], capture_output=True, text=True)
+            if check.returncode == 0 and "true" in check.stdout.lower():
+                target_container = c
+                break
+
+        if not target_container:
+            print("[!] Local psql and Docker postgres containers unavailable.", file=sys.stderr)
+            return 1
+
+        docker_cmd = [
+            "docker", "exec", "-i", target_container,
+            "psql", "-U", args.db_user, "-d", args.db_name
+        ]
+        try:
+            res = subprocess.run(docker_cmd, input=uncompressed_sql, capture_output=True)
+            if res.returncode != 0:
+                print(f"[!] Docker restore failed: {res.stderr.decode('utf-8', 'replace')}", file=sys.stderr)
                 return 1
+        except Exception as e:
+            print(f"[!] Restore failed: {e}", file=sys.stderr)
+            return 1
 
     print("[+] Database restoration completed successfully.")
     return 0

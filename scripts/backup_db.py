@@ -1,4 +1,4 @@
-﻿#!/usr/bin/env python3
+#!/usr/bin/env python3
 """Cross-platform automated database backup script for PostgreSQL 16.
 
 Performs:
@@ -57,18 +57,35 @@ def backup_database():
         res = subprocess.run(cmd, env=env, capture_output=True, text=True)
         if res.returncode != 0:
             print(f"[!] pg_dump failed: {res.stderr}", file=sys.stderr)
-            return 1
     else:
-        # Fallback: check if docker is running attendance-postgres or attendance_postgres_prod
+        # Fallback: check candidate docker containers
+        candidate_containers = [
+            getattr(args, "container", None),
+            "attendance-postgres",
+            "attendance_postgres_prod",
+        ]
+        target_container = None
+        for c in candidate_containers:
+            if not c:
+                continue
+            check = subprocess.run(["docker", "inspect", "-f", "{{.State.Running}}", c], capture_output=True, text=True)
+            if check.returncode == 0 and "true" in check.stdout.lower():
+                target_container = c
+                break
+
+        if not target_container:
+            print("[!] Local pg_dump and Docker postgres containers unavailable.", file=sys.stderr)
+            return 1
+
         docker_cmd = [
-            "docker", "exec", "attendance_postgres_prod",
+            "docker", "exec", target_container,
             "pg_dump", "-U", args.db_user, "-d", args.db_name, "-Z", "9"
         ]
         try:
             with open(backup_path, "wb") as f:
                 res = subprocess.run(docker_cmd, stdout=f, stderr=subprocess.PIPE)
             if res.returncode != 0:
-                print("[!] Local pg_dump and Docker container unavailable.", file=sys.stderr)
+                print(f"[!] Docker backup failed: {res.stderr.decode()}", file=sys.stderr)
                 return 1
         except Exception as e:
             print(f"[!] Backup failed: {e}", file=sys.stderr)

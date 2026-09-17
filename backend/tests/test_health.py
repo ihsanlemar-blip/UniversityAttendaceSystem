@@ -63,3 +63,33 @@ def test_metrics_probe() -> None:
         assert payload["uptime_seconds"] >= 0
         assert "db_pool" in payload
         assert "size" in payload["db_pool"]
+
+
+@pytest.mark.asyncio
+async def test_readiness_probe_redis_down() -> None:
+    """Verify that /health/ready returns HTTP 503 when Redis is unreachable."""
+    with patch(
+        "backend.app.health.service.HealthService.evaluate_readiness",
+        new_callable=AsyncMock,
+        return_value=(False, {"database": "healthy", "redis": "unreachable"}),
+    ):
+        response = client.get("/health/ready")
+        assert response.status_code == 503
+        payload = response.json()
+        assert payload["status"] == "unhealthy"
+        assert payload["dependencies"]["database"] == "healthy"
+        assert payload["dependencies"]["redis"] == "unreachable"
+
+
+@pytest.mark.asyncio
+async def test_check_redis_connectivity_failure_surfaced_cleanly() -> None:
+    """Verify check_redis_connectivity handles connection failure gracefully without raising."""
+    from backend.app.core.redis import check_redis_connectivity
+
+    with patch("backend.app.core.redis.get_redis") as mock_get_redis:
+        mock_client = AsyncMock()
+        mock_client.ping.side_effect = ConnectionError("Redis connection refused")
+        mock_get_redis.return_value = mock_client
+
+        result = await check_redis_connectivity()
+        assert result is False
