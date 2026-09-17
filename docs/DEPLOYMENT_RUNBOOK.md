@@ -117,7 +117,10 @@
 
 ---
 
-## 6. Zero-Downtime Upgrade & Rollback Procedures
+## 6. Controlled Upgrade & Rollback Procedures (Maintenance Window)
+
+> [!NOTE]
+> Database schema updates and rollbacks (`alembic downgrade -1`) with container restarts are executed as a controlled procedure within a scheduled maintenance window. Active zero-downtime blue/green deployment is not currently claimed.
 
 ### Upgrade Workflow:
 1. Pull new release tag:
@@ -137,7 +140,7 @@
    docker compose -f docker-compose.prod.yml up -d --no-deps backend web celery_worker
    ```
 
-### Emergency Rollback Workflow:
+### Controlled Rollback Workflow:
 1. If database schema was migrated forward:
    ```bash
    docker compose -f docker-compose.prod.yml run --rm backend alembic -c backend/migrations/alembic.ini downgrade -1

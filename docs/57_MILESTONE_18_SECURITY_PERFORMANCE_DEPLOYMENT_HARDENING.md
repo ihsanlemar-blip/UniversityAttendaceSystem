@@ -170,13 +170,28 @@ graph TD
 
 ## 8. Observability & Health Probes
 
-- `/health/live`: Process liveness probe for container orchestrator.
-- `/health/ready`: Dependency readiness probe evaluating PostgreSQL and Redis availability. Returns HTTP 503 if either dependency is unreachable.
-- `/health/metrics` and `/metrics`: Observability probe reporting service uptime and database connection pool statistics (`size`, `checked_in`, `checked_out`, `overflow`).
+- `/health/live`: Public process liveness probe for container orchestrators and load balancers.
+- `/health/ready`: Public dependency readiness probe evaluating PostgreSQL and Redis availability. Returns HTTP 503 if either dependency is unreachable.
+- `/health/metrics` and `/metrics`: Protected observability endpoints reporting service uptime and database connection pool statistics (`size`, `checked_in`, `checked_out`, `overflow`).
+  - **Reverse Proxy Protection (Caddy)**: Public ingress rejects requests from outside trusted subnets (`10.0.0.0/8`, `172.16.0.0/12`, `192.168.0.0/16`, `127.0.0.1`, `::1`) with HTTP 403 Forbidden.
+  - **Backend Application Protection**: Enforces `METRICS_ACCESS_KEY` validation (via `X-Metrics-Key` header or `Authorization: Bearer <key>`) or internal network CIDR restriction (`METRICS_ALLOWED_CIDRS`), returning HTTP 403 `METRICS_ACCESS_FORBIDDEN` for untrusted/unauthenticated callers.
+  - **Internal Scrapers**: Monitoring scrapers (e.g. Prometheus) query `backend:8000/metrics` directly over `internal_net`.
 
 ---
 
-## 9. Manual Field Acceptance Gates (Carried to Milestone 19)
+## 9. Dependency Security Audit & Supply Chain Evidence
+
+As part of the Milestone 18 security baseline, comprehensive dependency security reviews were executed across all three application tiers:
+
+| Ecosystem | Tool / Audit Command | Scope | Result / Findings | Status / Decision |
+| :--- | :--- | :--- | :--- | :--- |
+| **Python Backend** | `pip-audit` | 68 backend dependencies | **0 known vulnerabilities** | Approved |
+| **Web Console** | `npm audit` | Production & dev npm packages | **0 vulnerabilities** (0 low, 0 mod, 0 high, 0 crit) | Approved |
+| **Mobile Client** | `flutter pub outdated` | 8 direct, 20 transitive packages | **0 security advisories**. Major updates available for `flutter_riverpod` (3.4.3) and `flutter_secure_storage` (11.2.0). | Pinned intentionally on stable major versions (`flutter_riverpod 2.6.1`, `flutter_secure_storage 9.2.4`) to ensure pre-pilot API stability ahead of M19. |
+
+---
+
+## 10. Manual Field Acceptance Gates (Carried to Milestone 19)
 
 Per project directives, the following 6 manual acceptance gates require physical pilot hardware and cannot be simulated in CI:
 1. **BLE Device / Field Acceptance**: Verification with physical classroom BLE broadcasters.

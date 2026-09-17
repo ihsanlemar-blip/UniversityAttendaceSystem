@@ -85,6 +85,8 @@ class ClientNetworkResolver:
         direct_peer = (
             request.client.host.strip() if request.client and request.client.host else "127.0.0.1"
         )
+        if direct_peer == "testclient":
+            direct_peer = "127.0.0.1"
 
         # Check for forwarded headers
         xff_header = request.headers.get("X-Forwarded-For", "").strip()

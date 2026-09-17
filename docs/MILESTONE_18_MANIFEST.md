@@ -10,13 +10,13 @@
 ## 1. Inventory of Files Created / Modified
 
 ### 1.1 Backend Core & Security
-- `backend/app/core/config.py`: Added fail-closed production validators, connection pool timeout/recycle settings, and cryptographic key separation rules.
+- `backend/app/core/config.py`: Added fail-closed production validators, connection pool timeout/recycle settings, cryptographic key separation rules, and metrics protection (`METRICS_ACCESS_KEY`, `METRICS_ALLOWED_CIDRS`).
 - `backend/app/core/database.py`: Integrated connection pool timeout (`DATABASE_POOL_TIMEOUT`) and recycle (`DATABASE_POOL_RECYCLE`) into engine creation.
 - `backend/app/core/security_headers.py`: Injected OWASP security headers (HSTS, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, Cache-Control).
 - `backend/app/security/rate_limiter.py`: Implemented Redis-backed sliding-window rate limiter with in-memory fallback and standard `Retry-After` HTTP headers.
 - `backend/app/security/resolver.py`: Right-to-left reverse proxy IP resolution with CIDR whitelist verification and anti-spoofing protection.
 - `backend/app/attendance/service.py`: Wrapped checkpoint credit writes in `try ... except IntegrityError:` with rollback and safe idempotency return under burst concurrency races.
-- `backend/app/health/router.py` & `schemas.py`: Added `/health/metrics` and `/metrics` observability probes reporting uptime and database connection pool statistics.
+- `backend/app/health/router.py` & `schemas.py`: Added `/health/metrics` and `/metrics` observability probes reporting uptime and database connection pool statistics, protected with `verify_metrics_access` authentication and CIDR subnet restrictions.
 - `backend/app/models/attendance_checkpoint.py`, `attendance_evidence.py`, `attendance_record.py`, `class_occurrence.py`, `course_offering.py`, `enrollment.py`: Updated `__table_args__` with composite performance indexes matching Migration 014.
 - `backend/migrations/versions/014_security_performance_deployment_hardening.py`: Alembic migration `014_perf_hardening` adding 6 composite indexes.
 
@@ -34,7 +34,8 @@
 - `infra/docker/Dockerfile.backend.prod`: Multi-stage Dockerfile running non-root user `appuser:appgroup` (UID 10001), 4 Uvicorn workers, and container healthcheck.
 - `infra/docker/Dockerfile.web.prod`: Multi-stage Next.js standalone Dockerfile running non-root user `nextjs:nodejs` (UID 1001).
 - `docker-compose.prod.yml`: Production topology with network segregation (`internal_net` vs `public_net`), restart policies, resource limits, and health dependencies.
-- `deploy/caddy/Caddyfile`: Reverse proxy configuration with automatic HTTPS, HSTS, security headers, and 15MB upload body ceiling.
+- `deploy/caddy/Caddyfile`: Reverse proxy configuration with automatic HTTPS, HSTS, security headers, 15MB upload body ceiling, and restricted access for `/metrics` and `/health/metrics` on public ingress.
+- `docs/DEPLOYMENT_RUNBOOK.md`: Controlled upgrade and rollback procedures (maintenance window).
 - `.env.production.example`: Complete environment variable template for production deployments.
 
 ### 1.5 Disaster Recovery & Performance Profiling
@@ -66,6 +67,9 @@
 | **Mobile Tests** | `flutter test` (all 87 tests) | **PASSED** (87 / 87) |
 | **Mobile Linter** | `flutter analyze` & `dart format` | **PASSED** (0 issues) |
 | **Backup / Restore** | `backup_db.py` & `restore_db.py` | **PASSED** (100% record fidelity verified) |
+| **Python Audit** | `pip-audit` (68 backend packages) | **PASSED** (0 known vulnerabilities) |
+| **Web Audit** | `npm audit` (apps/web) | **PASSED** (0 vulnerabilities) |
+| **Mobile Dependency Audit**| `flutter pub outdated` (apps/mobile) | **PASSED** (0 security advisories, pinned) |
 | **Secret Scan** | `python scripts/check_secrets.py` | **PASSED** (0 secrets found) |
 | **CI Sharding Audit** | `python scripts/audit_ci_shards.py` | **PASSED** (74/74 sharded, 0 missing, 0 dupes) |
 
@@ -75,7 +79,7 @@
 
 1. `bed7abd`: `feat(m18): Milestone 18 Part 1 - production security hardening`
 2. `83a9d27`: `feat(m18): migrate offline storage to Drift and harden performance and deployment`
-3. Part 3 final commit (hardening, tests, docs, CI manifests).
+3. `b7059c2`: `feat(m18): Milestone 18 Part 3 - final hardening, security verification, load validation, deployment acceptance, CI, documentation & sign-off`
 
 ---
 

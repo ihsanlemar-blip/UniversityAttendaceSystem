@@ -273,6 +273,24 @@ class Settings(BaseSettings):
     BACKUP_PATH: str = Field(default="/var/backups/attendance")
     BACKUP_RETENTION_DAYS: int = Field(default=30)
 
+    # =========================================================================
+    # 8. OBSERVABILITY & Metrics Protection
+    # =========================================================================
+    METRICS_ACCESS_KEY: str | None = Field(
+        default=None,
+        description=(
+            "Secret token or API key required to access /metrics and /health/metrics. "
+            "If unset in production, access is restricted strictly to trusted internal subnets."
+        ),
+    )
+    METRICS_ALLOWED_CIDRS: str = Field(
+        default="127.0.0.1/32,::1/128,10.0.0.0/8,172.16.0.0/12,192.168.0.0/16",
+        description=(
+            "Comma-separated list of CIDR subnets allowed to access metrics endpoints "
+            "without explicit API key."
+        ),
+    )
+
     @model_validator(mode="after")
     def validate_cross_field_dependencies(self) -> Settings:
         """Enforce conditional secret requirements and production security."""

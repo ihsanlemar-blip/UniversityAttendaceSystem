@@ -1,4 +1,4 @@
-﻿# Caddy 2 Production Reverse Proxy Configuration
+# Caddy 2 Production Reverse Proxy Configuration
 # Digital Student Attendance System
 
 {$DOMAIN:localhost} {
@@ -33,7 +33,14 @@
         }
     }
 
-    handle /health/* {
+    # Restrict internal operational metrics from public ingress
+    # Internal Prometheus/scrapers reach backend:8000/metrics directly on internal_net
+    @restricted_metrics {
+        path /metrics /health/metrics
+    }
+    handle @restricted_metrics {
+        @external_metrics not remote_ip 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16 127.0.0.1 ::1
+        respond @external_metrics "Forbidden: Operational metrics restricted to internal monitoring" 403
         reverse_proxy backend:8000 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}
@@ -42,7 +49,8 @@
         }
     }
 
-    handle /metrics {
+    # Public Health Probes (Liveness & Readiness) -> FastAPI Backend
+    handle /health/* {
         reverse_proxy backend:8000 {
             header_up Host {host}
             header_up X-Real-IP {remote_host}

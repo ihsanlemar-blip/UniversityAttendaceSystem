@@ -78,6 +78,23 @@ class ForbiddenException(DomainException):
         )
 
 
+class MetricsAccessForbiddenException(DomainException):
+    """Operational metrics endpoint access restricted."""
+
+    def __init__(
+        self,
+        message: str = (
+            "Access to operational metrics is restricted to internal monitoring "
+            "networks or authenticated monitoring requests."
+        ),
+    ) -> None:
+        super().__init__(
+            code="METRICS_ACCESS_FORBIDDEN",
+            message=message,
+            status_code=status.HTTP_403_FORBIDDEN,
+        )
+
+
 class ConflictException(DomainException):
     """State conflict or duplicate entry."""
 
