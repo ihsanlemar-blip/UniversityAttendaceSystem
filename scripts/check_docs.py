@@ -4,7 +4,7 @@
 import os
 import sys
 
-EXPECTED_PREFIXES = [f"{i:02d}" for i in range(59)]
+EXPECTED_PREFIXES = [f"{i:02d}" for i in range(60)]
 
 
 def validate_docs() -> int:
@@ -38,7 +38,7 @@ def validate_docs() -> int:
         return 1
 
     print(
-        f"[+] Documentation validation PASSED: All 59 specifications (00-58), "
+        f"[+] Documentation validation PASSED: All 60 specifications (00-59), "
         f"and manifests (M3 through M18) present ({len(files)} total files)."
     )
     return 0

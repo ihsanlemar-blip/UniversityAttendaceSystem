@@ -1,0 +1,12 @@
+# Ignore raw diagnostic crash dumps, network packet captures, and sensitive test exports
+*.pcap
+*.pcapng
+*.hprof
+*.dump
+*.raw
+*.key
+*.pem
+*student_pii*
+*unredacted*
+*.log
+!README.md
