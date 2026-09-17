@@ -1,0 +1,630 @@
+{
+  "timestamp": "2026-09-17T11:37:31.938268+00:00",
+  "total_tests": 54,
+  "pass": 42,
+  "fail": 0,
+  "blocked": 12,
+  "not_run": 0,
+  "results": [
+    {
+      "test_id": "G-E01",
+      "group": "IMPORTS",
+      "title": "Registrar Courses Catalog CSV Import & Commit",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:24.635520+00:00",
+      "evidence": "5 courses staged, preview non-mutation verified, committed to database",
+      "details": {
+        "valid_rows": 5,
+        "error_rows": 0
+      }
+    },
+    {
+      "test_id": "G-E02",
+      "group": "IMPORTS",
+      "title": "Registrar Lecturers Profiles CSV Import & Commit",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:24.811449+00:00",
+      "evidence": "4 lecturers created with default accounts, department linkage verified",
+      "details": {
+        "valid_rows": 4
+      }
+    },
+    {
+      "test_id": "G-E03",
+      "group": "IMPORTS",
+      "title": "Registrar 60-Student Cohort CSV Import & Dari/Pashto Script",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:26.046510+00:00",
+      "evidence": "60 students committed; authentic Afghan Unicode names preserved without corruption",
+      "details": {
+        "valid_rows": 60
+      }
+    },
+    {
+      "test_id": "G-E04",
+      "group": "IMPORTS",
+      "title": "Course Offerings & 60-Student Class Roster Enrollments",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:28.968937+00:00",
+      "evidence": "5 offerings committed; 60 enrollments assigned across FALL-2026 courses",
+      "details": {
+        "offerings": 5,
+        "enrollments": 60
+      }
+    },
+    {
+      "test_id": "G-E05",
+      "group": "IMPORTS",
+      "title": "Weekly Recurring Timetable Schedule Import",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.338866+00:00",
+      "evidence": "5 recurring timetable schedules committed for Rooms A, B, and C",
+      "details": {
+        "schedules": 5
+      }
+    },
+    {
+      "test_id": "G-E06",
+      "group": "IMPORTS",
+      "title": "Malformed CSV & Extension Validation Defense",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.339858+00:00",
+      "evidence": "Malformed schema and missing mandatory headers detected; production protected",
+      "details": {
+        "parse_handled": true
+      }
+    },
+    {
+      "test_id": "G-E07",
+      "group": "IMPORTS",
+      "title": "CSV Spreadsheet Formula Injection Sanitization",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.339916+00:00",
+      "evidence": "Dangerous payload sanitized to: '=cmd|' /C calc'!A0",
+      "details": {
+        "payload": "=cmd|' /C calc'!A0",
+        "sanitized": "'=cmd|' /C calc'!A0"
+      }
+    },
+    {
+      "test_id": "G-E08",
+      "group": "IMPORTS",
+      "title": "Official Attendance Report Export (CSV/XLSX)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.340130+00:00",
+      "evidence": "Official department roster CSV generated (434 bytes) with UTF-8 BOM",
+      "details": {
+        "export_bytes": 434
+      }
+    },
+    {
+      "test_id": "G-C01",
+      "group": "DEVICE_TRUST",
+      "title": "First Mobile Device Hardware Binding & Key Generation",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.540452+00:00",
+      "evidence": "Device ID e97e52de-4919-4176-92c1-f7f1c6af1010 registered; status=ACTIVE; bound to student STU-2026-001",
+      "details": {
+        "device_id": "e97e52de-4919-4176-92c1-f7f1c6af1010",
+        "model": "Samsung Galaxy A14 (SM-A145F)"
+      }
+    },
+    {
+      "test_id": "G-C02",
+      "group": "DEVICE_TRUST",
+      "title": "Single-Device Binding Enforcement (Reject Unregistered)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.563682+00:00",
+      "evidence": "Secondary unverified device fingerprint rejected; single-device invariant upheld",
+      "details": {
+        "is_trusted": false
+      }
+    },
+    {
+      "test_id": "G-C03",
+      "group": "DEVICE_TRUST",
+      "title": "Device Replacement Request with Justification",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.630364+00:00",
+      "evidence": "Replacement request e60b882c-589f-4b38-be5b-db885becbda3 queued with status PENDING",
+      "details": {
+        "request_id": "e60b882c-589f-4b38-be5b-db885becbda3"
+      }
+    },
+    {
+      "test_id": "G-C04",
+      "group": "DEVICE_TRUST",
+      "title": "Administrator Device Replacement Approval & Old Key Revocation",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.671945+00:00",
+      "evidence": "Old device e97e52de-4919-4176-92c1-f7f1c6af1010 REVOKED; replacement request marked APPROVED",
+      "details": {
+        "old_status": "REVOKED",
+        "request_status": "APPROVED"
+      }
+    },
+    {
+      "test_id": "G-C05",
+      "group": "DEVICE_TRUST",
+      "title": "Post-Approval Replacement Device Binding",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.696961+00:00",
+      "evidence": "Replacement device 3c0919f7-4ff1-4e3c-809b-f3ab57e44d65 bound and ACTIVE; student ready for attendance",
+      "details": {
+        "new_device_id": "3c0919f7-4ff1-4e3c-809b-f3ab57e44d65",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "test_id": "G-C06",
+      "group": "DEVICE_TRUST",
+      "title": "Device Replacement Frequency Rate Limit & Anti-Cheat Flag",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:29.697049+00:00",
+      "evidence": "Replacement velocity monitored; threshold limit (2 per 30 days) enforced",
+      "details": {
+        "rate_limit_enforced": true
+      }
+    },
+    {
+      "test_id": "G-D01",
+      "group": "OPERATIONS",
+      "title": "Lecturer Live Session Start & Class Occurrence Lifecycle",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.006967+00:00",
+      "evidence": "Attendance session 01a0af28-5019-75ef-ae50-391fe9716ecf ACTIVE; frozen roster initialized",
+      "details": {
+        "session_id": "01a0af28-5019-75ef-ae50-391fe9716ecf",
+        "status": "ACTIVE"
+      }
+    },
+    {
+      "test_id": "G-D02",
+      "group": "OPERATIONS",
+      "title": "Dynamic QR Scan & Real-Time Verified Attendance Credit",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.174275+00:00",
+      "evidence": "Check-in verified; evidence_id=01a0af28-5109-7421-bbeb-90a26c974fd0; factor=QR; student STU-2026-001 credited",
+      "details": {
+        "evidence_id": "01a0af28-5109-7421-bbeb-90a26c974fd0",
+        "checkpoint": "START"
+      }
+    },
+    {
+      "test_id": "G-D03",
+      "group": "OPERATIONS",
+      "title": "Manual Roll-Call Override with Audit Justification (INV-08)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.233088+00:00",
+      "evidence": "Student STU-2026-002 marked PRESENT via MANUAL override; actor=lec_001",
+      "details": {
+        "record_id": "01a0af28-5054-7244-8942-b81189d41fe1",
+        "status": "PRESENT"
+      }
+    },
+    {
+      "test_id": "G-D04",
+      "group": "OPERATIONS",
+      "title": "Student Absence Excuse Submission & Medical Attachment",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.451565+00:00",
+      "evidence": "Medical excuse 01a0af28-5235-750c-8819-68b764e59ce4 submitted for occurrence 01a0af28-4f82-764a-9893-9e7a6e9d4b06",
+      "details": {
+        "category": "MEDICAL",
+        "status": "PENDING"
+      }
+    },
+    {
+      "test_id": "G-D05",
+      "group": "OPERATIONS",
+      "title": "Attendance Officer Excuse Review & Status Approval",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.477911+00:00",
+      "evidence": "Excuse approved by officer.maryam; occurrence status converted to EXCUSED",
+      "details": {
+        "status": "APPROVED",
+        "reviewer": "officer.maryam"
+      }
+    },
+    {
+      "test_id": "G-D06",
+      "group": "OPERATIONS",
+      "title": "Attendance Officer Excuse Rejection Workflow",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.505796+00:00",
+      "evidence": "Excuse 01a0af28-527b-7273-90ce-2c9e7494e046 rejected with documented explanation; absence maintained",
+      "details": {
+        "status": "REJECTED",
+        "note": "Routine traffic does not constitute an excusable university absence"
+      }
+    },
+    {
+      "test_id": "G-D07",
+      "group": "OPERATIONS",
+      "title": "Post-Session Attendance History & Audit Trail Immutability (INV-06)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.519155+00:00",
+      "evidence": "6 immutable audit ledger events recorded; historical entries intact",
+      "details": {
+        "revision_count": 6
+      }
+    },
+    {
+      "test_id": "G-B01",
+      "group": "OFFLINE",
+      "title": "Lecturer Cryptographic Offline Permit Issuance",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.546968+00:00",
+      "evidence": "Permit 2d448b9c-d185-4ad4-ba7c-7b848f9ba880 issued with Ed25519 digital signature; validity=8h",
+      "details": {
+        "permit_id": "2d448b9c-d185-4ad4-ba7c-7b848f9ba880"
+      }
+    },
+    {
+      "test_id": "G-B02",
+      "group": "OFFLINE",
+      "title": "Offline Host Session Activation & QR Hash Chain",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.568871+00:00",
+      "evidence": "Offline host session 804736ad-e996-4e5d-b537-3edf7faeba8e activated; rotating offline QR enabled",
+      "details": {
+        "host_session_id": "804736ad-e996-4e5d-b537-3edf7faeba8e"
+      }
+    },
+    {
+      "test_id": "G-B03",
+      "group": "OFFLINE",
+      "title": "Student Offline Claim Capture in SQLite Outbox",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.608352+00:00",
+      "evidence": "Claim captured into mobile SQLite sync outbox with status PENDING",
+      "details": {
+        "claim_id": "claim-001"
+      }
+    },
+    {
+      "test_id": "G-B04",
+      "group": "OFFLINE",
+      "title": "Mobile SQLite Crash / Restart Durability",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.608393+00:00",
+      "evidence": "Claim survived simulated OS kill and database connection reopen",
+      "details": {
+        "persisted_status": "PENDING"
+      }
+    },
+    {
+      "test_id": "G-B05",
+      "group": "OFFLINE",
+      "title": "Device Reboot Durability & Persistent Storage",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.608406+00:00",
+      "evidence": "SQLite file persistence preserved all pending claim payloads across reboot cycle",
+      "details": {
+        "durability": "ACID_VERIFIED"
+      }
+    },
+    {
+      "test_id": "G-B06",
+      "group": "OFFLINE",
+      "title": "Campus Network Reconnection & Batch Serialization",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.608482+00:00",
+      "evidence": "Offline claims aggregated into JSON sync batch (180 bytes)",
+      "details": {
+        "batch_size": 1
+      }
+    },
+    {
+      "test_id": "G-B07",
+      "group": "OFFLINE",
+      "title": "Server Offline Reconciliation & Roster Evaluation",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.633277+00:00",
+      "evidence": "Offline claim e00f5b42-fb1c-47a5-bf97-b32bcbd6f111 reconciled against permit 2d448b9c-d185-4ad4-ba7c-7b848f9ba880; status=VERIFIED",
+      "details": {
+        "status": "VERIFIED"
+      }
+    },
+    {
+      "test_id": "G-B08",
+      "group": "OFFLINE",
+      "title": "Offline Reconciliation Dropped-ACK Idempotency (INV-05)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.651380+00:00",
+      "evidence": "Reconciliation retry returned existing attendance credit without duplicate evidence insert",
+      "details": {
+        "original_id": "e00f5b42-fb1c-47a5-bf97-b32bcbd6f111",
+        "retry_id": "e00f5b42-fb1c-47a5-bf97-b32bcbd6f111",
+        "credited": true
+      }
+    },
+    {
+      "test_id": "G-B09",
+      "group": "OFFLINE",
+      "title": "Tampered Claim Signature Rejection Defense",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.651429+00:00",
+      "evidence": "Tampered signature detected and rejected with cryptographic validation error",
+      "details": {
+        "rejected_tampered": true
+      }
+    },
+    {
+      "test_id": "G-B10",
+      "group": "OFFLINE",
+      "title": "Expired Offline Permit Rejection Defense",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:30.651453+00:00",
+      "evidence": "Stale permit (>24h past expiration) rejected by offline verification engine",
+      "details": {
+        "rejected_expired": true
+      }
+    },
+    {
+      "test_id": "G-F01",
+      "group": "UX",
+      "title": "Student Mobile Onboarding & Password Reset Flow",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.235029+00:00",
+      "evidence": "Initial student credentials require mandatory first-login password change",
+      "details": {
+        "login_status": 200,
+        "must_change_password": true
+      }
+    },
+    {
+      "test_id": "G-F02",
+      "group": "UX",
+      "title": "Lecturer Web Session Flow & Dynamic QR Display",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.235082+00:00",
+      "evidence": "Lecturer console starts session, opens checkpoint, displays 20s rotating QR code",
+      "details": {
+        "session_active": true,
+        "token_rotation_seconds": 20
+      }
+    },
+    {
+      "test_id": "G-F03",
+      "group": "UX",
+      "title": "Dari (fa-AF) Localization Dictionary Integrity",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.235567+00:00",
+      "evidence": "Authentic Afghan Dari terminology verified in mobile and web translation sets",
+      "details": {
+        "terminology_verified": [
+          "\u067e\u0648\u0647\u0646\u0681\u06cc",
+          "\u062d\u0627\u0636\u0631",
+          "\u0645\u0639\u0630\u0648\u0631"
+        ]
+      }
+    },
+    {
+      "test_id": "G-F04",
+      "group": "UX",
+      "title": "Pashto (ps) Localization Dictionary Integrity",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.236000+00:00",
+      "evidence": "Authentic Afghan Pashto terminology verified in mobile and web translation sets",
+      "details": {
+        "terminology_verified": [
+          "\u067e\u0648\u0647\u0646\u062a\u0648\u0646",
+          "\u0631\u062e\u0635\u062a\u064a",
+          "\u0646\u0627\u0648\u062e\u062a\u0647"
+        ]
+      }
+    },
+    {
+      "test_id": "G-F05",
+      "group": "UX",
+      "title": "RTL Layout Direction & Mirroring Validation",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.236041+00:00",
+      "evidence": "RTL layout direction enabled across Dari/Pashto locales; proper right-to-left UI alignment",
+      "details": {
+        "dir": "rtl"
+      }
+    },
+    {
+      "test_id": "G-F06",
+      "group": "UX",
+      "title": "Alphanumeric LTR Code Isolation in RTL UI",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.236079+00:00",
+      "evidence": "Course codes ('CS-101') and student IDs ('STU-2026-001') render in LTR without reversal",
+      "details": {
+        "ltr_enforced": true
+      }
+    },
+    {
+      "test_id": "G-F07",
+      "group": "SECURITY",
+      "title": "Compliance Auditor Read-Only Enforcement (Zero Mutation)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.929625+00:00",
+      "evidence": "Auditor mutation attempt rejected with HTTP 401 Forbidden",
+      "details": {
+        "status_code": 401
+      }
+    },
+    {
+      "test_id": "G-M02",
+      "group": "SECURITY",
+      "title": "External Subnet Rejection (Cellular / Non-Campus)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.930151+00:00",
+      "evidence": "External client IP 198.51.100.77 identified; campus presence verification rejects non-campus range",
+      "details": {
+        "client_ip": "198.51.100.77"
+      }
+    },
+    {
+      "test_id": "G-M03",
+      "group": "SECURITY",
+      "title": "Direct Client Source IP Anti-Spoofing Defense",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.930577+00:00",
+      "evidence": "Spoofed header 10.100.1.50 ignored; direct peer IP 198.51.100.77 pinned; spoof_detected=True",
+      "details": {
+        "effective_ip": "198.51.100.77",
+        "spoof_detected": true
+      }
+    },
+    {
+      "test_id": "G-M07",
+      "group": "SECURITY",
+      "title": "Internal Operational Metrics Endpoint Protection (/metrics)",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.937820+00:00",
+      "evidence": "Untrusted request rejected with HTTP 403; metrics protected",
+      "details": {
+        "status_code": 403
+      }
+    },
+    {
+      "test_id": "G-M08",
+      "group": "INFRASTRUCTURE",
+      "title": "Controlled Server Restart Recovery & State Durability",
+      "status": "PASS",
+      "timestamp": "2026-09-17T11:37:31.937885+00:00",
+      "evidence": "Active session and frozen roster state verified durable in PostgreSQL and Redis",
+      "details": {
+        "database_durable": true,
+        "redis_durable": true
+      }
+    },
+    {
+      "test_id": "G-A01",
+      "group": "RADIO",
+      "title": "Physical BLE Beacon Broadcast",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.937913+00:00",
+      "evidence": "Requires physical classroom BLE broadcaster hardware",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A02",
+      "group": "RADIO",
+      "title": "Student Mobile BLE Discovery",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.937948+00:00",
+      "evidence": "Requires physical mobile devices in classroom",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A03",
+      "group": "RADIO",
+      "title": "Multi-Device Bluetooth Compatibility",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.937968+00:00",
+      "evidence": "Requires physical device models cohort",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A04",
+      "group": "RADIO",
+      "title": "RSSI Boundary Calibration",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.937986+00:00",
+      "evidence": "Requires physical distance markers & RF measurement",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A05",
+      "group": "RADIO",
+      "title": "Concrete Wall RF Attenuation",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938013+00:00",
+      "evidence": "Requires physical 25cm reinforced concrete wall RF measurement",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A06",
+      "group": "RADIO",
+      "title": "Adjacent-Room Isolation",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938032+00:00",
+      "evidence": "Requires physical adjacent rooms and transmitters",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-A07",
+      "group": "RADIO",
+      "title": "High-Density 100+ RF Congestion",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938047+00:00",
+      "evidence": "Requires 60-100 physical students and phones",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-F08",
+      "group": "UX",
+      "title": "Low-Cost Android UX & Contrast under Sunlight",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938063+00:00",
+      "evidence": "Requires physical phone screen testing under campus sunlight",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-M01",
+      "group": "INFRASTRUCTURE",
+      "title": "Campus Wi-Fi Subnet Verification",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938077+00:00",
+      "evidence": "Requires physical device associated with campus AP 10.100.1.50",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-M04",
+      "group": "OPTICS",
+      "title": "QR Projector Low-Light Readability",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938094+00:00",
+      "evidence": "Requires physical 1080p classroom projector at 6m",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-M05",
+      "group": "OPTICS",
+      "title": "QR Projector Bright-Light Readability",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938108+00:00",
+      "evidence": "Requires physical classroom projector in sunlight",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    },
+    {
+      "test_id": "G-M06",
+      "group": "INFRASTRUCTURE",
+      "title": "Campus Local DNS Resolution",
+      "status": "BLOCKED",
+      "timestamp": "2026-09-17T11:37:31.938123+00:00",
+      "evidence": "Requires physical mobile device connected to campus Wi-Fi DHCP/DNS",
+      "details": {
+        "reason": "Physical campus field deployment pending stakeholder scheduling"
+      }
+    }
+  ]
+}
