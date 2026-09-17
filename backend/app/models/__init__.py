@@ -20,6 +20,7 @@ from backend.app.models.class_occurrence import ClassOccurrence
 from backend.app.models.course import Course
 from backend.app.models.course_offering import CourseOffering
 from backend.app.models.enrollment import Enrollment
+from backend.app.models.import_job import ImportJob, ImportRow
 from backend.app.models.lecturer import Lecturer
 from backend.app.models.lecturer_assignment import LecturerAssignment
 from backend.app.models.login_attempt import LoginAttempt
@@ -75,6 +76,8 @@ __all__ = [
     "DeviceReplacementRequest",
     "DeviceTrustEvent",
     "Enrollment",
+    "ImportJob",
+    "ImportRow",
     "Lecturer",
     "LecturerAssignment",
     "LoginAttempt",

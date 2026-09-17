@@ -380,6 +380,22 @@ class Settings(BaseSettings):
             raise ValueError("Wildcard '*' cannot be combined with specific origins.")
         return v
 
+    # =========================================================================
+    # 10. IMPORT PIPELINE Settings (Milestone 16)
+    # =========================================================================
+    IMPORT_MAX_FILE_BYTES: int = Field(
+        default=10 * 1024 * 1024,  # 10 MB limit
+        description="Maximum upload size in bytes for CSV/XLSX imports.",
+    )
+    IMPORT_MAX_ROWS: int = Field(
+        default=5000,
+        description="Maximum allowed rows in an import file.",
+    )
+    IMPORT_DEFAULT_COMMIT_MODE: str = Field(
+        default="STRICT",
+        description="Default commit mode: STRICT (block if any error) or PARTIAL.",
+    )
+
 
 @lru_cache(maxsize=1)
 def get_settings() -> Settings:

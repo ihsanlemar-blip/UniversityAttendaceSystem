@@ -14,6 +14,7 @@ from backend.app.core.config import get_settings
 from backend.app.curriculum.router import router as curriculum_router
 from backend.app.devices.router import router as devices_router
 from backend.app.facilities.router import router as facilities_router
+from backend.app.imports.router import router as imports_router
 from backend.app.offerings.router import router as offerings_router
 from backend.app.people.router import router as people_router
 from backend.app.rbac.router import router as rbac_router
@@ -72,3 +73,6 @@ api_v1_router.include_router(security_router)
 
 # Mount Milestone 15 Attendance Operations, Corrections, Excuses & Leave Sub-Router
 api_v1_router.include_router(attendance_operations_router)
+
+# Mount Milestone 16 Data Imports, Preview & Safe Commit Sub-Router
+api_v1_router.include_router(imports_router)

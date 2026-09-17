@@ -155,6 +155,10 @@ class PermissionCode(StrEnum):
     ATTENDANCE_EXCUSES_REVIEW = "attendance.excuses.review"
     ATTENDANCE_LEAVE_REQUEST = "attendance.leave.request"
     ATTENDANCE_LEAVE_REVIEW = "attendance.leave.review"
+    IMPORTS_READ = "imports.read"
+    IMPORTS_CREATE = "imports.create"
+    IMPORTS_COMMIT = "imports.commit"
+    IMPORTS_CANCEL = "imports.cancel"
 
 
 class StudentStatus(StrEnum):
@@ -578,3 +582,53 @@ class LeaveRequestStatus(StrEnum):
     APPROVED = "APPROVED"
     REJECTED = "REJECTED"
     CANCELLED = "CANCELLED"
+
+
+class ImportType(StrEnum):
+    """Supported institutional domain entity import categories."""
+
+    STUDENTS = "STUDENTS"
+    LECTURERS = "LECTURERS"
+    COURSES = "COURSES"
+    COURSE_OFFERINGS = "COURSE_OFFERINGS"
+    ENROLLMENTS = "ENROLLMENTS"
+    TIMETABLES = "TIMETABLES"
+
+
+class ImportJobStatus(StrEnum):
+    """State machine lifecycle status for asynchronous and synchronous import jobs."""
+
+    UPLOADED = "UPLOADED"
+    PARSING = "PARSING"
+    VALIDATING = "VALIDATING"
+    READY = "READY"
+    COMMITTING = "COMMITTING"
+    COMPLETED = "COMPLETED"
+    FAILED = "FAILED"
+    CANCELLED = "CANCELLED"
+
+
+class ImportCommitMode(StrEnum):
+    """Execution mode for committing validated staged import rows into domain tables."""
+
+    STRICT = "STRICT"
+    PARTIAL = "PARTIAL"
+
+
+class ImportRowStatus(StrEnum):
+    """Validation and staging state for individual spreadsheet rows."""
+
+    VALID = "VALID"
+    WARNING = "WARNING"
+    ERROR = "ERROR"
+    COMMITTED = "COMMITTED"
+    SKIPPED = "SKIPPED"
+
+
+class ImportRowAction(StrEnum):
+    """Planned domain entity mutation action derived from staging validation."""
+
+    CREATE = "CREATE"
+    UPDATE = "UPDATE"
+    NONE = "NONE"
+    SKIP = "SKIP"

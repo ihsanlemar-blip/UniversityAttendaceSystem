@@ -104,6 +104,10 @@ SYSTEM_PERMISSIONS = [
     ("attendance.excuses.review", "Review, approve, or reject attendance excuse requests"),
     ("attendance.leave.request", "Submit student attendance leave request"),
     ("attendance.leave.review", "Review, approve, or reject student attendance leave requests"),
+    ("imports.read", "View data import jobs, preview data, and staged rows"),
+    ("imports.create", "Upload import datasets and run validation/preview"),
+    ("imports.commit", "Commit validated import jobs to production tables"),
+    ("imports.cancel", "Cancel staged import jobs"),
 ]
 
 
@@ -276,6 +280,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance.excuses.review",
             "attendance.leave.request",
             "attendance.leave.review",
+            "imports.read",
+            "imports.create",
+            "imports.commit",
+            "imports.cancel",
         ]
 
         for admin_p_code in uni_admin_perms:
@@ -335,6 +343,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance.corrections.override",
             "attendance.excuses.review",
             "attendance.leave.review",
+            "imports.read",
+            "imports.create",
+            "imports.commit",
+            "imports.cancel",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -395,6 +407,10 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance.corrections.override",
             "attendance.excuses.review",
             "attendance.leave.review",
+            "imports.read",
+            "imports.create",
+            "imports.commit",
+            "imports.cancel",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -553,6 +569,7 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "devices.read",
             "security.risk_signals.read",
             "security.radio_analysis.read",
+            "imports.read",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)
