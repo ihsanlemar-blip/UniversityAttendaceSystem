@@ -1,6 +1,6 @@
 # Milestone 17 — Complete MVP User Experience
 
-**Status:** IMPLEMENTED & VERIFIED  
+**Status:** IMPLEMENTED & SOFTWARE VERIFIED  
 **Applies to:** Full-Stack Web Console & Mobile Client  
 **Quality Standard:** [docs/26_DEFINITION_OF_DONE.md](file:///e:/01_Projects/UniversityAttendaceSystem/docs/26_DEFINITION_OF_DONE.md)  
 **Authoritative Reference:** [AGENTS.md](file:///e:/01_Projects/UniversityAttendaceSystem/AGENTS.md)  
@@ -72,7 +72,7 @@ All Dari and Pashto translations adhere strictly to Afghan higher education stan
 ## 4. End-to-End Persona Workflows
 
 ### 4.1 Student Experience
-- **Authentication & Security**: Multi-factor authentication, forced password change on first login, primary device trust key registration (Ed25519) in secure hardware keystore.
+- **Authentication & Security**: Authentication, session management, and mandatory first-login password change, primary device trust key registration (Ed25519) in secure hardware keystore.
 - **Home Dashboard**: Real-time attendance rate, Good Standing / Warning / Critical standing badges (or neutral N/A when zero eligible sessions), upcoming classes, and quick action cards.
 - **Live Check-In**: Dynamic QR scanner with real-time camera viewfinder, simultaneous classroom BLE presence beacon observation, and instant feedback cards (`Attendance Confirmed`, `Already Recorded`, `Saved for Synchronization`, `Token Expired`).
 - **Ledger & Requests**: History of all class sessions, filterable by status, with excuse submission forms and revision timeline inspection.
@@ -91,9 +91,17 @@ All Dari and Pashto translations adhere strictly to Afghan higher education stan
 
 ---
 
-## 5. Verification & Test Partitioning Audit
+## 5. Offline Mobile Storage Architecture Decision
 
-### 5.1 Test Sharding Audit
+1. **Current Implementation**: The mobile client offline storage layer (`apps/mobile/lib/core/offline/offline_storage.dart`) uses the atomic JSON-based outbox and permit cache established in Milestone 12. It guarantees atomic file writes via temporary file swapping (`File.rename`), strict local account isolation by student ID, and survivability across application restarts.
+2. **Architectural Evaluation**: In Milestone 17 Part 2, migration to Drift/SQLite was evaluated. To prevent introducing schema churn, C-compiler dependencies, and native binding volatility during a pure UX/frontend milestone, the atomic JSON store was intentionally preserved for the MVP software release.
+3. **Formal Decision & Handoff**: The current implementation is **NOT Drift/SQLite**. Migration of offline outbox and permit storage to Drift/SQLite is formally recorded as a **mandatory Milestone 18 pre-pilot hardening requirement**.
+
+---
+
+## 6. Verification & Test Partitioning Audit
+
+### 6.1 Test Sharding Audit
 The complete backend regression test suite of 72 test files was audited against `.github/workflows/ci.yml`.
 - **Total Test Files on Disk**: 72
 - **Total Test Files in CI Shards**: 72 (18 files per shard across 4 parallel jobs)
@@ -101,14 +109,27 @@ The complete backend regression test suite of 72 test files was audited against 
 - **Missing**: 0
 - **Schema Drift**: `alembic check` verified 0 unapplied revisions and 0 schema drifts against Head `013_imports_administration`.
 
-### 5.2 Verification Summary
-- **Backend**: Ruff linting, formatting, Mypy strict typecheck, and sharded pytest suite passing.
+### 6.2 Verification Summary
+- **Backend**: Ruff linting, formatting, Mypy strict typecheck, and sharded pytest suite passing (all 4 shards green).
 - **Web**: ESLint, TypeScript `tsc --noEmit`, Next.js production build passing.
-- **Mobile**: Dart formatting (`dart format`), Flutter static analysis (`flutter analyze`), and comprehensive test suite (`flutter test`) passing.
+- **Mobile**: Dart formatting (`dart format`), Flutter static analysis (`flutter analyze`), and comprehensive test suite (`flutter test`, 79/79 tests passing).
 
 ---
 
-## 6. Definition of Done Compliance
+## 7. Outstanding Physical & Field Acceptance Gates (Mandatory Pre-Pilot Checklist)
+
+Software implementation of Milestone 17 is 100% complete and automated quality gates are green. However, physical and operational acceptance must be explicitly executed on real devices in production-like campus environments before university deployment:
+
+1. **M11 BLE Physical-Device Acceptance**: Radio transmission, RSSI calibration, and peripheral advertising verification with physical Android and iOS hardware inside real concrete lecture halls.
+2. **M12 Offline Field/Device Acceptance**: Physical testing of prolonged classroom network dropouts, battery depletion survivability, and batched reconciliation against production server.
+3. **M13 Device Registration/Replacement Acceptance**: Physical enrollment of hardware keys (Android Keystore / iOS Secure Enclave), device replacement requests, and administrative re-binding approvals.
+4. **M15 Attendance Operations Workflow Acceptance**: Real-world faculty excuse adjudication, student dispute resolution, and audit ledger inspection with university academic staff.
+5. **M16 Import/Report Workflow Acceptance**: End-to-end institutional onboarding with real university registrar CSV/XLSX spreadsheets, messy data normalization, and ministry export compliance.
+6. **M17 End-to-End MVP UX Acceptance**: Usability acceptance testing with Afghan university students and faculty across low-cost Android hardware in Dari, Pashto, and English.
+
+---
+
+## 8. Definition of Done Compliance
 
 All criteria outlined in `docs/26_DEFINITION_OF_DONE.md` for Milestone 17 are met:
 - [x] Zero architecture deviation without ADR.
@@ -119,3 +140,4 @@ All criteria outlined in `docs/26_DEFINITION_OF_DONE.md` for Milestone 17 are me
 - [x] Safe error mapping without database or stack trace exposure.
 - [x] Complete CI matrix green across all 9 GitHub Actions jobs.
 - [x] Clean documentation handoff to Milestone 18.
+- [x] Explicit preservation of outstanding physical/manual acceptance gates.

@@ -39,16 +39,24 @@ Execute **Milestone 18: Security, Performance & Deployment Hardening** for the D
    - High-concurrency load testing for dynamic QR rotation (500+ simultaneous scans per second).
    - Database query optimization, connection pooling configurations (PgBouncer compatibility), and query plan validation.
    - Redis cache invalidation strategies and memory profiling.
-3. **Production Infrastructure & Container Profiling**:
+3. **Mobile Offline Storage Migration**:
+   - Safely migrate mobile offline storage from the current atomic JSON store (`apps/mobile/lib/core/offline/offline_storage.dart`) to **Drift/SQLite** with encrypted storage and database migrations prior to campus pilot.
+4. **Production Infrastructure & Container Profiling**:
    - Production multi-stage Dockerfiles with non-root security profiles.
    - Docker Compose production configuration with health checks, log rotation, and automated volume backups.
    - SSL/TLS termination, reverse proxy configuration (Nginx / Caddy), and certificate management.
-4. **Monitoring & Observability**:
+5. **Monitoring & Observability**:
    - Structured JSON logging with correlation IDs.
    - Prometheus metrics exporter and Grafana dashboard templates for attendance throughput and BLE verification ratios.
-5. **Physical & Field Pilot Readiness**:
+6. **Physical & Field Pilot Readiness Checklist**:
    - Pilot deployment runbook and checklist for campus IT administrators.
-   - Automated disaster recovery and PostgreSQL PITR (Point-In-Time Recovery) procedures.
+   - Preparation for the 6 outstanding physical/manual acceptance gates required before University Pilot (Milestone 19):
+     1. M11 BLE physical-device acceptance
+     2. M12 offline field/device acceptance
+     3. M13 device registration/replacement acceptance
+     4. M15 attendance operations workflow acceptance
+     5. M16 import/report workflow acceptance
+     6. M17 end-to-end MVP UX acceptance
 
 ---
 

@@ -36,8 +36,13 @@
 - `apps/mobile/lib/screens/student_qr_scanner_screen.dart`: Dynamic camera viewfinder, BLE observation indicators, error mapping cards, Semantics tags.
 - `apps/mobile/test/localization_test.dart`: 10 comprehensive tests validating language properties, dictionary parity, Afghan academic terms, safe error resolver, and RTL UI rendering.
 
-### 1.3 Documentation & Tooling
-- `docs/55_MILESTONE_17_COMPLETE_MVP_USER_EXPERIENCE.md`: Comprehensive Milestone 17 specification and architecture document.
+### 1.3 Offline Mobile Storage Architecture Note
+- Mobile offline outbox and permit storage remains the **atomic JSON store** (`apps/mobile/lib/core/offline/offline_storage.dart`) established in Milestone 12.
+- Migration to **Drift/SQLite** is explicitly deferred to **Milestone 18 pre-pilot hardening**.
+- The M17 release does NOT use Drift/SQLite.
+
+### 1.4 Documentation & Tooling
+- `docs/55_MILESTONE_17_COMPLETE_MVP_USER_EXPERIENCE.md`: Comprehensive Milestone 17 specification, offline storage decision, and manual acceptance gates.
 - `docs/MILESTONE_17_MANIFEST.md`: Inventory of all changes, tests, and verifications.
 - `docs/56_NEXT_IMPLEMENTATION_TASK.md`: Explicit handoff strictly to Milestone 18.
 - `scripts/check_docs.py`: Updated to validate specifications up to prefix 56 and manifests up to M17.
@@ -61,3 +66,14 @@
 | **CI Matrix** | Test file partitioning audit | 72 / 72 test files partitioned (0 missing, 0 duplicates) |
 | **Governance** | `scripts/check_secrets.py` | 0 secrets found |
 | **Governance** | `scripts/check_docs.py` | Specifications 00–56 and manifests M3–M17 validated |
+
+---
+
+## 3. Outstanding Pre-Pilot Acceptance Gates (Carried to M18/M19)
+
+1. **M11 BLE Physical-Device Acceptance**: Physical radio testing in lecture halls with real multi-device concurrent advertising.
+2. **M12 Offline Field/Device Acceptance**: Physical testing of classroom network blackouts, battery drops, and server outbox reconciliation.
+3. **M13 Device Registration/Replacement Acceptance**: Physical enrollment of hardware keys and administrative re-binding approvals.
+4. **M15 Attendance Operations Workflow Acceptance**: Real-world excuse triage, dispute resolution, and audit ledger inspection.
+5. **M16 Import/Report Workflow Acceptance**: Production registrar spreadsheet imports and ministerial reporting exports.
+6. **M17 End-to-End MVP UX Acceptance**: Student and faculty usability validation on real Android hardware across Dari, Pashto, and English.
