@@ -47,9 +47,12 @@ def register_exception_handlers(app: FastAPI) -> None:
     async def domain_exception_handler(request: Request, exc: DomainException) -> JSONResponse:
         request_id = getattr(request.state, "request_id", request_id_ctx_var.get() or "-")
         logger.warning(f"Domain exception: [{exc.code}] {exc.message} (Status: {exc.status_code})")
+        response_headers = {HEADER_REQUEST_ID: request_id}
+        if hasattr(exc, "retry_after"):
+            response_headers["Retry-After"] = str(exc.retry_after)
         return JSONResponse(
             status_code=exc.status_code,
-            headers={HEADER_REQUEST_ID: request_id},
+            headers=response_headers,
             content={
                 "error": {
                     "code": exc.code,

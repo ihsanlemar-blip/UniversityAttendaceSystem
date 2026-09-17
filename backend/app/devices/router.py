@@ -29,6 +29,7 @@ from backend.app.models.trusted_device import (
 )
 from backend.app.models.user import User
 from backend.app.rbac.dependencies import require_permission
+from backend.app.security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/devices", tags=["Student Devices & Trust"])
 
@@ -65,6 +66,7 @@ async def get_my_device_status(
     response_model=StandardResponse[DeviceRegistrationChallengeResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Request a device registration challenge",
+    dependencies=[Depends(rate_limit("device_challenge", max_requests=10, window_seconds=60))],
 )
 async def request_registration_challenge(
     payload: DeviceRegistrationChallengeRequest,

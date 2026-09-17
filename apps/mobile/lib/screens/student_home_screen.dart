@@ -668,7 +668,7 @@ class _StudentHomeScreenState extends State<StudentHomeScreen> {
         _buildActionCard(
           icon: Icons.security,
           title: strings.t('device_trust'),
-          subtitle: 'Ed25519 Hardware Key',
+          subtitle: 'Ed25519 OS-Protected Key',
           color: const Color(0xFF4F46E5),
           onTap: () {
             Navigator.push(

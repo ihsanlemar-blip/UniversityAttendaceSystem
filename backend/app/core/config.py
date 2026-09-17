@@ -28,6 +28,20 @@ class Settings(BaseSettings):
     APP_NAME: str = Field(default="University Attendance System")
     APP_VERSION: str = Field(default="0.1.0")
     DEBUG: bool = Field(default=False)
+    DOCS_ENABLED: bool | None = Field(
+        default=None,
+        description=(
+            "Enable Swagger UI, ReDoc, and OpenAPI documentation endpoints. "
+            "Defaults to False in production, True in development and testing."
+        ),
+    )
+
+    @property
+    def is_docs_enabled(self) -> bool:
+        """Determine whether Swagger and OpenAPI documentation are enabled."""
+        if self.DOCS_ENABLED is not None:
+            return self.DOCS_ENABLED
+        return self.APP_ENV != Environment.PRODUCTION
 
     UNIVERSITY_ID: str = Field(default="00000000-0000-0000-0000-000000000001")
     UNIVERSITY_NAME: str = Field(default="Kabul University")
@@ -203,6 +217,10 @@ class Settings(BaseSettings):
         default=True,
         description="Enable anti-cheat signal detection and audit logging.",
     )
+    RATE_LIMITING_ENABLED: bool = Field(
+        default=True,
+        description="Enable or disable API rate limiting globally.",
+    )
     ANTI_CHEAT_REPLACEMENT_THRESHOLD_COUNT: int = Field(
         default=2,
         description=(
@@ -287,6 +305,12 @@ class Settings(BaseSettings):
                 )
 
         if self.APP_ENV == Environment.PRODUCTION:
+            if self.DEBUG:
+                raise ValueError("DEBUG must be False in production environment.")
+            if "*" in self.cors_origins_list:
+                raise ValueError(
+                    "Wildcard '*' CORS origin is strictly forbidden in production environment."
+                )
             insecure_passwords = {
                 "change_me_in_production",
                 "dev_insecure_password",
@@ -295,6 +319,12 @@ class Settings(BaseSettings):
                 "changeme",
                 "admin",
                 "123456",
+                "root",
+                "toor",
+                "test",
+                "guest",
+                "development",
+                "attendance_password",
             }
             if self.DATABASE_PASSWORD.lower() in insecure_passwords:
                 raise ValueError(

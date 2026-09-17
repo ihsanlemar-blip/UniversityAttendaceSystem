@@ -262,7 +262,13 @@ def parse_import_file(
     file_hash = hashlib.sha256(content).hexdigest()
     lower_filename = filename.lower()
 
-    if lower_filename.endswith((".xlsx", ".xlsm")):
+    if lower_filename.endswith(".xlsm"):
+        raise ValidationException(
+            "Macro-enabled Excel workbooks (.xlsm) are strictly prohibited for security reasons.",
+            details={"filename": filename},
+        )
+
+    if lower_filename.endswith(".xlsx"):
         sheet_names, selected_sheet, raw_headers, headers, rows = parse_xlsx_content(
             content=content,
             max_rows=max_rows,

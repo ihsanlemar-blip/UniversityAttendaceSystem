@@ -99,5 +99,5 @@ const Map<String, String> translationsEn = {
   'device_unregistered': 'Device Unregistered',
   'device_fingerprint': 'Device Key Fingerprint',
   'register_device': 'Register This Device',
-  'verify_hardware_keystore': 'Hardware Keystore Security Verified',
+  'verify_hardware_keystore': 'OS-Protected Keystore Security Verified',
 };

@@ -48,6 +48,7 @@ from backend.app.models.user import User
 from backend.app.rbac.dependencies import require_permission
 from backend.app.rbac.service import RbacService
 from backend.app.security.network_service import CampusNetworkService
+from backend.app.security.rate_limiter import rate_limit
 from backend.app.security.schemas import NetworkChallengeRequest, NetworkChallengeResponse
 
 router = APIRouter(prefix="/attendance", tags=["Attendance Core Engine"])
@@ -775,6 +776,7 @@ async def get_checkpoint_ble_advertisement(
     "/presence/check-in",
     response_model=StandardResponse[PresenceCheckInResponse],
     summary="Unified student presence check-in (dynamic QR + BLE proximity + campus network)",
+    dependencies=[Depends(rate_limit("attendance_checkin", max_requests=30, window_seconds=60))],
 )
 async def student_presence_checkin(
     payload: PresenceCheckInRequest,
@@ -814,6 +816,7 @@ async def student_presence_checkin(
     "/qr/check-in",
     response_model=StandardResponse[QrCheckInResponse],
     summary="Student dynamic QR check-in",
+    dependencies=[Depends(rate_limit("attendance_checkin", max_requests=30, window_seconds=60))],
 )
 async def student_qr_checkin(
     payload: QrCheckInRequest,
@@ -851,6 +854,7 @@ async def student_qr_checkin(
     response_model=StandardResponse[NetworkChallengeResponse],
     status_code=status.HTTP_201_CREATED,
     summary="Request a short-lived campus network presence challenge",
+    dependencies=[Depends(rate_limit("network_challenge", max_requests=20, window_seconds=60))],
 )
 async def request_network_presence_challenge(
     payload: NetworkChallengeRequest,

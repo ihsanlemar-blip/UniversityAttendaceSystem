@@ -109,3 +109,23 @@ class InfrastructureException(DomainException):
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
             details=details,
         )
+
+
+class RateLimitExceededException(DomainException):
+    """Too many requests rate limit exceeded (HTTP 429)."""
+
+    def __init__(
+        self,
+        retry_after: int,
+        message: str = "Too many requests. Please try again later.",
+        details: dict[str, Any] | None = None,
+    ) -> None:
+        merged = dict(details or {})
+        merged["retry_after"] = retry_after
+        super().__init__(
+            code="RATE_LIMIT_EXCEEDED",
+            message=message,
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            details=merged,
+        )
+        self.retry_after = retry_after

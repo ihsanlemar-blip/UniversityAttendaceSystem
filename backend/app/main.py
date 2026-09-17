@@ -17,6 +17,7 @@ from backend.app.core.database import close_database_connections
 from backend.app.core.logging import get_logger, setup_logging
 from backend.app.core.middleware import RequestIdMiddleware, register_exception_handlers
 from backend.app.core.redis import close_redis, init_redis
+from backend.app.core.security_headers import SecurityHeadersMiddleware
 from backend.app.health.router import health_router
 
 logger = get_logger(__name__)
@@ -62,16 +63,19 @@ def create_application() -> FastAPI:
             "Server-authoritative presence verification and academic governance."
         ),
         version=settings.APP_VERSION,
-        docs_url="/docs",
-        redoc_url="/redoc",
-        openapi_url="/api/v1/openapi.json",
+        docs_url="/docs" if settings.is_docs_enabled else None,
+        redoc_url="/redoc" if settings.is_docs_enabled else None,
+        openapi_url="/api/v1/openapi.json" if settings.is_docs_enabled else None,
         lifespan=lifespan,
     )
 
-    # 1. Correlation Request ID Middleware
+    # 1. Security Headers & Anti-MIME Sniffing Middleware
+    app.add_middleware(SecurityHeadersMiddleware)
+
+    # 2. Correlation Request ID Middleware
     app.add_middleware(RequestIdMiddleware)
 
-    # 2. CORS Middleware (Environment Configurable)
+    # 3. CORS Middleware (Environment Configurable)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -80,13 +84,13 @@ def create_application() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # 3. Standard Exception Envelopes
+    # 4. Standard Exception Envelopes
     register_exception_handlers(app)
 
-    # 4. Mount Health Check Probes
+    # 5. Mount Health Check Probes
     app.include_router(health_router)
 
-    # 5. Mount Versioned API Routes
+    # 6. Mount Versioned API Routes
     app.include_router(api_v1_router)
 
     return app

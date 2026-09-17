@@ -447,3 +447,64 @@ Before production release:
 8. Local DB is never directly reachable by student clients.
 9. Internet outage does not justify disabling security checks globally.
 10. No production secrets in source control.
+
+---
+
+## 27. Production Security Hardening (Milestone 18 Baseline)
+
+### 27.1 Cryptographic Key Separation
+To prevent cross-protocol key compromise, four isolated cryptographic keys are enforced:
+1. **AUTH_SIGNING_KEY**: Dedicated HMAC key (>= 32 chars) for JWT access tokens.
+2. **ATTENDANCE_QR_SIGNING_KEY**: Dedicated HMAC key (>= 32 chars, `kid="att-qr-k1"`) for dynamic rotating QR check-in tokens.
+3. **ATTENDANCE_BLE_SIGNING_KEY**: Dedicated HMAC key (>= 32 chars) for BLE classroom presence advertisements.
+4. **OFFLINE_PERMIT_SIGNING_PRIVATE_KEY**: Dedicated asymmetric Ed25519 private key in PEM format (`kid="att-off-k1"`) for signing offline student permits.
+
+Cross-field validation in `backend/app/core/config.py` raises startup exceptions if any of these keys share values.
+
+### 27.2 Production Fail-Closed Startup
+When `APP_ENV=production`, the application refuses to start if:
+- `DEBUG=True`
+- Wildcard CORS (`*`) is present in `CORS_ALLOWED_ORIGINS`
+- `DATABASE_PASSWORD` matches default or dictionary passwords
+- Any signing key contains development markers (`dev-`, `test`, `default`) or has fewer than 32 characters
+- OpenAPI / Swagger documentation is enabled without explicit operational approval (`DOCS_ENABLED` defaults to `False` in production)
+
+### 27.3 Web Security Headers & Sensitive Cache Control
+FastAPI and Next.js enforce OWASP defense-in-depth response headers:
+- `X-Content-Type-Options: nosniff`
+- `X-Frame-Options: DENY`
+- `Referrer-Policy: strict-origin-when-cross-origin`
+- `Permissions-Policy: camera=(self), microphone=(), geolocation=(), bluetooth=(self)`
+- `Content-Security-Policy: default-src 'self'; frame-ancestors 'none'; object-src 'none'; base-uri 'self';`
+- `Strict-Transport-Security: max-age=31536000; includeSubDomains` (enforced in production HTTPS)
+- `Cache-Control: no-store, no-cache, must-revalidate, private` on all `/api/*` endpoints
+
+### 27.4 Observable Rate Limiting & HTTP 429
+Endpoints subject to automated abuse are rate-limited via Redis sliding windows (with in-memory fallback):
+- `POST /api/v1/auth/login`: 5 requests / 60s per client IP
+- `POST /api/v1/auth/change-password`: 5 requests / 60s per user
+- `POST /api/v1/devices/registration/challenge`: 10 requests / 60s per client IP
+- `POST /api/v1/attendance/qr/check-in`: 30 requests / 60s per client IP
+- `POST /api/v1/attendance/presence/check-in`: 30 requests / 60s per client IP
+- `POST /api/v1/attendance/network-presence/challenge`: 20 requests / 60s per client IP
+- `POST /api/v1/imports/preview`: 10 requests / 60s per user / tenant
+
+Exceeded limits return HTTP 429 with standard JSON envelope and `Retry-After: <seconds>` response header.
+
+### 27.5 Reverse Proxy Trust & Anti-Spoofing
+`ClientNetworkResolver` enforces that forwarding headers (`X-Forwarded-For`, `X-Real-IP`) are processed **only** when the immediate socket peer address matches `TRUSTED_PROXY_CIDRS`. Hops are evaluated right-to-left. Untrusted direct peers attempting to spoof client IP headers are pinned strictly to their physical socket address.
+
+### 27.6 Multi-Factor Authentication (MFA) Decision
+> [!NOTE]
+> **MFA/passkey support is not part of v1.0 unless subsequently approved.**  
+> Administrative accounts are protected by Argon2id hashing, strict rate limiting, mandatory first-login password changes, and immediate server-side session revocation upon credential rotation or account suspension.
+
+### 27.7 Device Private Key Storage Claims
+Device private keys are managed on student mobile devices strictly using **"OS-protected secure storage"** (`FlutterSecureStorage` utilizing Android Keystore and iOS Keychain). The system does not claim certified hardware-backed Secure Enclave or StrongBox key protection.
+
+### 27.8 Operational Key Rotation Procedures
+1. **JWT Access Tokens**: Change `AUTH_SIGNING_KEY` during scheduled maintenance window. Active sessions rotate smoothly via refresh token re-issuance.
+2. **Attendance QR Tokens**: Supports key identifier `ATTENDANCE_QR_SIGNING_KID`. Update key and kid; scanners gracefully accept previous step tokens during tolerance window (±1 step).
+3. **BLE Presence Tokens**: Update `ATTENDANCE_BLE_SIGNING_KEY` concurrently on server and lecturer broadcast devices.
+4. **Offline Permits**: Update `OFFLINE_PERMIT_SIGNING_PRIVATE_KEY` with new `OFFLINE_PERMIT_SIGNING_KID`. Previous permits expire within max validity window (24h).
+

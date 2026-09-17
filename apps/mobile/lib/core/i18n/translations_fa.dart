@@ -99,5 +99,5 @@ const Map<String, String> translationsFa = {
   'device_unregistered': 'دستگاه راجستر نشده است',
   'device_fingerprint': 'اثر انگشت کلید دستگاه',
   'register_device': 'راجستر نمودن این دستگاه',
-  'verify_hardware_keystore': 'امنیت کلید سخت‌افزاری تائید شد',
+  'verify_hardware_keystore': 'امنیت ذخیره‌گاه کلید سیستم‌عامل تائید شد',
 };

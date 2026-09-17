@@ -21,6 +21,8 @@ from backend.app.core.constants import HEADER_REQUEST_ID
 from backend.app.core.database import get_db_session
 from backend.app.models.user import User
 from backend.app.rbac.service import RbacService
+from backend.app.security.rate_limiter import rate_limit
+from backend.app.security.resolver import ClientNetworkResolver
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -30,6 +32,7 @@ router = APIRouter(prefix="/auth", tags=["Authentication"])
     response_model=StandardResponse[LoginResponse],
     status_code=status.HTTP_200_OK,
     summary="Authenticate credentials and issue session tokens",
+    dependencies=[Depends(rate_limit("auth_login", max_requests=5, window_seconds=60))],
 )
 async def login(
     request: Request,
@@ -38,7 +41,7 @@ async def login(
 ) -> StandardResponse[LoginResponse]:
     """Authenticate user with normalized username and password."""
     request_id = getattr(request.state, "request_id", request.headers.get(HEADER_REQUEST_ID, ""))
-    ip_address = request.client.host if request.client else None
+    ip_address = ClientNetworkResolver.resolve_client_ip(request)
     user_agent = request.headers.get("user-agent")
 
     login_data = await AuthService.login(
@@ -59,6 +62,7 @@ async def login(
     response_model=StandardResponse[TokenRefreshResponse],
     status_code=status.HTTP_200_OK,
     summary="Rotate refresh token and issue new access token",
+    dependencies=[Depends(rate_limit("auth_refresh", max_requests=30, window_seconds=60))],
 )
 async def refresh_token(
     request: Request,
@@ -66,7 +70,7 @@ async def refresh_token(
     db: Annotated[AsyncSession, Depends(get_db_session)],
 ) -> StandardResponse[TokenRefreshResponse]:
     """Rotate refresh token. Enforces reuse detection across token family."""
-    ip_address = request.client.host if request.client else None
+    ip_address = ClientNetworkResolver.resolve_client_ip(request)
     user_agent = request.headers.get("user-agent")
 
     token_data = await AuthService.refresh_token(
@@ -149,6 +153,7 @@ async def get_me(
     response_model=StandardResponse[dict[str, str]],
     status_code=status.HTTP_200_OK,
     summary="Change account password",
+    dependencies=[Depends(rate_limit("auth_change_password", max_requests=5, window_seconds=60))],
 )
 async def change_password(
     payload: ChangePasswordRequest,

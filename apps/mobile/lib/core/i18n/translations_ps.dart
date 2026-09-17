@@ -99,5 +99,5 @@ const Map<String, String> translationsPs = {
   'device_unregistered': 'آله نه ده ثبت شوې',
   'device_fingerprint': 'د آلې کیلي ګوتې نښه',
   'register_device': 'د دې آلې ثبت کول',
-  'verify_hardware_keystore': 'د هارډویر کیلي امنیت تائید شو',
+  'verify_hardware_keystore': 'د عامل سیسټم خوندي کیلي امنیت تائید شو',
 };

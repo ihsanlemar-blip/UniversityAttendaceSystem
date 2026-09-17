@@ -21,6 +21,7 @@ from backend.app.imports.schemas import (
 from backend.app.imports.service import ImportService
 from backend.app.models.user import User
 from backend.app.rbac.dependencies import require_permission
+from backend.app.security.rate_limiter import rate_limit
 
 router = APIRouter(prefix="/imports", tags=["Data Imports & Administration"])
 
@@ -31,6 +32,7 @@ router = APIRouter(prefix="/imports", tags=["Data Imports & Administration"])
     status_code=status.HTTP_201_CREATED,
     summary="Upload and preview import dataset",
     description="Parses and stages an import file without mutating production tables.",
+    dependencies=[Depends(rate_limit("import_preview", max_requests=10, window_seconds=60))],
 )
 async def preview_import(
     file: Annotated[UploadFile, File(description="CSV (.csv) or Excel (.xlsx) spreadsheet file")],
