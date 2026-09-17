@@ -33,6 +33,7 @@ class _StudentAttendanceHistoryScreenState
   List<CorrectionRequestModel> _corrections = [];
   List<ExcuseRequestModel> _excuses = [];
   List<LeaveRequestModel> _leaves = [];
+  StudentAttendanceSummaryModel? _attendanceSummary;
 
   // Sample student attendance sessions for demonstration
   final List<Map<String, dynamic>> _sampleRecords = [
@@ -74,7 +75,7 @@ class _StudentAttendanceHistoryScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadRequests();
   }
 
@@ -98,11 +99,20 @@ class _StudentAttendanceHistoryScreenState
       final leaves = await widget.operationsService
           .getMyLeaves(authToken: widget.authToken);
 
+      StudentAttendanceSummaryModel? summary;
+      try {
+        summary = await widget.operationsService
+            .getStudentAttendanceSummary(authToken: widget.authToken);
+      } catch (_) {
+        // Fallback gracefully if summary endpoint is unreachable or not yet available
+      }
+
       if (mounted) {
         setState(() {
           _corrections = corrections;
           _excuses = excuses;
           _leaves = leaves;
+          _attendanceSummary = summary;
           _isLoading = false;
         });
       }
@@ -731,6 +741,7 @@ class _StudentAttendanceHistoryScreenState
           controller: _tabController,
           tabs: const [
             Tab(icon: Icon(Icons.calendar_month), text: 'Attendance Records'),
+            Tab(icon: Icon(Icons.analytics_outlined), text: 'Summary'),
             Tab(icon: Icon(Icons.pending_actions), text: 'My Requests'),
           ],
         ),
@@ -896,7 +907,10 @@ class _StudentAttendanceHistoryScreenState
             ),
           ),
 
-          // Tab 2: My Requests
+          // Tab 2: Course Attendance Summary
+          _buildSummaryTab(),
+
+          // Tab 3: My Requests
           RefreshIndicator(
             onRefresh: _loadRequests,
             child: _isLoading
@@ -1084,6 +1098,274 @@ class _StudentAttendanceHistoryScreenState
                   ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildSummaryTab() {
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_attendanceSummary == null || _attendanceSummary!.courses.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.school_outlined,
+                  size: 64, color: Colors.grey.shade400),
+              const SizedBox(height: 16),
+              const Text(
+                'No Course Summaries Available',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Once attendance sessions are conducted for your enrolled courses, your attendance percentages and threshold badges will appear here.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final summary = _attendanceSummary!;
+    return RefreshIndicator(
+      onRefresh: _loadRequests,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          // Overall Attendance Header Card
+          Card(
+            elevation: 2,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            color: Colors.indigo.shade50,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                children: [
+                  Container(
+                    width: 60,
+                    height: 60,
+                    decoration: BoxDecoration(
+                      color: Colors.indigo.shade700,
+                      shape: BoxShape.circle,
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      '${summary.overallAttendancePercentage.toStringAsFixed(0)}%',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          summary.studentName,
+                          style: const TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Student ID: ${summary.studentNumber}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey.shade700,
+                          ),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          '${summary.totalCourses} Active Enrolled Course${summary.totalCourses == 1 ? "" : "s"}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.indigo.shade900,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+
+          const Text(
+            'Enrolled Courses Progress',
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+
+          ...summary.courses.map((course) {
+            final isAbove = course.thresholdStatus == 'ABOVE_THRESHOLD';
+            final isNear = course.thresholdStatus == 'NEAR_THRESHOLD';
+            final color = isAbove
+                ? Colors.green.shade700
+                : isNear
+                    ? Colors.amber.shade800
+                    : Colors.red.shade700;
+            final bgColor = isAbove
+                ? Colors.green.shade50
+                : isNear
+                    ? Colors.amber.shade50
+                    : Colors.red.shade50;
+            final badgeText = isAbove
+                ? 'Above Threshold (≥${course.thresholdPercentage.toStringAsFixed(0)}%)'
+                : isNear
+                    ? 'Near Threshold'
+                    : 'Below Threshold';
+
+            return Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(color: Colors.grey.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            '${course.courseCode}: ${course.courseName}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: bgColor,
+                            borderRadius: BorderRadius.circular(12),
+                            border:
+                                Border.all(color: color.withValues(alpha: 0.4)),
+                          ),
+                          child: Text(
+                            badgeText,
+                            style: TextStyle(
+                              fontSize: 11,
+                              fontWeight: FontWeight.bold,
+                              color: color,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+
+                    // Progress bar
+                    Row(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(4),
+                            child: LinearProgressIndicator(
+                              value: (course.attendancePercentage / 100.0)
+                                  .clamp(0.0, 1.0),
+                              backgroundColor: Colors.grey.shade200,
+                              valueColor: AlwaysStoppedAnimation<Color>(color),
+                              minHeight: 8,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          '${course.attendancePercentage.toStringAsFixed(1)}%',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+
+                    // Sessions and credit stats
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          'Eligible Sessions: ${course.eligibleSessions}',
+                          style: TextStyle(
+                              fontSize: 12, color: Colors.grey.shade700),
+                        ),
+                        Text(
+                          'Credit: ${course.attendanceCredit.toStringAsFixed(1)} / ${course.eligibleSessions}',
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: Colors.grey.shade800,
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+
+                    // Breakdown chips
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
+                      children: [
+                        _buildCountBadge('${course.presentCount} Present',
+                            Colors.green.shade50, Colors.green.shade800),
+                        _buildCountBadge('${course.lateCount} Late',
+                            Colors.amber.shade50, Colors.amber.shade800),
+                        _buildCountBadge('${course.absentCount} Absent',
+                            Colors.red.shade50, Colors.red.shade800),
+                        if (course.excusedCount > 0)
+                          _buildCountBadge('${course.excusedCount} Excused',
+                              Colors.blue.shade50, Colors.blue.shade800),
+                        if (course.leaveCount > 0)
+                          _buildCountBadge('${course.leaveCount} Leave',
+                              Colors.purple.shade50, Colors.purple.shade800),
+                        if (course.hasRevision)
+                          _buildCountBadge('Revised', Colors.orange.shade50,
+                              Colors.orange.shade800),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCountBadge(String label, Color bg, Color text) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style:
+            TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: text),
       ),
     );
   }

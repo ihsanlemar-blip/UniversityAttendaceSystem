@@ -159,6 +159,8 @@ class PermissionCode(StrEnum):
     IMPORTS_CREATE = "imports.create"
     IMPORTS_COMMIT = "imports.commit"
     IMPORTS_CANCEL = "imports.cancel"
+    REPORTS_ATTENDANCE_READ = "reports.attendance.read"
+    REPORTS_ATTENDANCE_EXPORT = "reports.attendance.export"
 
 
 class StudentStatus(StrEnum):
@@ -632,3 +634,18 @@ class ImportRowAction(StrEnum):
     UPDATE = "UPDATE"
     NONE = "NONE"
     SKIP = "SKIP"
+
+
+class ThresholdStatus(StrEnum):
+    """Evaluated attendance threshold compliance states."""
+
+    ABOVE_THRESHOLD = "ABOVE_THRESHOLD"
+    NEAR_THRESHOLD = "NEAR_THRESHOLD"
+    BELOW_THRESHOLD = "BELOW_THRESHOLD"
+
+
+class ExportFormat(StrEnum):
+    """Supported file formats for data and report exports."""
+
+    CSV = "CSV"
+    XLSX = "XLSX"

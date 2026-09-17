@@ -41,7 +41,7 @@ async def test_seed_system_rbac_idempotent(db_session: AsyncSession) -> None:
     # Verify 8 approved system roles and 76 permissions across core platform,
     # academic, curriculum, roster, scheduling, attendance, devices, security, and operations
     assert len(SYSTEM_ROLES) == 8
-    assert len(SYSTEM_PERMISSIONS) == 76
+    assert len(SYSTEM_PERMISSIONS) == 82
 
     assert any("attendance" in p[0] for p in SYSTEM_PERMISSIONS)
     assert any("device" in p[0] for p in SYSTEM_PERMISSIONS)

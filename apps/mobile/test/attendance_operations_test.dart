@@ -165,6 +165,63 @@ void main() {
       expect(ex.code, equals('OFFLINE_MODE'));
       expect(ex.message, contains('Connect to the university system'));
     });
+
+    test(
+        'StudentAttendanceSummaryModel parses valid attendance summary payload',
+        () {
+      final json = {
+        'student_id': '0192323e-6708-724a-a43b-8106daee8690',
+        'student_number': 'CS-2026-001',
+        'student_name': 'Ahmad Popal',
+        'total_courses': 2,
+        'overall_attendance_percentage': 87.5,
+        'courses': [
+          {
+            'course_offering_id': '0192323e-6708-724a-a43b-8106daee8691',
+            'course_code': 'CS301',
+            'course_name': 'Operating Systems',
+            'eligible_sessions': 10,
+            'present_count': 8,
+            'late_count': 1,
+            'absent_count': 1,
+            'excused_count': 0,
+            'leave_count': 0,
+            'attendance_credit': 8.5,
+            'attendance_percentage': 85.0,
+            'threshold_percentage': 75.0,
+            'threshold_status': 'ABOVE_THRESHOLD',
+            'has_revision': false,
+          },
+          {
+            'course_offering_id': '0192323e-6708-724a-a43b-8106daee8692',
+            'course_code': 'CS302',
+            'course_name': 'Database Systems',
+            'eligible_sessions': 10,
+            'present_count': 9,
+            'late_count': 0,
+            'absent_count': 1,
+            'excused_count': 0,
+            'leave_count': 0,
+            'attendance_credit': 9.0,
+            'attendance_percentage': 90.0,
+            'threshold_percentage': 75.0,
+            'threshold_status': 'ABOVE_THRESHOLD',
+            'has_revision': true,
+          }
+        ]
+      };
+
+      final model = StudentAttendanceSummaryModel.fromJson(json);
+      expect(model.studentId, equals('0192323e-6708-724a-a43b-8106daee8690'));
+      expect(model.studentNumber, equals('CS-2026-001'));
+      expect(model.studentName, equals('Ahmad Popal'));
+      expect(model.totalCourses, equals(2));
+      expect(model.overallAttendancePercentage, equals(87.5));
+      expect(model.courses.length, equals(2));
+      expect(model.courses[0].courseCode, equals('CS301'));
+      expect(model.courses[0].thresholdStatus, equals('ABOVE_THRESHOLD'));
+      expect(model.courses[1].hasRevision, isTrue);
+    });
   });
 
   group('StudentAttendanceHistoryScreen Widget Tests', () {
@@ -247,6 +304,31 @@ void main() {
       expect(find.textContaining('Section 38'), findsOneWidget);
       expect(find.textContaining('0.00 credit'), findsOneWidget);
       expect(find.text('Submit Leave Request'), findsOneWidget);
+    });
+
+    testWidgets('Tapping Summary tab switches to attendance summary view',
+        (WidgetTester tester) async {
+      final service =
+          AttendanceOperationsService(baseUrl: 'http://localhost:8000');
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: StudentAttendanceHistoryScreen(
+            operationsService: service,
+            authToken: 'test_token',
+            studentId: 'test_student_id',
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+
+      // Tap on Summary tab
+      await tester.tap(find.text('Summary'));
+      await tester.pumpAndSettle();
+
+      // Verify Summary elements rendered (shows empty/unconnected state when no backend is running)
+      expect(find.text('No Course Summaries Available'), findsOneWidget);
     });
   });
 }

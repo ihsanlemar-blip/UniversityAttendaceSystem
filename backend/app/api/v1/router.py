@@ -18,6 +18,7 @@ from backend.app.imports.router import router as imports_router
 from backend.app.offerings.router import router as offerings_router
 from backend.app.people.router import router as people_router
 from backend.app.rbac.router import router as rbac_router
+from backend.app.reports.router import router as reports_router
 from backend.app.scheduling.router import router as scheduling_router
 from backend.app.security.router import router as security_router
 from backend.app.users.router import router as users_router
@@ -76,3 +77,4 @@ api_v1_router.include_router(attendance_operations_router)
 
 # Mount Milestone 16 Data Imports, Preview & Safe Commit Sub-Router
 api_v1_router.include_router(imports_router)
+api_v1_router.include_router(reports_router)

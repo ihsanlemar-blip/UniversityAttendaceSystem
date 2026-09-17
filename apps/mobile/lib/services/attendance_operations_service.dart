@@ -269,6 +269,112 @@ class RecordTimelineModel {
   }
 }
 
+/// DTO for student's course attendance summary.
+class StudentCourseAttendanceItemModel {
+  final String courseOfferingId;
+  final String courseCode;
+  final String courseName;
+  final String semesterCode;
+  final String? sectionCode;
+  final int totalSessionsConducted;
+  final int eligibleSessions;
+  final double attendanceCredit;
+  final double attendancePercentage;
+  final int presentCount;
+  final int lateCount;
+  final int absentCount;
+  final int excusedCount;
+  final int leaveCount;
+  final String thresholdStatus;
+  final double thresholdPercentage;
+  final bool hasRevision;
+
+  const StudentCourseAttendanceItemModel({
+    required this.courseOfferingId,
+    required this.courseCode,
+    required this.courseName,
+    required this.semesterCode,
+    this.sectionCode,
+    required this.totalSessionsConducted,
+    required this.eligibleSessions,
+    required this.attendanceCredit,
+    required this.attendancePercentage,
+    required this.presentCount,
+    required this.lateCount,
+    required this.absentCount,
+    required this.excusedCount,
+    required this.leaveCount,
+    required this.thresholdStatus,
+    required this.thresholdPercentage,
+    required this.hasRevision,
+  });
+
+  factory StudentCourseAttendanceItemModel.fromJson(Map<String, dynamic> json) {
+    return StudentCourseAttendanceItemModel(
+      courseOfferingId: json['course_offering_id'] as String,
+      courseCode: json['course_code'] as String? ?? '',
+      courseName: json['course_name'] as String? ?? '',
+      semesterCode: json['semester_code'] as String? ?? '',
+      sectionCode: json['section_code'] as String?,
+      totalSessionsConducted: json['total_sessions_conducted'] as int? ?? 0,
+      eligibleSessions: json['eligible_sessions'] as int? ?? 0,
+      attendanceCredit: (json['attendance_credit'] as num?)?.toDouble() ?? 0.0,
+      attendancePercentage:
+          (json['attendance_percentage'] as num?)?.toDouble() ?? 0.0,
+      presentCount: json['present_count'] as int? ?? 0,
+      lateCount: json['late_count'] as int? ?? 0,
+      absentCount: json['absent_count'] as int? ?? 0,
+      excusedCount: json['excused_count'] as int? ?? 0,
+      leaveCount: json['leave_count'] as int? ?? 0,
+      thresholdStatus: json['threshold_status'] as String? ?? 'ABOVE_THRESHOLD',
+      thresholdPercentage:
+          (json['threshold_percentage'] as num?)?.toDouble() ?? 75.0,
+      hasRevision: json['has_revision'] as bool? ?? false,
+    );
+  }
+}
+
+/// DTO for student's overall multi-course attendance report.
+class StudentAttendanceSummaryModel {
+  final String studentId;
+  final String studentNumber;
+  final String studentName;
+  final int totalCourses;
+  final double overallAttendancePercentage;
+  final DateTime generatedAtUtc;
+  final List<StudentCourseAttendanceItemModel> courses;
+
+  const StudentAttendanceSummaryModel({
+    required this.studentId,
+    required this.studentNumber,
+    required this.studentName,
+    required this.totalCourses,
+    required this.overallAttendancePercentage,
+    required this.generatedAtUtc,
+    required this.courses,
+  });
+
+  factory StudentAttendanceSummaryModel.fromJson(Map<String, dynamic> json) {
+    final coursesList = (json['courses'] as List<dynamic>?)
+            ?.map((e) => StudentCourseAttendanceItemModel.fromJson(
+                e as Map<String, dynamic>))
+            .toList() ??
+        [];
+    return StudentAttendanceSummaryModel(
+      studentId: json['student_id'] as String,
+      studentNumber: json['student_number'] as String? ?? '',
+      studentName: json['student_name'] as String? ?? '',
+      totalCourses: json['total_courses'] as int? ?? 0,
+      overallAttendancePercentage:
+          (json['overall_attendance_percentage'] as num?)?.toDouble() ?? 0.0,
+      generatedAtUtc: json['generated_at_utc'] != null
+          ? DateTime.parse(json['generated_at_utc'] as String)
+          : DateTime.now().toUtc(),
+      courses: coursesList,
+    );
+  }
+}
+
 /// Exception representing an operational domain or network error.
 class AttendanceOperationsException implements Exception {
   final String message;
@@ -446,6 +552,20 @@ class AttendanceOperationsService {
     final response = await _sendRequest('GET', uri, authToken: authToken);
     final json = jsonDecode(response) as Map<String, dynamic>;
     return RecordTimelineModel.fromJson(json['data'] as Map<String, dynamic>);
+  }
+
+  /// Get authoritative student attendance summary across enrolled courses.
+  Future<StudentAttendanceSummaryModel> getStudentAttendanceSummary({
+    required String authToken,
+    String? semesterId,
+  }) async {
+    final query = semesterId != null ? '?semester_id=$semesterId' : '';
+    final uri =
+        Uri.parse('$baseUrl/api/v1/reports/attendance/student/me$query');
+    final response = await _sendRequest('GET', uri, authToken: authToken);
+    final json = jsonDecode(response) as Map<String, dynamic>;
+    return StudentAttendanceSummaryModel.fromJson(
+        json['data'] as Map<String, dynamic>);
   }
 
   /// Internal HTTP dispatcher with offline-safety checks and error parsing.

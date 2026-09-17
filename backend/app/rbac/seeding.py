@@ -108,6 +108,8 @@ SYSTEM_PERMISSIONS = [
     ("imports.create", "Upload import datasets and run validation/preview"),
     ("imports.commit", "Commit validated import jobs to production tables"),
     ("imports.cancel", "Cancel staged import jobs"),
+    ("reports.attendance.read", "View attendance, roster, session, and aggregate reports"),
+    ("reports.attendance.export", "Export attendance reports to CSV and XLSX"),
 ]
 
 
@@ -284,6 +286,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "imports.create",
             "imports.commit",
             "imports.cancel",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
 
         for admin_p_code in uni_admin_perms:
@@ -347,6 +351,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "imports.create",
             "imports.commit",
             "imports.cancel",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
         for p_code in fac_perms:
             target_perm = perm_map.get(p_code)
@@ -411,6 +417,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "imports.create",
             "imports.commit",
             "imports.cancel",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
         for p_code in dept_perms:
             target_perm = perm_map.get(p_code)
@@ -453,6 +461,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance.corrections.override",
             "attendance.excuses.review",
             "attendance.leave.review",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
         for off_p_code in officer_perms:
             target_perm = perm_map.get(off_p_code)
@@ -494,6 +504,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "attendance.corrections.review",
             "attendance.excuses.review",
             "attendance.leave.review",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
         for p_code in lecturer_perms:
             target_perm = perm_map.get(p_code)
@@ -570,6 +582,8 @@ async def seed_system_rbac(db: AsyncSession) -> None:
             "security.risk_signals.read",
             "security.radio_analysis.read",
             "imports.read",
+            "reports.attendance.read",
+            "reports.attendance.export",
         ]
         for aud_p_code in auditor_perms:
             target_perm = perm_map.get(aud_p_code)
