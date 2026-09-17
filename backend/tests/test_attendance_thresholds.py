@@ -77,6 +77,20 @@ def test_threshold_evaluation_boundaries() -> None:
         ReportingService.evaluate_threshold(0.0, 0.0, 5.0) == ThresholdStatus.ABOVE_THRESHOLD.value
     )
 
+    # Strict boundary check (Section 12 requirement: 74.99 -> BELOW, 75.00 -> meets, 75.01 -> meets)
+    assert (
+        ReportingService.evaluate_threshold(74.99, 75.0, margin=0.0)
+        == ThresholdStatus.BELOW_THRESHOLD.value
+    )
+    assert (
+        ReportingService.evaluate_threshold(75.00, 75.0, margin=0.0)
+        == ThresholdStatus.ABOVE_THRESHOLD.value
+    )
+    assert (
+        ReportingService.evaluate_threshold(75.01, 75.0, margin=0.0)
+        == ThresholdStatus.ABOVE_THRESHOLD.value
+    )
+
 
 @pytest.mark.asyncio
 async def test_policy_threshold_override_hierarchy(
@@ -127,3 +141,34 @@ async def test_policy_threshold_override_hierarchy(
     )
     assert rep_res2.status_code == 200
     assert rep_res2.json()["data"]["threshold_percentage"] == 80.0
+
+
+@pytest.mark.asyncio
+async def test_zero_denominator_report_safety(
+    client: TestClient,
+    test_university: University,
+    test_admin_user: User,
+) -> None:
+    """INVARIANT: Student with zero eligible sessions must not produce division by zero or NaN."""
+    admin_headers = get_admin_headers(client, test_admin_user, test_university)
+    course_id, semester_id, section_id, _ = setup_academic_prerequisites(client, admin_headers)
+
+    # 1. Create Course Offering with no sessions conducted
+    off_res = client.post(
+        "/api/v1/course-offerings",
+        headers=admin_headers,
+        json={"course_id": course_id, "semester_id": semester_id, "section_id": section_id},
+    )
+    assert off_res.status_code == 201
+    offering_id = off_res.json()["data"]["id"]
+
+    # 2. Roster report on empty offering
+    roster_res = client.get(
+        f"/api/v1/reports/attendance/course-offerings/{offering_id}",
+        headers=admin_headers,
+    )
+    assert roster_res.status_code == 200
+    data = roster_res.json()["data"]
+    assert data["total_enrolled"] == 0
+    assert data["total_sessions_conducted"] == 0
+    assert data["average_attendance_percentage"] == 100.0

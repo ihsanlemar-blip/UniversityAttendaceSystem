@@ -206,6 +206,12 @@ The original 29-milestone conceptual dependency sequence was:
   - Columns: `request_type`, `requested_status`, `reason`, `supporting_note`, `status`, `review_note`, `reviewed_at_utc`.
   - Constraints & Indexes: Partial unique index `uq_open_correction_request_per_record` (INV-05), `uq_open_leave_request_per_occurrence` (Section 38), composite index on university + status.
   - Dependencies: `008_attendance_core`, `011_campus_presence_anti_cheat`.
+- **`013_imports_reports_administration` (Applied Milestone 16)**:
+  - Tables: `import_jobs`, `import_staged_rows`.
+  - Foreign keys: `university_id`, `created_by_user_id`, `job_id`.
+  - Columns: `import_type`, `commit_mode`, `status`, `filename`, `file_hash`, `file_size_bytes`, `row_count`, `valid_count`, `warning_count`, `error_count`, `commit_count`, `summary_json`, `raw_data_json`, `normalized_data_json`, `action`, `errors_json`, `warnings_json`, `resolved_entity_id`, `resolved_entity_type`.
+  - Constraints & Indexes: Partial unique index `uq_single_active_committing_import` to prevent concurrent job commit collision, foreign key cascading deletion, composite tenant and status query indexes.
+  - Dependencies: `001_foundation_university`, `004_identity_users`.
 - **`023_corrections`**:
   - Tables: `corrections`
   - Foreign keys: `final_attendance_record_id`, `requested_by_user_id`, `reviewed_by_user_id`.

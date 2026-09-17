@@ -1,6 +1,7 @@
 """Reporting service for authoritative attendance calculation and threshold evaluations."""
 
 import uuid
+from decimal import Decimal
 from typing import Any
 
 from sqlalchemy import func, select
@@ -42,10 +43,15 @@ class ReportingService:
         threshold: float = DEFAULT_THRESHOLD,
         margin: float = DEFAULT_MARGIN,
     ) -> ThresholdStatus:
-        """Categorize an attendance percentage into neutral threshold states."""
-        if percentage >= threshold:
+        """Categorize an attendance percentage into neutral threshold states with
+        decimal-safe precision.
+        """
+        p = Decimal(str(round(percentage, 4)))
+        t = Decimal(str(round(threshold, 4)))
+        m = Decimal(str(round(margin, 4)))
+        if p >= t:
             return ThresholdStatus.ABOVE_THRESHOLD
-        elif percentage >= (threshold - margin):
+        elif p >= (t - m):
             return ThresholdStatus.NEAR_THRESHOLD
         else:
             return ThresholdStatus.BELOW_THRESHOLD
