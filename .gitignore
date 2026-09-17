@@ -134,3 +134,9 @@ docker-compose.override.yml
 backups/
 *.sql.gz
 *.sql.gz.sha256
+
+# Android build & download artifacts
+*.apk
+*.aab
+artifacts/
+
