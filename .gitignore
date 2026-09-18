@@ -50,6 +50,7 @@ apps/mobile/build/
 .packages
 
 # Android build artifacts
+.gradle/
 apps/mobile/android/.gradle/
 apps/mobile/android/.kotlin/
 .kotlin/
@@ -101,6 +102,8 @@ coverage.xml
 *.py,cover
 .hypothesis/
 .pytest_cache/
+.mypy_cache/
+.ruff_cache/
 cover/
 
 # IDE & Editor files
@@ -108,11 +111,19 @@ cover/
 !.vscode/extensions.json
 !.vscode/settings.json
 .idea/
+*.iml
+*.ipr
+*.iws
 *.swp
 *.swo
 *~
 *.sublime-project
 *.sublime-workspace
+
+# Google Project IDX
+.idx/*
+!.idx/dev.nix
+!.idx/icon.png
 
 # Operating System Files
 .DS_Store

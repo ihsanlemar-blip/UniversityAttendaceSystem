@@ -1,0 +1,185 @@
+name: Cloud Build & Verification
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+    inputs:
+      apk_type:
+        description: "Android APK target architecture"
+        required: true
+        default: "arm64"
+        type: choice
+        options:
+          - arm64
+          - universal
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ============================================================================
+  # 1. FastAPI Backend Verification & Linting
+  # ============================================================================
+  backend-build-check:
+    name: Backend Build & Lint Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r backend/requirements.txt
+          pip install -r backend/requirements-dev.txt
+
+      - name: Run Ruff Linter & Format Verification
+        run: |
+          ruff check backend/ scripts/
+          ruff format --check backend/ scripts/
+
+      - name: Run Mypy Static Type Checking
+        run: |
+          mypy backend
+
+  # ============================================================================
+  # 2. Next.js Web Frontend Build & Verification
+  # ============================================================================
+  web-build-check:
+    name: Web Frontend Build Check
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24 LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: "npm"
+          cache-dependency-path: apps/web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run TypeScript Typecheck
+        run: npm run type-check
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run Next.js Production Build
+        run: npm run build
+
+  # ============================================================================
+  # 3. Flutter Mobile Cloud APK Builder
+  # ============================================================================
+  mobile-apk-build:
+    name: Mobile Build & APK Package
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/mobile
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "17"
+
+      - name: Setup Flutter Stable
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          cache: true
+
+      - name: Cache Gradle Dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('apps/mobile/android/**/*.gradle*', 'apps/mobile/android/**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install Flutter dependencies
+        run: flutter pub get
+
+      - name: Verify Dart Formatting
+        run: dart format --output=none --set-exit-if-changed lib/ test/
+
+      - name: Run Flutter Static Analysis
+        run: flutter analyze
+
+      - name: Run Flutter Unit Tests
+        run: flutter test
+
+      - name: Build Android Debug APK
+        run: |
+          APK_TYPE="${{ github.event.inputs.apk_type || 'arm64' }}"
+          if [ "$APK_TYPE" = "universal" ]; then
+            echo "Building Universal Debug APK..."
+            flutter build apk --debug
+          else
+            echo "Building arm64 Debug APK..."
+            flutter build apk --debug --target-platform android-arm64
+          fi
+
+      - name: Stage & Hash APK Artifact
+        id: stage
+        run: |
+          SRC_APK="build/app/outputs/flutter-apk/app-debug.apk"
+          if [ ! -f "$SRC_APK" ]; then
+            echo "Error: Output APK not found at $SRC_APK" >&2
+            exit 1
+          fi
+
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          APK_TYPE="${{ github.event.inputs.apk_type || 'arm64' }}"
+          TARGET_NAME="UniversityAttendance-debug-${APK_TYPE}-${SHORT_SHA}.apk"
+          ARTIFACT_NAME="university-attendance-debug-${APK_TYPE}-${SHORT_SHA}"
+          STAGING_DIR="build/staged-apk"
+
+          mkdir -p "$STAGING_DIR"
+          cp "$SRC_APK" "$STAGING_DIR/$TARGET_NAME"
+
+          cd "$STAGING_DIR"
+          sha256sum "$TARGET_NAME" > "${TARGET_NAME}.sha256"
+          APK_HASH=$(cut -d' ' -f1 "${TARGET_NAME}.sha256")
+          APK_SIZE_HUMAN=$(du -h "$TARGET_NAME" | cut -f1)
+          cd - > /dev/null
+
+          echo "artifact_name=$ARTIFACT_NAME" >> $GITHUB_OUTPUT
+          echo "apk_filename=$TARGET_NAME" >> $GITHUB_OUTPUT
+          echo "apk_hash=$APK_HASH" >> $GITHUB_OUTPUT
+          echo "apk_size=$APK_SIZE_HUMAN" >> $GITHUB_OUTPUT
+          echo "staging_dir=$STAGING_DIR" >> $GITHUB_OUTPUT
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.stage.outputs.artifact_name }}
+          path: |
+            apps/mobile/${{ steps.stage.outputs.staging_dir }}/*.apk
+            apps/mobile/${{ steps.stage.outputs.staging_dir }}/*.sha256
+          retention-days: 7
+          if-no-files-found: error
